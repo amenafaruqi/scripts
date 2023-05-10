@@ -1,0 +1,11 @@
+axes.titlesize : 16
+axes.labelsize : 16
+lines.linewidth : 2
+lines.markersize : 8
+xtick.labelsize : 14
+ytick.labelsize : 14
+figure.dpi: 200
+legend.fontsize: large
+figure.constrained_layout.hspace: 0.05
+figure.constrained_layout.wspace: 0.05
+

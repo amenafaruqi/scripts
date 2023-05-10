@@ -1,0 +1,11 @@
+text.color: black
+#text.color: white
+axes.facecolor: white
+#axes.facecolor: black
+axes.edgecolor: lightgrey
+axes.labelcolor: white
+axes.titlecolor: white
+xtick.color: white
+ytick.color: white
+#figure.facecolor: black
+figure.facecolor: (1.0, 0.0, 0.0, 0.0)

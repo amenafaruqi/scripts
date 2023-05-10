@@ -1,0 +1,13 @@
+font.size :  14
+axes.titlesize : 22
+axes.labelsize : 22
+lines.linewidth : 2
+lines.markersize : 10
+xtick.labelsize : 20
+ytick.labelsize : 20
+font.sans-serif: Arial
+figure.dpi: 300
+legend.fontsize: large
+figure.constrained_layout.hspace: 0.08
+figure.constrained_layout.wspace: 0.08
+figure.constrained_layout.w_pad:  0.07
