@@ -2,15 +2,15 @@ import numpy as np
 import matplotlib.pyplot as plt
 import matplotlib
 import scipy.interpolate as interp
-# matplotlib.use('TkAgg')
+matplotlib.use('TkAgg')
 plt.style.use('default')
-plt.style.use(['../styles/publication.mplstyle'])
+# plt.style.use(['../styles/publication.mplstyle'])
 
 timesteps = np.array([1e-3, 5e-3, 1e-2, 5e-2, 1e-1, 5e-1, 1])
 print(timesteps)
 
 # ================== Read in data at timesteps =======================
-sim =  "Birnstiel2012_lowalpha_morebins"
+sim =  "planettest"
 simdir = f"/home/astro/phrkvg/simulations/{sim}/"
 params_file = f'{simdir}/variables.par'
 params_dict = {}
@@ -31,7 +31,7 @@ nphi = int(params_dict['NX'])
 nrad = int(params_dict['NY'])
 rhodust = float(params_dict['RHO_DUST'])
 f = float(params_dict['FLARINGINDEX'])
-hr = float(params_dict['ASPECTRATIO'])
+hr0 = float(params_dict['ASPECTRATIO'])      # aspect ratio at R=1AU
 ndust = int(params_dict['NDUST'])
 alpha = float(params_dict['ALPHA'])
 mingsize = float(params_dict['MIN_GRAIN_SIZE'])
@@ -47,22 +47,26 @@ a = np.logspace(np.log10(mingsize),
 
 a = (0.5*(a[1:] + a[:-1]))                                       # convert cm to um by multiplying by 1e4
 r_cells = np.loadtxt(f'{simdir}/domain_y.dat')[3:-3]             # ignore ghost cells
+phi_cells = np.loadtxt(f'{simdir}/domain_x.dat')[3:-3]
 radii = np.array([(r_cells[n]+r_cells[n+1])/2 for n in range(len(r_cells)-1)])
+phis = np.array([(phi_cells[n]+phi_cells[n+1])/2 for n in range(len(phi_cells)-1)])
 
-sigma_gas = np.zeros((len(timesteps), nrad))
-sigma_dust = np.zeros((len(timesteps), ndust, nrad))
- 
+sigma_gas = np.zeros((len(timesteps), nrad, nphi))
+sigma_gas_azimsum = np.sum(sigma_gas, axis=2)                    # sum over all phi   
+
+sigma_dust = np.zeros((len(timesteps), ndust, nrad, nphi))
+sigma_dust_azimsum = np.sum(sigma_dust, axis=3)
+
 for i,t in enumerate(timesteps*1000):
     gasfile = f"gasdens{int(t)}.dat" 
-    sigma_gas[i] = np.fromfile(simdir+gasfile)/(1.125e-7)         # convert back to g/cm2
-    dust_sigma_n = np.zeros((nrad))
+    sigma_gas[i] = np.fromfile(simdir+gasfile).reshape(nrad,nphi)/(1.125e-7)         # convert back to g/cm2
     for n in np.arange(ndust):
         dust_file = f"dustdens{n}_{int(t)}.dat" 
-        sigma_dust[i,n] = np.fromfile(simdir+dust_file)/(1.125e-7)
-    print(f"t={t}: ", np.min(sigma_dust[i]), np.max(sigma_dust[i]))
+        sigma_dust[i,n] = np.fromfile(simdir+dust_file).reshape(nrad,nphi)/(1.125e-7)
+    print(f"t={t}: ", np.min(sigma_dust_azimsum[i]), np.max(sigma_dust_azimsum[i]))
 
 
-sigma_dust_tot = np.sum(sigma_dust, axis=1)
+sigma_dust_tot = np.sum(sigma_dust_azimsum, axis=1)
 
 # ======================== Data arrays initialised ==============================
 
@@ -92,7 +96,7 @@ def sigma_at_r(r=10, t_index=-1):
 # ax.set_title('t = 1 Myr')
 # ax.legend()
 # # ax.set_title("NumSubsteps_Coag="+str(nss_coag))
-# fig.savefig(f"{sim}_sigmaatr.png")
+# fig.savefig(f"./images/{sim}_sigmaatr.png")
 
 # ======================= Fig 1, Birnstiel et al. 2012 ==============================
 
@@ -106,16 +110,19 @@ a_St1 = (2/np.pi)*(sigma_gas/rhodust)             # plot St=1 line
 fd = 0.55
 ff = 0.37
 uf = 10
+
 # size of largest grains in a fragmentation-dominated distribution
-a_frag = 100*ff*(2/(3*np.pi))*((uf**2)/(rhodust*1000*alpha))*(hr**-2)*(sigma_gas*10/((2e30)*(6.67e-11)))*(radii*1.5e11)*(radii)**(-2*f)
+a_frag = 100*ff*(2/(3*np.pi))*((uf**2)/(rhodust*1000*alpha))*(hr0**-2)*(sigma_gas_azimsum*10/((2e30)*(6.67e-11)))*(radii*1.5e11)*(radii)**(-2*f)
+# p = sigma_gas * OmegaK * cs / np.sqrt(2.*np.pi)
+
 # size of largest grains in a drift-dominated distribution
-a_drift = 100*fd*(2/(rhodust*1000*np.pi))*(hr**-2)*sigma_dust_tot*10*(2/3)*((radii)**(-2*f))
+a_drift = 100*fd*(2/(rhodust*1000*np.pi))*(hr0**-2)*sigma_dust_tot*10*(2/3)*((radii)**(-2*f))
 # (factor of 100 to convert from m to cm)
 
 
 for i, t in enumerate(timesteps):
     ax0 = fig0.add_subplot(plotsizey, plotsizex, i+1)
-    sigmas = sigma_dust[i]
+    sigmas = sigma_dust_azimsum[i]
     c = ax0.contourf(R, A, np.log10(sigmas), cmap="Greys", levels=levels)
     ax0.set_ylim(1e-4, 1e2)
     ax0.set_xscale("log")
@@ -145,14 +152,14 @@ fig0.colorbar(c, cax=cbar_ax, orientation="vertical", label="log$[\Sigma (g/cm^{
 
 ax0.legend(loc="upper right")
 
-fig0.savefig(f"{sim}_contour.png")
+fig0.savefig(f"./images/{sim}_contour.png")
 
 # ======================= Fig 8, Birnstiel et al. 2012 =========================
 fig1, ax1 = plt.subplots(figsize=(7,6))
 ax1.set_prop_cycle(color=[cm(1.*i/8) for i in range(0,len(timesteps)+1)])
 
 for i,t in enumerate(timesteps):
-    dustgasratio = sigma_dust_tot[i]/sigma_gas[i]
+    dustgasratio = sigma_dust_tot[i]/sigma_gas_azimsum[i]
     ax1.plot(radii, dustgasratio, label=f"t={t} Myr")
 
 ax1.legend()
@@ -163,7 +170,7 @@ ax1.set_xscale("log")
 ax1.set_yscale("log")
 
 fig1.tight_layout()
-fig1.savefig(f"{sim}_dustgasratio.png")
+fig1.savefig(f"./images/{sim}_dustgasratio.png")
 
 
 # ================== Gas Sigma Profile ===================
@@ -172,17 +179,17 @@ fig2, ax2 = plt.subplots(figsize=(7,6))
 ax2.set_prop_cycle(color=[cm(1.*i/8) for i in range(0,len(timesteps)+1)])
 
 for i, t in enumerate(timesteps):
-    ax2.plot(radii, sigma_gas[i], label=f"{t} Myr")
+    ax2.plot(radii, sigma_gas_azimsum[i], label=f"{t} Myr")
     ax2.legend()
     ax2.set_xlabel("R (AU)")
     ax2.set_ylabel("$\Sigma_{{gas}} (g/cm^{{2}})$")
     ax2.set_xscale("log")
     ax2.set_yscale("log")
 ax2.set_xlim(np.min(radii), np.max(radii))
-ax2.set_ylim(np.min(sigma_gas), np.max(sigma_gas))
+ax2.set_ylim(np.min(sigma_gas_azimsum), np.max(sigma_gas_azimsum))
 
 fig2.tight_layout()
-fig2.savefig(f"{sim}_sigmagas.png")
+fig2.savefig(f"./images/{sim}_sigmagas.png")
 
 # ================== Dust sigma evolution over time (for different a) ===================
 
@@ -210,8 +217,10 @@ for i, t in enumerate(timesteps):
     c = next(ax3._get_lines.prop_cycler)['color']
     sigma_at_100, mini100, maxi100 = sigma_at_r(100, i)
     ax3.plot(a, sigma_at_100, linestyle='solid', label=f"t={t} Myr", color=c)
-    # print(np.median(a_frag[i, mini100:maxi100]))
-    # ax3.axvline(np.median(a_frag[i, mini100:maxi100]), linestyle='dashed', color=c)
+    # a_frag100 = np.median(a_frag[i, mini100:maxi100])
+    # a_drift100 = np.median(a_drift[i, mini100:maxi100])
+    # a1 = np.min(a_frag100, a_drift100)
+    # ax3.axvline(a1, linestyle='dashed', color=c)
 
 ax3.set_xlabel("a (cm) ")
 ax3.set_xscale("log")
@@ -226,7 +235,7 @@ ax3.legend()
 # ax3.set_title(sim)
 fig3.tight_layout()
 
-fig3.savefig(f"{sim}_sigmaatr_timeevo.png")
+fig3.savefig(f"./images/{sim}_sigmaatr_timeevo.png")
 
 # ================= Total  dust sigma evolution over time  ===============
 
@@ -304,6 +313,6 @@ fig4.tight_layout()
 
 # =========================================================================
 
-# plt.show()
+plt.show()
 
 
