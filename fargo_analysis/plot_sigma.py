@@ -6,7 +6,7 @@ matplotlib.use('TkAgg')
 plt.style.use('default')
 # plt.style.use(['../styles/publication.mplstyle'])
 
-timesteps = np.array([1e-3, 5e-3, 1e-2, 5e-2, 1e-1, 5e-1, 1, 3])
+timesteps = np.array([1e-3, 5e-3, 1e-2, 5e-2, 1e-1, 5e-1, 1, 3])  # specify in Myr
 print(timesteps)
 
 # ================== Read in data at timesteps =======================
@@ -19,7 +19,6 @@ plotsizex = 4
 plotsizey = int(len(timesteps)/plotsizex)+1
 
 cm = plt.get_cmap('gist_rainbow')
-
 
 param_lines = open(params_file).readlines()
 for line in param_lines:
@@ -38,7 +37,11 @@ mingsize = float(params_dict['MIN_GRAIN_SIZE'])
 maxgsize = float(params_dict['MAX_GRAIN_SIZE'])
 nss_coag = int(params_dict['NUMSUBSTEPS_COAG'])
 densfloor = float(params_dict['DENSITY_FLOOR'])
+dt_orbits = int(float(params_dict['DT'])/(2*np.pi))   # 2pi = 1 orbit = 1 yr
+ninterm = float(params_dict['NINTERM'])               # number of dts between outputs
+dt_outputs = dt_orbits*ninterm                        # time between outputs
 
+outputs = timesteps*1e6/dt_outputs
 
 # FARGO initialises grains with sizes uniformly distributed across ndust bins in logspace
 a = np.logspace(np.log10(mingsize),    
@@ -57,7 +60,7 @@ sigma_gas_azimsum = np.sum(sigma_gas, axis=2)                    # sum over all 
 sigma_dust = np.zeros((len(timesteps), ndust, nrad, nphi))
 sigma_dust_azimsum = np.sum(sigma_dust, axis=3)
 
-for i,t in enumerate(timesteps*1000):
+for i,t in enumerate(outputs):
     gasfile = f"gasdens{int(t)}.dat" 
     sigma_gas[i] = np.fromfile(simdir+gasfile).reshape(nrad,nphi)/(1.125e-7)         # convert back to g/cm2
     for n in np.arange(ndust):
