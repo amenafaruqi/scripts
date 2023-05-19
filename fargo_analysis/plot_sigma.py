@@ -6,7 +6,7 @@ matplotlib.use('TkAgg')
 plt.style.use('default')
 # plt.style.use(['../styles/publication.mplstyle'])
 
-timesteps = np.array([1e-3, 5e-3, 1e-2, 5e-2, 1e-1, 5e-1, 1])
+timesteps = np.array([1e-3, 5e-3, 1e-2, 5e-2, 1e-1, 5e-1, 1, 3])
 print(timesteps)
 
 # ================== Read in data at timesteps =======================
@@ -80,23 +80,23 @@ def sigma_at_r(r=10, t_index=-1):
 
 # ============ Fig 13, Brauer et al. 2008 / Fig 5, Birnstiel et al. 2012 ================
 
-# fig, ax = plt.subplots(1, dpi=150)
+fig, ax = plt.subplots(1, dpi=150)
 
-# sigma_a_10au  = sigma_at_r(10)
-# sigma_a_100au  = sigma_at_r(100)
-# ax.plot(a, sigma_a_10au, label="R=10 AU")
-# ax.plot(a, sigma_a_100au, label="R=100 AU")
-# # ax.set_ylim(1e-12, 1e-2)
-# # ax.set_xlim(2e-5, 1e2)
-# ax.set_xlim(np.min(a), np.max(a))
-# ax.set_xlabel("a (cm)")
-# ax.set_ylabel("$\Sigma$ (g/cm$^{2}$)")
-# ax.set_xscale("log")
-# ax.set_yscale("log")
-# ax.set_title('t = 1 Myr')
-# ax.legend()
-# # ax.set_title("NumSubsteps_Coag="+str(nss_coag))
-# fig.savefig(f"./images/{sim}_sigmaatr.png")
+sigma_a_10au  = sigma_at_r(10)
+sigma_a_100au  = sigma_at_r(100)
+ax.plot(a, sigma_a_10au, label="R=10 AU")
+ax.plot(a, sigma_a_100au, label="R=100 AU")
+# ax.set_ylim(1e-12, 1e-2)
+# ax.set_xlim(2e-5, 1e2)
+ax.set_xlim(np.min(a), np.max(a))
+ax.set_xlabel("a (cm)")
+ax.set_ylabel("$\Sigma$ (g/cm$^{2}$)")
+ax.set_xscale("log")
+ax.set_yscale("log")
+ax.set_title('t = 1 Myr')
+ax.legend()
+# ax.set_title("NumSubsteps_Coag="+str(nss_coag))
+fig.savefig(f"./images/{sim}_sigmaatr.png")
 
 # ======================= Fig 1, Birnstiel et al. 2012 ==============================
 
@@ -110,15 +110,21 @@ a_St1 = (2/np.pi)*(sigma_gas/rhodust)             # plot St=1 line
 fd = 0.55
 ff = 0.37
 uf = 10
+hr = hr0*(radii**f)
+cs = hr*(((2e30)*(6.67e-11))/(radii*1.5e11))**0.5
 
-# size of largest grains in a fragmentation-dominated distribution
-a_frag = 100*ff*(2/(3*np.pi))*((uf**2)/(rhodust*1000*alpha))*(hr0**-2)*(sigma_gas_azimsum*10/((2e30)*(6.67e-11)))*(radii*1.5e11)*(radii)**(-2*f)
-# p = sigma_gas * OmegaK * cs / np.sqrt(2.*np.pi)
+# size of largest grains in a fragmentation-dominated distribution (convert everything to cm and g)
+# a_frag = 100*ff*(2/(3*np.pi))*((uf**2)/(rhodust*1000*alpha))*(hr**-2)*(sigma_gas*10/((2e30)*(6.67e-11)))*(radii*1.5e11)  # from Birnstiel+2012
+b = (uf**2/alpha)*(hr**-2)*(radii*1.5e11)/((2e30)*(6.67e-11)) # dimensionless
+a_frag = (sigma_gas/rhodust)*(3-(9-4*(b**2))**0.5)/(np.pi*b)  # factor of 100 to convert from m to cm
 
 # size of largest grains in a drift-dominated distribution
-a_drift = 100*fd*(2/(rhodust*1000*np.pi))*(hr0**-2)*sigma_dust_tot*10*(2/3)*((radii)**(-2*f))
-# (factor of 100 to convert from m to cm)
+# a_drift = 100*(2/(rhodust*1000*np.pi))*(hr**-2)*sigma_dust_tot*10*(2/3)   # from Birnstiel+2012
 
+p = (sigma_gas*(cs**2)/((2*np.pi)**0.5))*(hr**-1)*((radii*1.5e11)**-1)
+pad = np.empty((len(timesteps), 1))
+gamma = (radii/p)*np.abs(np.append(np.diff(p)/np.diff(radii), pad, axis=1))
+a_drift = (2/np.pi)*(sigma_dust_tot/rhodust)*(1/gamma)*(hr**-2)
 
 for i, t in enumerate(timesteps):
     ax0 = fig0.add_subplot(plotsizey, plotsizex, i+1)
@@ -147,9 +153,7 @@ fig0.tight_layout()
 
 fig0.subplots_adjust(right=0.89, hspace=0.3)
 cbar_ax = fig0.add_axes([0.91, 0.53, 0.02, 0.4])
-
 fig0.colorbar(c, cax=cbar_ax, orientation="vertical", label="log$[\Sigma (g/cm^{{2}})]$")
-
 ax0.legend(loc="upper right")
 
 fig0.savefig(f"./images/{sim}_contour.png")
@@ -193,20 +197,20 @@ fig2.savefig(f"./images/{sim}_sigmagas.png")
 
 # ================== Dust sigma evolution over time (for different a) ===================
 
-# fig3 = plt.figure(figsize=(14,7))
+fig3 = plt.figure(figsize=(14,7))
 
-# for i, t in enumerate(timesteps):
-#     ax3 = fig3.add_subplot(plotsizey, plotsizex, i+1)
-#     ax3.plot(a, sigma_at_r(100, i), label="R = 100 AU")
-#     ax3.plot(a, sigma_at_r(10, i), label="R = 10 AU")
-#     ax3.set_ylim(1e-12, 5e-1)
-#     ax3.set_xlim(1e-5, 1e1)
-#     ax3.set_xlabel("a (cm) ")
-#     ax3.set_xscale("log")
-#     ax3.set_yscale("log")
-#     ax3.set_title(f"t={round(t,3)} Myr")
-#     if not i%plotsizex:
-#         ax3.set_ylabel("$\Sigma_{{dust}} (g/cm^{{2}})$")
+for i, t in enumerate(timesteps):
+    ax3 = fig3.add_subplot(plotsizey, plotsizex, i+1)
+    ax3.plot(a, sigma_at_r(100, i), label="R = 100 AU")
+    ax3.plot(a, sigma_at_r(10, i), label="R = 10 AU")
+    ax3.set_ylim(1e-12, 5e-1)
+    ax3.set_xlim(1e-5, 1e1)
+    ax3.set_xlabel("a (cm) ")
+    ax3.set_xscale("log")
+    ax3.set_yscale("log")
+    ax3.set_title(f"t={round(t,3)} Myr")
+    if not i%plotsizex:
+        ax3.set_ylabel("$\Sigma_{{dust}} (g/cm^{{2}})$")
 
 
 
