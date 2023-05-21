@@ -2,15 +2,15 @@ import numpy as np
 import matplotlib.pyplot as plt
 import matplotlib
 import scipy.interpolate as interp
-matplotlib.use('TkAgg')
+# matplotlib.use('TkAgg')
 plt.style.use('default')
-# plt.style.use(['../styles/publication.mplstyle'])
+plt.style.use(['../styles/publication.mplstyle'])
 
-timesteps = np.array([1e-3, 5e-3, 1e-2, 5e-2, 1e-1, 5e-1, 1, 3])  # specify in Myr
+timesteps = np.array([1e-3, 5e-3, 1e-2, 2e-2])  # specify in Myr
 print(timesteps)
 
 # ================== Read in data at timesteps =======================
-sim =  "planettest"
+sim =  "Birnstiel2012_v2"
 simdir = f"/home/astro/phrkvg/simulations/{sim}/"
 params_file = f'{simdir}/variables.par'
 params_dict = {}
@@ -55,10 +55,7 @@ radii = np.array([(r_cells[n]+r_cells[n+1])/2 for n in range(len(r_cells)-1)])
 phis = np.array([(phi_cells[n]+phi_cells[n+1])/2 for n in range(len(phi_cells)-1)])
 
 sigma_gas = np.zeros((len(timesteps), nrad, nphi))
-sigma_gas_azimsum = np.sum(sigma_gas, axis=2)                    # sum over all phi   
-
 sigma_dust = np.zeros((len(timesteps), ndust, nrad, nphi))
-sigma_dust_azimsum = np.sum(sigma_dust, axis=3)
 
 for i,t in enumerate(outputs):
     gasfile = f"gasdens{int(t)}.dat" 
@@ -66,40 +63,42 @@ for i,t in enumerate(outputs):
     for n in np.arange(ndust):
         dust_file = f"dustdens{n}_{int(t)}.dat" 
         sigma_dust[i,n] = np.fromfile(simdir+dust_file).reshape(nrad,nphi)/(1.125e-7)
-    print(f"t={t}: ", np.min(sigma_dust_azimsum[i]), np.max(sigma_dust_azimsum[i]))
+    # print(f"t={t}: ", np.min(sigma_dust_azimsum[i]), np.max(sigma_dust_azimsum[i]))
 
 
-sigma_dust_tot = np.sum(sigma_dust_azimsum, axis=1)
+sigma_dust_azimsum = np.sum(sigma_dust, axis=3)                  # sum over all phi 
+sigma_gas_azimsum = np.sum(sigma_gas, axis=2)                    # sum over all phi   
+sigma_dust_tot = np.sum(sigma_dust_azimsum, axis=1)              # sum over all dust sizes
 
 # ======================== Data arrays initialised ==============================
 
 def sigma_at_r(r=10, t_index=-1):
-    r_in_range = radii[(r*0.8<radii) & (radii<r*1.2)]          # values of r within % of chosen radius
+    r_in_range = radii[(r*0.8<radii) & (radii<r*1.2)]                # values of r within % of chosen radius
     mini = np.where(radii == np.min(r_in_range))[0][0]
     maxi = np.where(radii == np.max(r_in_range))[0][0]
-    sigma_in_r_range = sigma_dust[t_index, :, mini:maxi]       # for chosen timestep, all grain sizes
-    sigma_at_r0 = np.median(sigma_in_r_range, axis=1)            # avg sigma at chosen radius for all grain sizes
+    sigma_in_r_range = sigma_dust_azimsum[t_index, :, mini:maxi]     # for chosen timestep, all grain sizes
+    sigma_at_r0 = np.median(sigma_in_r_range, axis=1)                # avg sigma at chosen radius for all grain sizes
     return sigma_at_r0, mini, maxi
 
 # ============ Fig 13, Brauer et al. 2008 / Fig 5, Birnstiel et al. 2012 ================
 
-fig, ax = plt.subplots(1, dpi=150)
+# fig, ax = plt.subplots(1, dpi=150)
 
-sigma_a_10au  = sigma_at_r(10)
-sigma_a_100au  = sigma_at_r(100)
-ax.plot(a, sigma_a_10au, label="R=10 AU")
-ax.plot(a, sigma_a_100au, label="R=100 AU")
-# ax.set_ylim(1e-12, 1e-2)
-# ax.set_xlim(2e-5, 1e2)
-ax.set_xlim(np.min(a), np.max(a))
-ax.set_xlabel("a (cm)")
-ax.set_ylabel("$\Sigma$ (g/cm$^{2}$)")
-ax.set_xscale("log")
-ax.set_yscale("log")
-ax.set_title('t = 1 Myr')
-ax.legend()
-# ax.set_title("NumSubsteps_Coag="+str(nss_coag))
-fig.savefig(f"./images/{sim}_sigmaatr.png")
+# sigma_a_10au  = sigma_at_r(10)
+# sigma_a_100au  = sigma_at_r(100)
+# ax.plot(a, sigma_a_10au, label="R=10 AU")
+# ax.plot(a, sigma_a_100au, label="R=100 AU")
+# # ax.set_ylim(1e-12, 1e-2)
+# # ax.set_xlim(2e-5, 1e2)
+# ax.set_xlim(np.min(a), np.max(a))
+# ax.set_xlabel("a (cm)")
+# ax.set_ylabel("$\Sigma$ (g/cm$^{2}$)")
+# ax.set_xscale("log")
+# ax.set_yscale("log")
+# ax.set_title('t = 1 Myr')
+# ax.legend()
+# # ax.set_title("NumSubsteps_Coag="+str(nss_coag))
+# fig.savefig(f"./images/{sim}_sigmaatr.png")
 
 # ======================= Fig 1, Birnstiel et al. 2012 ==============================
 
@@ -116,15 +115,16 @@ uf = 10
 hr = hr0*(radii**f)
 cs = hr*(((2e30)*(6.67e-11))/(radii*1.5e11))**0.5
 
-# size of largest grains in a fragmentation-dominated distribution (convert everything to cm and g)
+# size of largest grains in a fragmentation-dominated distribution
 # a_frag = 100*ff*(2/(3*np.pi))*((uf**2)/(rhodust*1000*alpha))*(hr**-2)*(sigma_gas*10/((2e30)*(6.67e-11)))*(radii*1.5e11)  # from Birnstiel+2012
+
 b = (uf**2/alpha)*(hr**-2)*(radii*1.5e11)/((2e30)*(6.67e-11)) # dimensionless
-a_frag = (sigma_gas/rhodust)*(3-(9-4*(b**2))**0.5)/(np.pi*b)  # factor of 100 to convert from m to cm
+a_frag = (sigma_gas_azimsum/rhodust)*(3-(9-4*(b**2))**0.5)/(np.pi*b)
 
 # size of largest grains in a drift-dominated distribution
 # a_drift = 100*(2/(rhodust*1000*np.pi))*(hr**-2)*sigma_dust_tot*10*(2/3)   # from Birnstiel+2012
 
-p = (sigma_gas*(cs**2)/((2*np.pi)**0.5))*(hr**-1)*((radii*1.5e11)**-1)
+p = (sigma_gas_azimsum*(cs**2)/((2*np.pi)**0.5))*(hr**-1)*((radii*1.5e11)**-1)
 pad = np.empty((len(timesteps), 1))
 gamma = (radii/p)*np.abs(np.append(np.diff(p)/np.diff(radii), pad, axis=1))
 a_drift = (2/np.pi)*(sigma_dust_tot/rhodust)*(1/gamma)*(hr**-2)
@@ -200,49 +200,29 @@ fig2.savefig(f"./images/{sim}_sigmagas.png")
 
 # ================== Dust sigma evolution over time (for different a) ===================
 
-fig3 = plt.figure(figsize=(14,7))
+# fig3, ax3 = plt.subplots(figsize=(9,6))
+# ax3.set_prop_cycle(color=[cm(1.*i/8) for i in range(0,len(timesteps)+1)])
 
-for i, t in enumerate(timesteps):
-    ax3 = fig3.add_subplot(plotsizey, plotsizex, i+1)
-    ax3.plot(a, sigma_at_r(100, i), label="R = 100 AU")
-    ax3.plot(a, sigma_at_r(10, i), label="R = 10 AU")
-    ax3.set_ylim(1e-12, 5e-1)
-    ax3.set_xlim(1e-5, 1e1)
-    ax3.set_xlabel("a (cm) ")
-    ax3.set_xscale("log")
-    ax3.set_yscale("log")
-    ax3.set_title(f"t={round(t,3)} Myr")
-    if not i%plotsizex:
-        ax3.set_ylabel("$\Sigma_{{dust}} (g/cm^{{2}})$")
+# for i, t in enumerate(timesteps):
+#     c = next(ax3._get_lines.prop_cycler)['color']
+#     sigma_at_100, mini100, maxi100 = sigma_at_r(100, i)
+#     ax3.plot(a, sigma_at_100, linestyle='solid', label=f"t={t} Myr", color=c)
+#     # a_frag100 = np.median(a_frag[i, mini100:maxi100])
+#     # a_drift100 = np.median(a_drift[i, mini100:maxi100])
+#     # a1 = np.min(a_frag100, a_drift100)
+#     # ax3.axvline(a1, linestyle='dashed', color=c)
 
+# ax3.set_xlabel("a (cm) ")
+# ax3.set_xscale("log")
+# ax3.set_yscale("log")
+# ax3.set_xlim(np.min(a), np.max(a))
+# ax3.set_ylim(densfloor/(1.125e-7),)
+# ax3.set_ylabel("$\Sigma_{{dust}} (g/cm^{{2}})$ at R=100AU")
+# ax3.legend()
 
-
-fig3, ax3 = plt.subplots(figsize=(9,6))
-ax3.set_prop_cycle(color=[cm(1.*i/8) for i in range(0,len(timesteps)+1)])
-
-for i, t in enumerate(timesteps):
-    c = next(ax3._get_lines.prop_cycler)['color']
-    sigma_at_100, mini100, maxi100 = sigma_at_r(100, i)
-    ax3.plot(a, sigma_at_100, linestyle='solid', label=f"t={t} Myr", color=c)
-    # a_frag100 = np.median(a_frag[i, mini100:maxi100])
-    # a_drift100 = np.median(a_drift[i, mini100:maxi100])
-    # a1 = np.min(a_frag100, a_drift100)
-    # ax3.axvline(a1, linestyle='dashed', color=c)
-
-ax3.set_xlabel("a (cm) ")
-ax3.set_xscale("log")
-ax3.set_yscale("log")
-ax3.set_xlim(np.min(a), np.max(a))
-ax3.set_ylim(densfloor/(1.125e-7),)
-
-ax3.set_ylabel("$\Sigma_{{dust}} (g/cm^{{2}})$ at R=100AU")
-
-ax3.legend()
-
-# ax3.set_title(sim)
-fig3.tight_layout()
-
-fig3.savefig(f"./images/{sim}_sigmaatr_timeevo.png")
+# # ax3.set_title(sim)
+# fig3.tight_layout()
+# fig3.savefig(f"./images/{sim}_sigmaatr_timeevo.png")
 
 # ================= Total  dust sigma evolution over time  ===============
 
@@ -320,6 +300,6 @@ fig4.tight_layout()
 
 # =========================================================================
 
-plt.show()
+# plt.show()
 
 
