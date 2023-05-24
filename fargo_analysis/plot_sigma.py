@@ -6,11 +6,11 @@ import scipy.interpolate as interp
 plt.style.use('default')
 plt.style.use(['../styles/publication.mplstyle'])
 
-timesteps = np.array([1e-3, 5e-3, 1e-2, 2e-2])  # specify in Myr
+timesteps = np.array([1e-3, 1e-2, 1e-1, 4.7e-1])  # specify in Myr
 print(timesteps)
 
 # ================== Read in data at timesteps =======================
-sim =  "Birnstiel2012_v2"
+sim =  "planettest"
 simdir = f"/home/astro/phrkvg/simulations/{sim}/"
 params_file = f'{simdir}/variables.par'
 params_dict = {}
@@ -108,7 +108,7 @@ R, A = np.meshgrid(radii, a)
 # levels = np.linspace(-11,1,7)                   # Brauer 2008 levels
 # levels = np.linspace(-7, 2, 10)                  # Birnstiel 2012 levels 
 levels = np.linspace(-18, 2, 11)                   
-a_St1 = (2/np.pi)*(sigma_gas/rhodust)             # plot St=1 line
+a_St1 = (2/np.pi)*(sigma_gas_azimsum/rhodust)             # plot St=1 line
 fd = 0.55
 ff = 0.37
 uf = 10

@@ -19,14 +19,26 @@ import matplotlib.ticker as mtick
 #____________________________________PLOTTING FUNCTIONS ____________________________________#         \
                                                                                                        
 # Plot the dust surface mass density at any one time                                                   
-def dust_surf_dens(nphi,nrad,dustnum,outputnumber,plottype,lin_scaling,plot_gas,beam):
+def dust_surf_dens(simdir,dustnum,outputnumber,plottype,lin_scaling,plot_gas,beam):
 # Plots a 2D graph of the dust surface density                                                             
     if plot_gas in ["no", "n"]:
-        filepath = 'link/dustdens'+str(dustnum)+'_'+str(outputnumber)+'.dat'
+        filepath = f'/home/astro/phrkvg/simulations/{simdir}/dustdens{dustnum}_{outputnumber}.dat'
     else:
-        filepath = 'link/gasdens'+str(outputnumber)+'.dat'
+        filepath = f'/home/astro/phrkvg/simulations/{simdir}/gasdens{outputnumber}.dat'
+
+    params_file = f'/home/astro/phrkvg/simulations/{simdir}/variables.par'
+    params_dict = {}
+    param_lines = open(params_file).readlines()
+    for line in param_lines:
+        if line.split():
+            param_label, param_value = line.split()[0:2]
+            params_dict.update([(param_label, param_value)])
+
+    nphi = int(params_dict['NX'])
+    nrad = int(params_dict['NY'])
 
     surfdens = fromfile(filepath).reshape(nrad,nphi)
+    cbmin, cbmax = np.min(surfdens), np.max(surfdens)
 #    nx_array = 
 #    ny_array = 
 #    r = 0.5+2.5/ny*ny_array
@@ -40,11 +52,11 @@ def dust_surf_dens(nphi,nrad,dustnum,outputnumber,plottype,lin_scaling,plot_gas,
 
     if (plottype == "pcontour"):
         phi = linspace(0,2*pi,nphi+1)
-        radii=loadtxt('link/used_rad.dat')
+        radii=loadtxt('/home/astro/phrkvg/simulations/planettest/used_rad.dat')
         r,theta=meshgrid(radii,phi)
         
         dens_first_wedge = surfdens[:,0].reshape(nrad,1)
-        print dens_first_wedge.shape
+        print(dens_first_wedge.shape)
         dens_additional = concatenate((surfdens[:,:],dens_first_wedge),axis=1)
 
         x = r*cos(theta)
@@ -71,12 +83,11 @@ def dust_surf_dens(nphi,nrad,dustnum,outputnumber,plottype,lin_scaling,plot_gas,
                 cbar_label = 'log gas surface density [code units]'
 
         cbar = colorbar()
-
         cbar.set_label(cbar_label,color='black')
 
 #        cbar.ax.yaxis.set_tick_params(color='white')
 #        cbar.ax.yaxis.set_major_formatter(mtick.FormatStrFormatter('%.1e'))
-        plt.setp(plt.getp(cbar.ax.axes, 'yticklabels'))#, color='w')
+        # plt.setp(plt.getp(cbar.ax.axes, 'yticklabels'))#, color='w')
 #        cbar.ax.set_xticklabels(color='white')
 #        cbar.ax.get_ticklabels('white')
 #        spines['top'].set_color('red')
@@ -86,12 +97,12 @@ def dust_surf_dens(nphi,nrad,dustnum,outputnumber,plottype,lin_scaling,plot_gas,
         
 
 #        ax1 = plt.gca()
-        ax = fig.add_subplot(111)
-        plt.axis('scaled')
-        ax.set_xlabel('x [code units]')
-        ax.set_ylabel('y [code units]')
-        ax.set_xlim([-1.3,1.3])
-        ax.set_ylim([-1.3,1.3])
+        # ax = fig.add_subplot(111)
+        # plt.axis('scaled')
+        # ax.set_xlabel('x [code units]')
+        # ax.set_ylabel('y [code units]')
+        # ax.set_xlim([-1.3,1.3])
+        # ax.set_ylim([-1.3,1.3])
 #        ax.tick_params(axis='y', which='both', color='w')
 #        ax.xaxis.label.set_color('white')
 #        ax.yaxis.label.set_color('white')
@@ -144,7 +155,7 @@ def dust_surf_dens(nphi,nrad,dustnum,outputnumber,plottype,lin_scaling,plot_gas,
 #            r_celledge.append(
 
         rcell = [None] * (len(radii)-1)
-        for i in xrange(len(radii)-1):
+        for i in range(len(radii)-1):
 #            rcell[i] = (radii[i]*radii[i+1])**0.5
             rcell[i] = (radii[i]+radii[i+1])/2.
 
@@ -153,11 +164,11 @@ def dust_surf_dens(nphi,nrad,dustnum,outputnumber,plottype,lin_scaling,plot_gas,
 
 #        ax2.plot(rcell,sigmad_azi)
  
-        for i in xrange(4):
+        for i in range(4):
             j = int(nphi/4.*i)
 #            print nx/4.*i, j
             surfdensi = [None]*nrad
-            for k in xrange(nrad):
+            for k in range(nrad):
 #                print "inside k = ",k
 #                print surfdens
 #                surfdens = []
@@ -187,8 +198,8 @@ def dust_surf_dens(nphi,nrad,dustnum,outputnumber,plottype,lin_scaling,plot_gas,
             fig3 = plt.figure()
             ax3 = fig3.add_subplot(111) 
 #            plt.pcolormesh(x,y,log10(dens_additional.T),cmap=cm.Oranges_r,vmin=cbmin,vmax=cbmax)
-            print image
-            print type(image), len(image), shape(image), shape(x), shape(y), shape(x_im), shape(y_im)
+            print(image)
+            print(type(image), len(image), shape(image), shape(x), shape(y), shape(x_im), shape(y_im))
             plt.pcolormesh(-x_im,-y_im,log10(convolved),cmap=cm.Oranges_r,vmin=cbmin,vmax=cbmax)
 #            plt.contourf(image, levels=10)
             ax3.set_xlim([-2.5,2.5])
@@ -200,22 +211,20 @@ def dust_surf_dens(nphi,nrad,dustnum,outputnumber,plottype,lin_scaling,plot_gas,
 
     else:
         plt.figure()
-        imshow(log10(surfdens),origin='lower',cmap=cm.Oranges_r,aspect='auto')#,vmin=cbmin,vmax=cbmax)
-
+        imshow(log10(surfdens),origin='lower',cmap=cm.Oranges_r,aspect='auto',vmin=cbmin,vmax=cbmax)
+        cbar = colorbar()
         cbar.set_label('dust surface density') 
 
 
 #    set_axis_bgcolor('red')
     
-    plt.savefig('test.pdf', transparent=True)#, dpi=100)
-    show()
+    plt.savefig('test.png')#, dpi=100)
+    # show()
 
 if __name__ == "__main__":
         #___________________________________TAKE COMMAND LINE ARGUMENTS__________________________#     
 
     parser = argparse.ArgumentParser(description='Plot semi major axis', prefix_chars='-')
-    parser.add_argument('-n', metavar='resolution', type=int, nargs=2, default=[1024,400] ,help="nx a\
-nd ny that were used for the resolution")
     parser.add_argument('-o', metavar='out_put_number', type=int,default=-1, nargs=1 ,help="The output\
  number for a certain orbit")
     parser.add_argument('-d', metavar='dust_number',default=0, type=int, nargs=1 ,help="The dust type \
@@ -225,11 +234,9 @@ which is an integer")
     parser.add_argument('-lin', metavar='linear colour scale', type=str, nargs=1, default="no", help="linear plot")
     parser.add_argument('-gas', metavar='gas density', type=str, nargs=1, default="no", help="plot gas density")
     parser.add_argument('-con', metavar='convolved', type=str, nargs=1, default="no", help="convolved with a gaussian beam")
+    parser.add_argument('-dir', metavar='dir', type=str, nargs=1, default="planettest" ,help="Simulation directory")
 
     args = parser.parse_args()
-
-    NX = args.n[0]
-    NY = args.n[1]
 
     if (args.d == 0.):
         DUSTNUM = args.d
@@ -241,38 +248,37 @@ which is an integer")
     cbmin = args.cb[0]
     cbmax = args.cb[1]
 
-    print "cbmin, cbmax = ",cbmin,cbmax
-
     if (args.ptype == 0.):
         plot_type = args.ptype
     else:
         plot_type = args.ptype[0]
 
-    print "plot type = ",plot_type
+    print("plot type = ",plot_type)
 
     if (args.lin == 0.):
         lin_scale = args.lin
     else:
         lin_scale = args.lin[0]
     
-    print "lin_scale = ",lin_scale
+    print("lin_scale = ",lin_scale)
 
     if (args.gas == 0.):
         gasdens = args.gas
     else:
         gasdens = args.gas[0]
 
-    print "plot_gas = ",gasdens
+    print("plot_gas = ",gasdens)
 
     if (args.con == 0.):
         convolve = args.con
     else:
         convolve = args.con[0]
 
+    simdir = args.dir[0]
         #________________________________END COMMAND LINE ARGS__________________________________#      
 
     # Change matplotlib.rcParams
 #    rcParams["text.color"] = 'white'
 #    rcParams["text.fontsize"] = 14
 
-    dust_surf_dens(NX,NY,DUSTNUM,Out,plot_type,lin_scale,gasdens,convolve)
+    dust_surf_dens("planettest",DUSTNUM,Out,plot_type,lin_scale,gasdens,convolve)
