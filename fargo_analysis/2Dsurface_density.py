@@ -16,10 +16,10 @@ import scipy.ndimage
 from matplotlib import rcParams
 import matplotlib.ticker as mtick
 
-#____________________________________PLOTTING FUNCTIONS ____________________________________#         \
+#____________________________________PLOTTING FUNCTIONS ____________________________________#
                                                                                                        
 # Plot the dust surface mass density at any one time                                                   
-def dust_surf_dens(simdir,dustnum,outputnumber,plottype,lin_scaling,plot_gas,beam):
+def plot_surf_dens(simdir,dustnum,outputnumber,plottype,lin_scaling,plot_gas,beam):
 # Plots a 2D graph of the dust surface density                                                             
     if plot_gas in ["no", "n"]:
         filepath = f'/home/astro/phrkvg/simulations/{simdir}/dustdens{dustnum}_{outputnumber}.dat'
@@ -36,6 +36,7 @@ def dust_surf_dens(simdir,dustnum,outputnumber,plottype,lin_scaling,plot_gas,bea
 
     nphi = int(params_dict['NX'])
     nrad = int(params_dict['NY'])
+    ndust = int(params_dict['NDUST'])
 
     surfdens = fromfile(filepath).reshape(nrad,nphi)
     cbmin, cbmax = np.min(surfdens), np.max(surfdens)
@@ -218,7 +219,7 @@ def dust_surf_dens(simdir,dustnum,outputnumber,plottype,lin_scaling,plot_gas,bea
 
 #    set_axis_bgcolor('red')
     
-    plt.savefig('test.png')#, dpi=100)
+    plt.savefig('./images/test.png')#, dpi=100)
     # show()
 
 if __name__ == "__main__":
@@ -227,21 +228,19 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(description='Plot semi major axis', prefix_chars='-')
     parser.add_argument('-o', metavar='out_put_number', type=int,default=-1, nargs=1 ,help="The output\
  number for a certain orbit")
-    parser.add_argument('-d', metavar='dust_number',default=0, type=int, nargs=1 ,help="The dust type \
+    parser.add_argument('-d', metavar='dust_number',default=[0], type=int, nargs="*" ,help="The dust type(s) \
 which is an integer")
     parser.add_argument('-cb', metavar='colourbar scale', type=float, nargs=2, default=[-3.9,-2.7], help="define the maximum and minimum colour bar scale")
     parser.add_argument('-ptype', metavar='plot type', type=str, nargs=1, default="contour", help="type of plot")
     parser.add_argument('-lin', metavar='linear colour scale', type=str, nargs=1, default="no", help="linear plot")
     parser.add_argument('-gas', metavar='gas density', type=str, nargs=1, default="no", help="plot gas density")
     parser.add_argument('-con', metavar='convolved', type=str, nargs=1, default="no", help="convolved with a gaussian beam")
-    parser.add_argument('-dir', metavar='dir', type=str, nargs=1, default="planettest" ,help="Simulation directory")
+    parser.add_argument('-dir', metavar='dir', type=str, nargs=1, default="planettest" ,help="simulation directory containing output files")
 
     args = parser.parse_args()
 
-    if (args.d == 0.):
-        DUSTNUM = args.d
-    else:
-        DUSTNUM = args.d[0]
+    DUSTNUM = args.d
+    print(DUSTNUM)
 
     Out = args.o[0]
 
@@ -281,4 +280,4 @@ which is an integer")
 #    rcParams["text.color"] = 'white'
 #    rcParams["text.fontsize"] = 14
 
-    dust_surf_dens("planettest",DUSTNUM,Out,plot_type,lin_scale,gasdens,convolve)
+    plot_surf_dens("planettest",DUSTNUM,Out,plot_type,lin_scale,gasdens,convolve)

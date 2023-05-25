@@ -6,11 +6,11 @@ import scipy.interpolate as interp
 plt.style.use('default')
 plt.style.use(['../styles/publication.mplstyle'])
 
-timesteps = np.array([1e-3, 1e-2, 1e-1, 4.7e-1])  # specify in Myr
+timesteps = np.array([1e-3, 5e-3, 1e-2, 5e-2, 1e-1, 5e-1, 1])  # specify in Myr
 print(timesteps)
 
 # ================== Read in data at timesteps =======================
-sim =  "planettest"
+sim =  "planettest_60m"
 simdir = f"/home/astro/phrkvg/simulations/{sim}/"
 params_file = f'{simdir}/variables.par'
 params_dict = {}
