@@ -24,12 +24,13 @@ def plot_surf_dens(simdir,dustnums,outputnumber,plottype,lin_scaling,plot_gas,be
     filepaths = []
 
     if plot_gas in ["yes", "y"]:
-        filepaths.append(f'/home/astro/phrkvg/simulations/{simdir}/gasdens{outputnumber}.dat')
+        filepaths.append(f'/home/astro/phrkvg/simulations/planet_growth/{simdir}/gasdens{outputnumber}.dat')
 
     for dustnum in dustnums:
-        filepaths.append(f'/home/astro/phrkvg/simulations/{simdir}/dustdens{dustnum}_{outputnumber}.dat')
+        filepaths.append(f'/home/astro/phrkvg/simulations/planet_growth/{simdir}/dustdens{dustnum}_{outputnumber}.dat')
 
-    params_file = f'/home/astro/phrkvg/simulations/{simdir}/variables.par'
+    print(filepaths)
+    params_file = f'/home/astro/phrkvg/simulations/planet_growth/{simdir}/variables.par'
     params_dict = {}
     param_lines = open(params_file).readlines()
     for line in param_lines:
@@ -41,9 +42,7 @@ def plot_surf_dens(simdir,dustnums,outputnumber,plottype,lin_scaling,plot_gas,be
     nrad = int(params_dict['NY'])
     ndust = int(params_dict['NDUST'])
 
-    for i, filepath in enumerate(filepaths):
-
-
+    for file_i, filepath in enumerate(filepaths):
         surfdens = fromfile(filepath).reshape(nrad,nphi)
         cbmin, cbmax = np.min(surfdens), np.max(surfdens)
     #    nx_array = 
@@ -59,7 +58,7 @@ def plot_surf_dens(simdir,dustnums,outputnumber,plottype,lin_scaling,plot_gas,be
 
         if (plottype == "pcontour"):
             phi = linspace(0,2*pi,nphi+1)
-            radii=loadtxt(f'/home/astro/phrkvg/simulations/{simdir}/used_rad.dat')
+            radii=loadtxt(f'/home/astro/phrkvg/simulations/planet_growth/{simdir}/used_rad.dat')
             r,theta=meshgrid(radii,phi)
             
             dens_first_wedge = surfdens[:,0].reshape(nrad,1)
@@ -224,9 +223,12 @@ def plot_surf_dens(simdir,dustnums,outputnumber,plottype,lin_scaling,plot_gas,be
 
 
     #    set_axis_bgcolor('red')
-        if gas:
+        if plot_gas in ["yes", "y"] and file_i == 0:
             plt.savefig(f'./images/gas_{simdir}.png')#, dpi=100)
+            print("saving gas img")
         else:
+            plt.savefig(f'./images/dust{file_i}_{simdir}.png')#, dpi=100)
+            print(f"saving dust img {file_i}")
 
         # show()
 
@@ -282,10 +284,11 @@ which is an integer")
         convolve = args.con[0]
 
     simdir = args.dir[0]
+    print(simdir)
         #________________________________END COMMAND LINE ARGS__________________________________#      
 
     # Change matplotlib.rcParams
 #    rcParams["text.color"] = 'white'
 #    rcParams["text.fontsize"] = 14
 
-    plot_surf_dens("planettest",DUSTNUMS,Out,plot_type,lin_scale,gasdens,convolve)
+    plot_surf_dens(simdir,DUSTNUMS,Out,plot_type,lin_scale,gasdens,convolve)
