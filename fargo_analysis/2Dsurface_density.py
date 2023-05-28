@@ -22,11 +22,11 @@ import matplotlib.ticker as mtick
 def plot_surf_dens(simdir,dustnum,outputnumber,plottype,lin_scaling,plot_gas,beam):
 # Plots a 2D graph of the dust surface density                                                             
     if plot_gas in ["no", "n"]:
-        filepath = f'/home/astro/phrkvg/simulations/{simdir}/dustdens{dustnum}_{outputnumber}.dat'
+        filepath = f'/home/astro/phrkvg/simulations/planet_growth/{simdir}/dustdens{dustnum}_{outputnumber}.dat'
     else:
-        filepath = f'/home/astro/phrkvg/simulations/{simdir}/gasdens{outputnumber}.dat'
+        filepath = f'/home/astro/phrkvg/simulations/planet_growth/{simdir}/gasdens{outputnumber}.dat'
 
-    params_file = f'/home/astro/phrkvg/simulations/{simdir}/variables.par'
+    params_file = f'/home/astro/phrkvg/simulations/planet_growth/{simdir}/variables.par'
     params_dict = {}
     param_lines = open(params_file).readlines()
     for line in param_lines:
@@ -53,7 +53,7 @@ def plot_surf_dens(simdir,dustnum,outputnumber,plottype,lin_scaling,plot_gas,bea
 
     if (plottype == "pcontour"):
         phi = linspace(0,2*pi,nphi+1)
-        radii=loadtxt('/home/astro/phrkvg/simulations/planettest/used_rad.dat')
+        radii=loadtxt(f'/home/astro/phrkvg/simulations/planet_growth/{simdir}/used_rad.dat')
         r,theta=meshgrid(radii,phi)
         
         dens_first_wedge = surfdens[:,0].reshape(nrad,1)
@@ -239,7 +239,7 @@ which is an integer")
 
     args = parser.parse_args()
 
-    DUSTNUM = args.d
+    DUSTNUM = args.d[0]
     print(DUSTNUM)
 
     Out = args.o[0]
