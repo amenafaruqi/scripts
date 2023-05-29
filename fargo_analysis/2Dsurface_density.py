@@ -19,7 +19,7 @@ import matplotlib.ticker as mtick
 #____________________________________PLOTTING FUNCTIONS ____________________________________#
                                                                                                        
 # Plot the dust surface mass density at any one time                                                   
-def plot_surf_dens(simdir,dustnums,outputnumber,plottype,lin_scaling,plot_gas,beam):
+def plot_surf_dens(simdir,dustnums,outputnumber,plottype,lin_scaling,cbmin,cbmax,plot_gas,beam):
 # Plots a 2D graph of the dust surface density                
     filepaths = []
 
@@ -29,7 +29,6 @@ def plot_surf_dens(simdir,dustnums,outputnumber,plottype,lin_scaling,plot_gas,be
     for dustnum in dustnums:
         filepaths.append(f'/home/astro/phrkvg/simulations/planet_growth/{simdir}/dustdens{dustnum}_{outputnumber}.dat')
 
-    print(filepaths)
     params_file = f'/home/astro/phrkvg/simulations/planet_growth/{simdir}/variables.par'
     params_dict = {}
     param_lines = open(params_file).readlines()
@@ -43,8 +42,28 @@ def plot_surf_dens(simdir,dustnums,outputnumber,plottype,lin_scaling,plot_gas,be
     ndust = int(params_dict['NDUST'])
 
     for file_i, filepath in enumerate(filepaths):
+        print(f"Plotting {filepath.split('/')[-1]}...")
         surfdens = fromfile(filepath).reshape(nrad,nphi)
-        cbmin, cbmax = np.min(surfdens), np.max(surfdens)
+        if  np.isnan(cbmin):
+            vmin = np.percentile(surfdens, 5)
+        elif plot_gas in ["yes", "y"] and file_i == 0:
+            vmin = cbmin*100
+        else: 
+            vmin = cbmin
+
+        if  np.isnan(cbmax):
+            vmax = np.percentile(surfdens, 95)
+        elif plot_gas in ["yes", "y"] and file_i == 0:
+            vmax = cbmax*100
+        else: 
+            vmax = cbmax
+
+        if (lin_scaling in ["no", "n"]):
+            vmin = np.log10(vmin)
+            vmax = np.log10(vmax)
+    
+
+
     #    nx_array = 
     #    ny_array = 
     #    r = 0.5+2.5/ny*ny_array
@@ -62,7 +81,7 @@ def plot_surf_dens(simdir,dustnums,outputnumber,plottype,lin_scaling,plot_gas,be
             r,theta=meshgrid(radii,phi)
             
             dens_first_wedge = surfdens[:,0].reshape(nrad,1)
-            print(dens_first_wedge.shape)
+            # print(dens_first_wedge.shape)
             dens_additional = concatenate((surfdens[:,:],dens_first_wedge),axis=1)
 
             x = r*cos(theta)
@@ -72,21 +91,15 @@ def plot_surf_dens(simdir,dustnums,outputnumber,plottype,lin_scaling,plot_gas,be
 
     #        plt.rcParams['axes.facecolor'] = 'none'
 
-            if (lin_scaling == "yes"):
-                plt.pcolormesh(x,y,dens_additional.T,cmap=cm.jet,vmin=cbmin,vmax=cbmax)
+            if (lin_scaling not in ["no", "n"]):
+                plt.pcolormesh(x,y,dens_additional.T,cmap=cm.plasma,shading="auto",vmin=vmin,vmax=vmax)
     #            plt.pcolormesh(x,y,dens_additional.T,cmap=cm.Oranges_r,vmin=cbmin,vmax=cbmax)
-                if plot_gas in ["no", "n"]:
-                    cbar_label = 'dust surface density [code units]'
-                else:
-                    cbar_label = 'gas surface density [code units]'
+                cbar_label = 'surface density [code units]'
 
             else:
-                im = plt.pcolormesh(x,y,log10(dens_additional.T),cmap=cm.jet,vmin=cbmin,vmax=cbmax)
+                im = plt.pcolormesh(x,y,log10(dens_additional.T),cmap=cm.plasma,shading="auto",vmin=vmin,vmax=vmax)
                 im.set_rasterized(True)
-                if plot_gas in ["no", "n"]:
-                    cbar_label = 'log dust surface density [code units]'
-                else:
-                    cbar_label = 'log gas surface density [code units]'
+                cbar_label = 'log surface density [code units]'
 
             cbar = colorbar()
             cbar.set_label(cbar_label,color='black')
@@ -206,29 +219,27 @@ def plot_surf_dens(simdir,dustnums,outputnumber,plottype,lin_scaling,plot_gas,be
     #            plt.pcolormesh(x,y,log10(dens_additional.T),cmap=cm.Oranges_r,vmin=cbmin,vmax=cbmax)
                 print(image)
                 print(type(image), len(image), shape(image), shape(x), shape(y), shape(x_im), shape(y_im))
-                plt.pcolormesh(-x_im,-y_im,log10(convolved),cmap=cm.Oranges_r,vmin=cbmin,vmax=cbmax)
+                plt.pcolormesh(-x_im,-y_im,log10(convolved),cmap=cm.Oranges_r,vmin=vmin,vmax=vmax)
     #            plt.contourf(image, levels=10)
                 ax3.set_xlim([-2.5,2.5])
                 ax3.set_ylim([-2.5,2.5])
-                cbar_label = 'log dust surface density [code units] (convolved)'
+                cbar_label = 'log surface density [code units] (convolved)'
                 cbar = colorbar()
                 cbar.set_label(cbar_label,color='black')
 
 
         else:
             plt.figure()
-            imshow(log10(surfdens),origin='lower',cmap=cm.Oranges_r,aspect='auto',vmin=cbmin,vmax=cbmax)
+            imshow(log10(surfdens),origin='lower',cmap=cm.plasma,shading="auto",aspect='auto',vmin=vmin,vmax=vmax)
             cbar = colorbar()
-            cbar.set_label('dust surface density') 
+            cbar.set_label('surface density') 
 
 
     #    set_axis_bgcolor('red')
         if plot_gas in ["yes", "y"] and file_i == 0:
-            plt.savefig(f'./images/gas_{simdir}.png')#, dpi=100)
-            print("saving gas img")
+            plt.savefig(f'./images/gas_{simdir}_{outputnumber}.png')#, dpi=100)
         else:
-            plt.savefig(f'./images/dust{file_i}_{simdir}.png')#, dpi=100)
-            print(f"saving dust img {file_i}")
+            plt.savefig(f'./images/dust{file_i}_{simdir}_{outputnumber}.png')#, dpi=100)
 
         # show()
 
@@ -240,7 +251,7 @@ if __name__ == "__main__":
  number for a certain orbit")
     parser.add_argument('-d', metavar='dust_number',default=[0], type=int, nargs="*" ,help="The dust type(s) \
 which is an integer")
-    parser.add_argument('-cb', metavar='colourbar scale', type=float, nargs=2, default=[-3.9,-2.7], help="define the maximum and minimum colour bar scale")
+    parser.add_argument('-cb', metavar='colourbar scale', type=float, nargs=2, default=[np.nan,np.nan], help="define the maximum and minimum colour bar scale")
     parser.add_argument('-ptype', metavar='plot type', type=str, nargs=1, default="pcontour", help="type of plot")
     parser.add_argument('-lin', metavar='linear colour scale', type=str, nargs=1, default="no", help="linear plot")
     parser.add_argument('-gas', metavar='gas density', type=str, nargs=1, default="no", help="plot gas density")
@@ -291,4 +302,4 @@ which is an integer")
 #    rcParams["text.color"] = 'white'
 #    rcParams["text.fontsize"] = 14
 
-    plot_surf_dens(simdir,DUSTNUMS,Out,plot_type,lin_scale,gasdens,convolve)
+    plot_surf_dens(simdir,DUSTNUMS,Out,plot_type,lin_scale,cbmin,cbmax,gasdens,convolve)
