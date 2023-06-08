@@ -1,7 +1,7 @@
-text.color: black
-#text.color: white
-axes.facecolor: white
-#axes.facecolor: black
+#text.color: black
+text.color: white
+#axes.facecolor: white
+axes.facecolor: black
 axes.edgecolor: lightgrey
 axes.labelcolor: white
 axes.titlecolor: white

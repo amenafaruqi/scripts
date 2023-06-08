@@ -1,6 +1,7 @@
 from numpy import*
 import matplotlib.pyplot as plt
 import matplotlib as plt
+import matplotlib.ticker as ticker
 from pylab import*
 import argparse
 import sys
@@ -16,10 +17,18 @@ import scipy.ndimage
 from matplotlib import rcParams
 import matplotlib.ticker as mtick
 
+plt.style.use('default')
+plt.style.use(['../styles/presentation.mplstyle', '../styles/darkbg.mplstyle'])
+
 #____________________________________PLOTTING FUNCTIONS ____________________________________#
-                                                                                                       
+
+def fmt(x, pos):
+    a, b = '{:.1e}'.format(x).split('e')
+    b = int(b)
+    return r'${} \times 10^{{{}}}$'.format(a, b)
+                                                                                                      
 # Plot the dust surface mass density at any one time                                                   
-def plot_surf_dens(simdir,dustnums,outputnumber,plottype,lin_scaling,cbmin,cbmax,plot_gas,beam):
+def plot_surf_dens(simdir,dustnums,outputnumber,plottype,lin_scaling,cbmin,cbmax,plot_gas,beam,plot_planet):
 # Plots a 2D graph of the dust surface density                
     filepaths = []
 
@@ -43,26 +52,16 @@ def plot_surf_dens(simdir,dustnums,outputnumber,plottype,lin_scaling,cbmin,cbmax
 
     for file_i, filepath in enumerate(filepaths):
         print(f"Plotting {filepath.split('/')[-1]}...")
-        surfdens = fromfile(filepath).reshape(nrad,nphi)
+        surfdens = fromfile(filepath).reshape(nrad,nphi)/(1.125e-7)
         if  np.isnan(cbmin):
-            vmin = np.percentile(surfdens, 5)
-        elif plot_gas in ["yes", "y"] and file_i == 0:
-            vmin = cbmin*100
+            vmin = np.percentile(surfdens, 10)
         else: 
             vmin = cbmin
 
         if  np.isnan(cbmax):
-            vmax = np.percentile(surfdens, 95)
-        elif plot_gas in ["yes", "y"] and file_i == 0:
-            vmax = cbmax*100
+            vmax = np.percentile(surfdens, 90)
         else: 
             vmax = cbmax
-
-        if (lin_scaling in ["no", "n"]):
-            vmin = np.log10(vmin)
-            vmax = np.log10(vmax)
-    
-
 
     #    nx_array = 
     #    ny_array = 
@@ -92,17 +91,28 @@ def plot_surf_dens(simdir,dustnums,outputnumber,plottype,lin_scaling,cbmin,cbmax
     #        plt.rcParams['axes.facecolor'] = 'none'
 
             if (lin_scaling not in ["no", "n"]):
-                plt.pcolormesh(x,y,dens_additional.T,cmap=cm.plasma,shading="auto",vmin=vmin,vmax=vmax)
+                plt.pcolormesh(x,y,dens_additional.T,cmap=cm.Oranges_r,shading="auto",vmin=vmin, vmax=vmax)
     #            plt.pcolormesh(x,y,dens_additional.T,cmap=cm.Oranges_r,vmin=cbmin,vmax=cbmax)
-                cbar_label = 'surface density [code units]'
+                cbar_label = '$\Sigma$ [$g/cm^{2}$] '
 
             else:
-                im = plt.pcolormesh(x,y,log10(dens_additional.T),cmap=cm.plasma,shading="auto",vmin=vmin,vmax=vmax)
+                im = plt.pcolormesh(x,y,log10(dens_additional.T),cmap=cm.Oranges_r,shading="auto",vmin=log10(vmin), vmax=log10(vmax))
                 im.set_rasterized(True)
-                cbar_label = 'log surface density [code units]'
+                cbar_label = 'log $\Sigma$ [$g/cm^{2}$]'
 
+            # cbar = colorbar(format=ticker.FuncFormatter(fmt))
             cbar = colorbar()
-            cbar.set_label(cbar_label,color='black')
+            cbar.set_label(cbar_label)
+            plt.xlabel('x [AU]')
+            plt.ylabel('y [AU]')
+
+            if plot_planet not in ["no", "n"]:
+                planet_data = loadtxt(f"/home/astro/phrkvg/simulations/planet_growth/{simdir}/planet0.dat")
+                xp, yp = planet_data[outputnumber][1], planet_data[outputnumber][2]
+                plt.scatter([-xp], [-yp], color='g', marker='.')
+            # plt.xlim(-50,50)
+            # plt.ylim(-50,50)
+            plt.tight_layout()
 
     #        cbar.ax.yaxis.set_tick_params(color='white')
     #        cbar.ax.yaxis.set_major_formatter(mtick.FormatStrFormatter('%.1e'))
@@ -230,16 +240,16 @@ def plot_surf_dens(simdir,dustnums,outputnumber,plottype,lin_scaling,cbmin,cbmax
 
         else:
             plt.figure()
-            imshow(log10(surfdens),origin='lower',cmap=cm.plasma,shading="auto",aspect='auto',vmin=vmin,vmax=vmax)
+            imshow(log10(surfdens),origin='lower',cmap=cm.Oranges,shading="auto",aspect='auto',vmin=vmin,vmax=vmax)
             cbar = colorbar()
             cbar.set_label('surface density') 
 
 
     #    set_axis_bgcolor('red')
         if plot_gas in ["yes", "y"] and file_i == 0:
-            plt.savefig(f'./images/gas_{simdir}_{outputnumber}.png')#, dpi=100)
+            plt.savefig(f'./images/gas_{simdir}_{outputnumber}.png', dpi=150)
         else:
-            plt.savefig(f'./images/dust{file_i}_{simdir}_{outputnumber}.png')#, dpi=100)
+            plt.savefig(f'./images/dust{file_i}_{simdir}_{outputnumber}.png', dpi=150)
 
         # show()
 
@@ -257,6 +267,7 @@ which is an integer")
     parser.add_argument('-gas', metavar='gas density', type=str, nargs=1, default="no", help="plot gas density")
     parser.add_argument('-con', metavar='convolved', type=str, nargs=1, default="no", help="convolved with a gaussian beam")
     parser.add_argument('-dir', metavar='dir', type=str, nargs=1, default="planettest" ,help="simulation directory containing output files")
+    parser.add_argument('-planet', metavar='plot planet', type=str, nargs=1, default="no", help="plot planet")
 
     args = parser.parse_args()
 
@@ -295,6 +306,8 @@ which is an integer")
         convolve = args.con[0]
 
     simdir = args.dir[0]
+    plot_planet = args.planet[0]
+
     print(simdir)
         #________________________________END COMMAND LINE ARGS__________________________________#      
 
@@ -302,4 +315,4 @@ which is an integer")
 #    rcParams["text.color"] = 'white'
 #    rcParams["text.fontsize"] = 14
 
-    plot_surf_dens(simdir,DUSTNUMS,Out,plot_type,lin_scale,cbmin,cbmax,gasdens,convolve)
+    plot_surf_dens(simdir,DUSTNUMS,Out,plot_type,lin_scale,cbmin,cbmax,gasdens,convolve,plot_planet)
