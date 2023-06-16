@@ -76,7 +76,10 @@ def plot_surf_dens(simdir,dustnums,outputnumber,plottype,lin_scaling,cbmin,cbmax
 
         if (plottype == "pcontour"):
             phi = linspace(0,2*pi,nphi+1)
-            radii=loadtxt(f'/home/astro/phrkvg/simulations/planet_growth/{simdir}/used_rad.dat')
+            r_cells = loadtxt(f'/home/astro/phrkvg/simulations/planet_growth/{simdir}/domain_y.dat')[3:-3]             # ignore ghost cells
+            radii = array([(r_cells[n]+r_cells[n+1])/2 for n in range(len(r_cells)-1)])
+
+            # radii=loadtxt(f'/home/astro/phrkvg/simulations/planet_growth/{simdir}/used_rad.dat')
             r,theta=meshgrid(radii,phi)
             
             dens_first_wedge = surfdens[:,0].reshape(nrad,1)
@@ -259,7 +262,7 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(description='Plot semi major axis', prefix_chars='-')
     parser.add_argument('-o', metavar='out_put_number', type=int,default=-1, nargs=1 ,help="The output\
  number for a certain orbit")
-    parser.add_argument('-d', metavar='dust_number',default=[0], type=int, nargs="*" ,help="The dust type(s) \
+    parser.add_argument('-d', metavar='dust_number',default=[], type=int, nargs="*" ,help="The dust type(s) \
 which is an integer")
     parser.add_argument('-cb', metavar='colourbar scale', type=float, nargs=2, default=[np.nan,np.nan], help="define the maximum and minimum colour bar scale")
     parser.add_argument('-ptype', metavar='plot type', type=str, nargs=1, default="pcontour", help="type of plot")
@@ -272,7 +275,7 @@ which is an integer")
     args = parser.parse_args()
 
     DUSTNUMS = args.d
-    print(DUSTNUMS)
+    print("dust bins = ", DUSTNUMS)
 
     Out = args.o[0]
 
