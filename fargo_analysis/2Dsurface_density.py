@@ -243,7 +243,7 @@ def plot_surf_dens(simdir,dustnums,outputnumber,plottype,lin_scaling,cbmin,cbmax
 
         else:
             plt.figure()
-            imshow(log10(surfdens),origin='lower',cmap=cm.Oranges,shading="auto",aspect='auto',vmin=vmin,vmax=vmax)
+            imshow(log10(surfdens),origin='lower',cmap=cm.Oranges,aspect='auto',vmin=vmin,vmax=vmax)
             cbar = colorbar()
             cbar.set_label('surface density') 
 

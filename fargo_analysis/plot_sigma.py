@@ -1,18 +1,18 @@
 import numpy as np
 import matplotlib.pyplot as plt
-import matplotlib
+import glob
 import scipy.interpolate as interp
 # matplotlib.use('TkAgg')
 plt.style.use('default')
 # plt.style.use(['../styles/publication.mplstyle'])
 plt.style.use(['../styles/presentation.mplstyle', '../styles/darkbg2.mplstyle'])
 
-timesteps = np.array([0, 5e-3, 2.6e-2])  # specify in Myr
+timesteps = np.array([0, 1e-3, 1e-2, 2e-2])  # specify in Myr
 print(timesteps)
 
 # ================== Read in data at timesteps =======================
-sim =  "planettest_highres"
-simdir = f"/home/astro/phrkvg/simulations/planet_growth/{sim}/"
+sim =  "MPhys_test"
+simdir = f"/home/astro/phrkvg/simulations/planet_growth/test_models/{sim}/"
 params_file = f'{simdir}/variables.par'
 params_dict = {}
 
@@ -42,8 +42,17 @@ dt_orbits = int(float(params_dict['DT'])/(2*np.pi))   # 2pi = 1 orbit = 1 yr
 ninterm = float(params_dict['NINTERM'])               # number of dts between outputs
 dt_outputs = dt_orbits*ninterm                        # time between outputs
 
+planet_files = glob.glob(f"{simdir}/planet*.dat")
+print(planet_files)
+planet_rps = []
+for planet_file in planet_files:
+    planet_data = np.loadtxt(planet_file)
+    rp = planet_data[0][1]
+    planet_rps.append(rp)
+
+print(planet_rps)
+
 outputs = timesteps*1e6/dt_outputs
-print(outputs)
 
 # FARGO initialises grains with sizes uniformly distributed across ndust bins in logspace
 a = np.logspace(np.log10(mingsize),    
@@ -65,16 +74,15 @@ for i,t in enumerate(outputs):
     for n in np.arange(ndust):
         dust_file = f"dustdens{n}_{int(t)}.dat" 
         sigma_dust[i,n] = np.fromfile(simdir+dust_file).reshape(nrad,nphi)/(1.125e-7)
-    # print(f"t={t}: ", np.min(sigma_dust_azimsum[i]), np.max(sigma_dust_azimsum[i]))
 
 
 sigma_dust_azimsum = np.sum(sigma_dust, axis=3)                  # sum over all phi 
 sigma_gas_azimsum = np.sum(sigma_gas, axis=2)                    # sum over all phi   
 sigma_dust_tot = np.sum(sigma_dust_azimsum, axis=1)              # sum over all dust sizes
 
-# surfdens = sigma_gas[i]
-# dens_first_wedge = surfdens[:,0].reshape(nrad,1)
-# dens_additional = np.concatenate((surfdens[:,:],dens_first_wedge),axis=1)
+surfdens = sigma_gas[i]
+dens_first_wedge = surfdens[:,0].reshape(nrad,1)
+dens_additional = np.concatenate((surfdens[:,:],dens_first_wedge),axis=1)
 sigma_gas_avg = sigma_gas_azimsum/nphi
 sigma_dust_avg = sigma_dust_azimsum/nphi
 sigma_dust_tot_avg = sigma_dust_tot/nphi
@@ -189,7 +197,6 @@ ax1.set_yscale("log")
 fig1.tight_layout()
 fig1.savefig(f"./images/{sim}_dustgasratio.png")
 
-
 # ================== Gas Sigma Profile ===================
 
 fig2, ax2 = plt.subplots(figsize=(7,6))
@@ -198,14 +205,8 @@ ax2.set_prop_cycle(color=[cm(1.*i/8) for i in range(0,len(timesteps)+1)])
 for i, o in enumerate(outputs):
     ax2.plot(radii, sigma_gas_avg[i], label=f"{int(o*dt_outputs)} orbits")
 
-    # surfdens = sigma_gas[i]
-    # dens_first_wedge = surfdens[:,0].reshape(nrad,1)
-    # dens_additional = np.concatenate((surfdens[:,:],dens_first_wedge),axis=1)
-    # sigmag_tot = np.sum(dens_additional, axis=1)
-    # sigmag_azi = sigmag_tot/nphi
-    # ax2.plot(radii, np.log10(sigmag_azi), label=f"{t} Myr")
-
-ax2.axvline(20, linestyle='dashed', color='black')
+for rp in planet_rps:
+    ax2.axvline(rp, linestyle='dashed', color='black') 
 
 ax2.set_xlabel("R (AU)")
 ax2.set_ylabel("$\Sigma_{{gas}} (g/cm^{{2}})$")
