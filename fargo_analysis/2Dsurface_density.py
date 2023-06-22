@@ -18,12 +18,12 @@ import matplotlib.ticker as mtick
 
 plt.style.use('default')
 plt.style.use(['../styles/publication.mplstyle'])
-wd = "/home/astro/phrkvg/simulations/planet_growth/lowres_models"
+wd = "/home/astro/phrkvg/simulations/planet_growth/test_models"
 
 #____________________________________PLOTTING FUNCTIONS ____________________________________#
                                                                                                       
 # Plot the dust surface mass density at any one time                                                   
-def plot_surf_dens(simdir,dustnums,outputnumber,lin_scaling,cbmin,cbmax,plot_gas,beam,plot_planet):
+def plot_surf_dens(simdir,dustnums,outputnumber,lin_scaling,cbmin,cbmax,plot_gas,beam,plot_planet,zoom):
 # Plots a 2D graph of the dust surface density                
     filepaths = []
 
@@ -58,17 +58,6 @@ def plot_surf_dens(simdir,dustnums,outputnumber,lin_scaling,cbmin,cbmax,plot_gas
         else: 
             vmax = cbmax
 
-    #    nx_array = 
-    #    ny_array = 
-    #    r = 0.5+2.5/ny*ny_array
-    #    phi = 2.*pi/nx*nx_array
-    #    if (plottype == "contour"):
-
-    #    imshow(log(surfdens),origin='lower',cmap=cm.Oranges_r,aspect='auto',vmin=cbmin,vmax=cbmax)
-    #    cbar = colorbar()
-    #    cbar.set_label('dust surface density')
-    #    show()
-
         phi = np.linspace(0,2*np.pi,nphi+1)
         r_cells = np.loadtxt(f'{wd}/{simdir}/domain_y.dat')[3:-3]             # ignore ghost cells
         radii = np.array([(r_cells[n]+r_cells[n+1])/2 for n in range(len(r_cells)-1)])
@@ -84,8 +73,6 @@ def plot_surf_dens(simdir,dustnums,outputnumber,lin_scaling,cbmin,cbmax,plot_gas
         y = r*np.sin(theta)
 
         fig = plt.figure()
-
-#        plt.rcParams['axes.facecolor'] = 'none'
 
         if (lin_scaling not in ["no", "n"]):
             plt.pcolormesh(x,y,dens_additional.T,cmap=cm.Oranges_r,shading="auto",vmin=vmin, vmax=vmax)
@@ -104,11 +91,19 @@ def plot_surf_dens(simdir,dustnums,outputnumber,lin_scaling,cbmin,cbmax,plot_gas
         plt.ylabel('y [AU]')
 
         if plot_planet not in ["no", "n"]:
-            planet_data = np.loadtxt(f"/home/astro/phrkvg/simulations/planet_growth/{simdir}/planet0.dat")
-            xp, yp = planet_data[outputnumber][1], planet_data[outputnumber][2]
-            plt.scatter([-xp], [-yp], color='g', marker='.')
-        # plt.xlim(-50,50)
-        # plt.ylim(-50,50)
+            with open(f"{wd}/{simdir}/planet.cfg", 'r') as f:
+                num_planets = len(f.readlines()) - 5        # ignore 5 lines of headers
+                print(num_planets) 
+
+            for n in range(num_planets):
+                planet_data = np.loadtxt(f"{wd}/{simdir}/planet{n}.dat")
+                xp, yp = planet_data[outputnumber][1], planet_data[outputnumber][2]
+                plt.scatter([-xp], [-yp], color='g', marker='.')
+        
+        if zoom:
+            plt.xlim(-zoom,zoom)
+            plt.ylim(-zoom,zoom)
+
         plt.tight_layout()
 
 #        cbar.ax.yaxis.set_tick_params(color='white')
@@ -239,16 +234,15 @@ if __name__ == "__main__":
         #___________________________________TAKE COMMAND LINE ARGUMENTS__________________________#     
 
     parser = argparse.ArgumentParser(description='Plot semi major axis', prefix_chars='-')
-    parser.add_argument('-o', metavar='out_put_number', type=int,default=-1, nargs=1 ,help="The output\
- number for a certain orbit")
-    parser.add_argument('-d', metavar='dust_number',default=[], type=int, nargs="*" ,help="The dust type(s) \
-which is an integer")
+    parser.add_argument('-o', metavar='out_put_number', type=int,default=-1, nargs=1 ,help="The output number for a certain orbit")
+    parser.add_argument('-d', metavar='dust_number',default=[], type=int, nargs="*" ,help="The dust type(s) which is an integer")
     parser.add_argument('-cb', metavar='colourbar scale', type=float, nargs=2, default=[np.nan,np.nan], help="define the maximum and minimum colour bar scale")
     parser.add_argument('-lin', metavar='linear colour scale', type=str, nargs=1, default="no", help="linear plot")
     parser.add_argument('-gas', metavar='gas density', type=str, nargs=1, default="no", help="plot gas density")
     parser.add_argument('-con', metavar='convolved', type=str, nargs=1, default="no", help="convolved with a gaussian beam")
     parser.add_argument('-dir', metavar='dir', type=str, nargs=1, default="planettest" ,help="simulation directory containing output files")
     parser.add_argument('-planet', metavar='plot planet', type=str, nargs=1, default="no", help="plot planet")
+    parser.add_argument('-zoom', metavar='zoomed plot', type=float, nargs=1, default=[0], help="set lims to zoom to")
 
     args = parser.parse_args()
 
@@ -282,6 +276,8 @@ which is an integer")
     simdir = args.dir[0]
     plot_planet = args.planet[0]
 
+    zoom = args.zoom[0]
+
     print(simdir)
         #________________________________END COMMAND LINE ARGS__________________________________#      
 
@@ -289,4 +285,4 @@ which is an integer")
 #    rcParams["text.color"] = 'white'
 #    rcParams["text.fontsize"] = 14
 
-    plot_surf_dens(simdir,DUSTNUMS,Out,lin_scale,cbmin,cbmax,gasdens,convolve,plot_planet)
+    plot_surf_dens(simdir,DUSTNUMS,Out,lin_scale,cbmin,cbmax,gasdens,convolve,plot_planet,zoom)
