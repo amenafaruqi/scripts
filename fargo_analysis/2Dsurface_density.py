@@ -18,14 +18,14 @@ import matplotlib.ticker as mtick
 
 plt.style.use('default')
 plt.style.use(['../styles/publication.mplstyle'])
-wd = "/home/astro/phrkvg/simulations/planet_growth/test_models"
 
 #____________________________________PLOTTING FUNCTIONS ____________________________________#
                                                                                                       
 # Plot the dust surface mass density at any one time                                                   
-def plot_surf_dens(simdir,dustnums,outputnumber,lin_scaling,cbmin,cbmax,plot_gas,beam,plot_planet,zoom):
+def plot_surf_dens(wd,simdir,dustnums,outputnumber,lin_scaling,cbmin,cbmax,plot_gas,beam,plot_planet,zoom):
 # Plots a 2D graph of the dust surface density                
     filepaths = []
+    print(wd)
 
     if plot_gas in ["yes", "y"]:
         filepaths.append(f'{wd}/{simdir}/gasdens{outputnumber}.dat')
@@ -240,7 +240,8 @@ if __name__ == "__main__":
     parser.add_argument('-lin', metavar='linear colour scale', type=str, nargs=1, default="no", help="linear plot")
     parser.add_argument('-gas', metavar='gas density', type=str, nargs=1, default="no", help="plot gas density")
     parser.add_argument('-con', metavar='convolved', type=str, nargs=1, default="no", help="convolved with a gaussian beam")
-    parser.add_argument('-dir', metavar='dir', type=str, nargs=1, default="planettest" ,help="simulation directory containing output files")
+    parser.add_argument('-wd', metavar='wd', type=str, nargs=1, default=["/home/astro/phrkvg/simulations/planet_growth/lowres_models"],help="working directory containing simulations")
+    parser.add_argument('-dir', metavar='dir', type=str, nargs=1, default=["planettest"] ,help="simulation directory containing output files")
     parser.add_argument('-planet', metavar='plot planet', type=str, nargs=1, default="no", help="plot planet")
     parser.add_argument('-zoom', metavar='zoomed plot', type=float, nargs=1, default=[0], help="set lims to zoom to")
 
@@ -273,16 +274,16 @@ if __name__ == "__main__":
     else:
         convolve = args.con[0]
 
+    wd = args.wd[0]
     simdir = args.dir[0]
     plot_planet = args.planet[0]
 
     zoom = args.zoom[0]
 
-    print(simdir)
         #________________________________END COMMAND LINE ARGS__________________________________#      
 
     # Change matplotlib.rcParams
 #    rcParams["text.color"] = 'white'
 #    rcParams["text.fontsize"] = 14
 
-    plot_surf_dens(simdir,DUSTNUMS,Out,lin_scale,cbmin,cbmax,gasdens,convolve,plot_planet,zoom)
+    plot_surf_dens(wd,simdir,DUSTNUMS,Out,lin_scale,cbmin,cbmax,gasdens,convolve,plot_planet,zoom)
