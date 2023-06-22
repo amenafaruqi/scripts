@@ -7,17 +7,18 @@ plt.style.use('default')
 # plt.style.use(['../styles/publication.mplstyle'])
 plt.style.use(['../styles/presentation.mplstyle', '../styles/darkbg2.mplstyle'])
 
-timesteps = np.array([0, 1e-3, 1e-2, 2e-2])  # specify in Myr
-print(timesteps)
+outputs = np.array([0, 10, 20, 30, 40])  # specify in Myr
 
 # ================== Read in data at timesteps =======================
-sim =  "MPhys_test"
-simdir = f"/home/astro/phrkvg/simulations/planet_growth/test_models/{sim}/"
+sim =  "drazkowska2019_lowres"
+simdir = f"/home/astro/phrkvg/simulations/planet_growth/{sim}/"
+planets = True
+grog = True
 params_file = f'{simdir}/variables.par'
 params_dict = {}
 
 plotsizex = 3
-plotsizey = int(len(timesteps)/plotsizex)+1
+plotsizey = int(len(outputs)/plotsizex)+1
 
 cm = plt.get_cmap('gist_rainbow')
 
@@ -29,37 +30,38 @@ for line in param_lines:
 
 nphi = int(params_dict['NX'])
 nrad = int(params_dict['NY'])
-rhodust = float(params_dict['RHO_DUST'])
 f = float(params_dict['FLARINGINDEX'])
 hr0 = float(params_dict['ASPECTRATIO'])      # aspect ratio at R=1AU
 ndust = int(params_dict['NDUST'])
 alpha = float(params_dict['ALPHA'])
-mingsize = float(params_dict['MIN_GRAIN_SIZE'])
-maxgsize = float(params_dict['MAX_GRAIN_SIZE'])
-nss_coag = int(params_dict['NUMSUBSTEPS_COAG'])
+if grog:
+    mingsize = float(params_dict['MIN_GRAIN_SIZE'])
+    maxgsize = float(params_dict['MAX_GRAIN_SIZE'])
+    nss_coag = int(params_dict['NUMSUBSTEPS_COAG'])
+    rhodust = float(params_dict['RHO_DUST'])
 densfloor = float(params_dict['DENSITY_FLOOR'])
 dt_orbits = int(float(params_dict['DT'])/(2*np.pi))   # 2pi = 1 orbit = 1 yr
 ninterm = float(params_dict['NINTERM'])               # number of dts between outputs
 dt_outputs = dt_orbits*ninterm                        # time between outputs
+timesteps = outputs*dt_outputs*1e-6    # time in Myr
+print(timesteps)
 
-planet_files = glob.glob(f"{simdir}/planet*.dat")
-print(planet_files)
-planet_rps = []
-for planet_file in planet_files:
-    planet_data = np.loadtxt(planet_file)
-    rp = planet_data[0][1]
-    planet_rps.append(rp)
-
-print(planet_rps)
-
-outputs = timesteps*1e6/dt_outputs
+if planets:
+    planets_data = np.genfromtxt(f"{simdir}/planet.cfg").reshape(1,6)
+    print(planets_data)
+    rps = planets_data[:,1]
+    Mps = planets_data[:,2]
+    planet_periods = (rps**3)**0.5    # orbital period of planet in yrs
+    print(planet_periods)
+    # planet_orbits = timesteps/planet_periods
 
 # FARGO initialises grains with sizes uniformly distributed across ndust bins in logspace
-a = np.logspace(np.log10(mingsize),    
-                np.log10(maxgsize),
-                ndust+1)
+if grog:
+    a = np.logspace(np.log10(mingsize),    
+                    np.log10(maxgsize),
+                    ndust+1)
 
-a = (0.5*(a[1:] + a[:-1]))                                       # convert cm to um by multiplying by 1e4
+    a = (0.5*(a[1:] + a[:-1]))                                       # convert cm to um by multiplying by 1e4
 r_cells = np.loadtxt(f'{simdir}/domain_y.dat')[3:-3]             # ignore ghost cells
 phi_cells = np.loadtxt(f'{simdir}/domain_x.dat')[3:-3]
 radii = np.array([(r_cells[n]+r_cells[n+1])/2 for n in range(len(r_cells)-1)])
@@ -71,9 +73,10 @@ sigma_dust = np.zeros((len(timesteps), ndust, nrad, nphi))
 for i,t in enumerate(outputs):
     gasfile = f"gasdens{int(t)}.dat" 
     sigma_gas[i] = np.fromfile(simdir+gasfile).reshape(nrad,nphi)/(1.125e-7)         # convert back to g/cm2
-    for n in np.arange(ndust):
-        dust_file = f"dustdens{n}_{int(t)}.dat" 
-        sigma_dust[i,n] = np.fromfile(simdir+dust_file).reshape(nrad,nphi)/(1.125e-7)
+    if grog:
+        for n in np.arange(ndust):
+            dust_file = f"dustdens{n}_{int(t)}.dat" 
+            sigma_dust[i,n] = np.fromfile(simdir+dust_file).reshape(nrad,nphi)/(1.125e-7)
 
 
 sigma_dust_azimsum = np.sum(sigma_dust, axis=3)                  # sum over all phi 
@@ -86,7 +89,6 @@ dens_additional = np.concatenate((surfdens[:,:],dens_first_wedge),axis=1)
 sigma_gas_avg = sigma_gas_azimsum/nphi
 sigma_dust_avg = sigma_dust_azimsum/nphi
 sigma_dust_tot_avg = sigma_dust_tot/nphi
-
 
 # ======================== Data arrays initialised ==============================
 
@@ -120,63 +122,64 @@ def sigma_at_r(r=10, t_index=-1):
 
 # ======================= Fig 1, Birnstiel et al. 2012 ==============================
 
-fig0 = plt.figure(figsize=(16,12))
+if grog:
+    fig0 = plt.figure(figsize=(16,12))
 
-R, A = np.meshgrid(radii, a)
-# levels = np.linspace(-11,1,7)                   # Brauer 2008 levels
-# levels = np.linspace(-7, 2, 10)                  # Birnstiel 2012 levels 
-levels = np.linspace(-18, 6, 13)                   
-a_St1 = (2/np.pi)*(sigma_gas_avg/rhodust)             # plot St=1 line
-print(a_St1.shape)
-fd = 0.55
-ff = 0.37
-uf = 10
-hr = hr0*(radii**f)
-cs = hr*(((2e30)*(6.67e-11))/(radii*1.5e11))**0.5
+    R, A = np.meshgrid(radii, a)
+    # levels = np.linspace(-11,1,7)                   # Brauer 2008 levels
+    # levels = np.linspace(-7, 2, 10)                  # Birnstiel 2012 levels 
+    levels = np.linspace(-18, 6, 13)                   
+    a_St1 = (2/np.pi)*(sigma_gas_avg/rhodust)             # plot St=1 line
+    print(a_St1.shape)
+    fd = 0.55
+    ff = 0.37
+    uf = 10
+    hr = hr0*(radii**f)
+    cs = hr*(((2e30)*(6.67e-11))/(radii*1.5e11))**0.5
 
-# size of largest grains in a fragmentation-dominated distribution
-# a_frag = 100*ff*(2/(3*np.pi))*((uf**2)/(rhodust*1000*alpha))*(hr**-2)*(sigma_gas*10/((2e30)*(6.67e-11)))*(radii*1.5e11)  # from Birnstiel+2012
+    # size of largest grains in a fragmentation-dominated distribution
+    # a_frag = 100*ff*(2/(3*np.pi))*((uf**2)/(rhodust*1000*alpha))*(hr**-2)*(sigma_gas*10/((2e30)*(6.67e-11)))*(radii*1.5e11)  # from Birnstiel+2012
 
-b = (uf**2/alpha)*(hr**-2)*(radii*1.5e11)/((2e30)*(6.67e-11)) # dimensionless
-a_frag = (sigma_gas_avg/rhodust)*(3-(9-4*(b**2))**0.5)/(np.pi*b)
+    b = (uf**2/alpha)*(hr**-2)*(radii*1.5e11)/((2e30)*(6.67e-11)) # dimensionless
+    a_frag = (sigma_gas_avg/rhodust)*(3-(9-4*(b**2))**0.5)/(np.pi*b)
 
-# size of largest grains in a drift-dominated distribution
-# a_drift = 100*(2/(rhodust*1000*np.pi))*(hr**-2)*sigma_dust_tot*10*(2/3)   # from Birnstiel+2012
+    # size of largest grains in a drift-dominated distribution
+    # a_drift = 100*(2/(rhodust*1000*np.pi))*(hr**-2)*sigma_dust_tot*10*(2/3)   # from Birnstiel+2012
 
-p = (sigma_gas_avg*(cs**2)/((2*np.pi)**0.5))*(hr**-1)*((radii*1.5e11)**-1)
-pad = np.empty((len(timesteps), 1))
-gamma = (radii/p)*np.abs(np.append(np.diff(p)/np.diff(radii), pad, axis=1))
-a_drift = (2/np.pi)*(sigma_dust_tot/rhodust)*(1/gamma)*(hr**-2)
+    p = (sigma_gas_avg*(cs**2)/((2*np.pi)**0.5))*(hr**-1)*((radii*1.5e11)**-1)
+    pad = np.empty((len(timesteps), 1))
+    gamma = (radii/p)*np.abs(np.append(np.diff(p)/np.diff(radii), pad, axis=1))
+    a_drift = (2/np.pi)*(sigma_dust_tot/rhodust)*(1/gamma)*(hr**-2)
 
-for i, o in enumerate(outputs):
-    ax0 = fig0.add_subplot(plotsizey, plotsizex, i+1)
-    sigmas = sigma_dust_avg[i]
-    c = ax0.contourf(R, A, np.log10(sigmas), cmap="Greys", levels=levels)
-    ax0.set_ylim(1e-4, 1e2)
-    ax0.set_xscale("log")
-    ax0.set_yscale("log")
-    ax0.set_title(f"{int(o*dt_outputs)} orbits")
-    ax0.plot(radii, a_St1[i], c='black', alpha=0.7, label="St=1")
-    ax0.plot(radii, a_drift[i], c='deepskyblue', alpha=0.7, label="$a_{{drift}}$")
-    ax0.plot(radii, a_frag[i], c='red', alpha=0.7, label="$a_{{frag}}$")
-    if not i%plotsizex:
-        ax0.set_ylabel("a (cm)")
-    else:
-        ax0.set_yticks([])
-    if i < plotsizex and len(timesteps) > plotsizex:
-        ax0.set_xticks([])
-    else:
-        ax0.set_xlabel("R (AU)")
+    for i, o in enumerate(outputs):
+        ax0 = fig0.add_subplot(plotsizey, plotsizex, i+1)
+        sigmas = sigma_dust_avg[i]
+        c = ax0.contourf(R, A, np.log10(sigmas), cmap="Greys", levels=levels)
+        ax0.set_ylim(1e-4, 1e2)
+        ax0.set_xscale("log")
+        ax0.set_yscale("log")
+        # ax0.set_title(f"{planet_orbits[i]} orbits")
+        ax0.plot(radii, a_St1[i], c='black', alpha=0.7, label="St=1")
+        ax0.plot(radii, a_drift[i], c='deepskyblue', alpha=0.7, label="$a_{{drift}}$")
+        ax0.plot(radii, a_frag[i], c='red', alpha=0.7, label="$a_{{frag}}$")
+        if not i%plotsizex:
+            ax0.set_ylabel("a (cm)")
+        else:
+            ax0.set_yticks([])
+        if i < plotsizex and len(timesteps) > plotsizex:
+            ax0.set_xticks([])
+        else:
+            ax0.set_xlabel("R (AU)")
 
-# fig0.suptitle(sim)
-fig0.tight_layout()
+    # fig0.suptitle(sim)
+    fig0.tight_layout()
 
-fig0.subplots_adjust(right=0.89, hspace=0.3)
-cbar_ax = fig0.add_axes([0.91, 0.53, 0.02, 0.4])
-fig0.colorbar(c, cax=cbar_ax, orientation="vertical", label="log$[\Sigma (g/cm^{{2}})]$")
-ax0.legend(loc="upper right")
+    fig0.subplots_adjust(right=0.89, hspace=0.3)
+    cbar_ax = fig0.add_axes([0.91, 0.53, 0.02, 0.4])
+    fig0.colorbar(c, cax=cbar_ax, orientation="vertical", label="log$[\Sigma (g/cm^{{2}})]$")
+    ax0.legend(loc="upper right")
 
-fig0.savefig(f"./images/{sim}_contour.png")
+    fig0.savefig(f"./images/{sim}_contour.png")
 
 # ======================= Fig 8, Birnstiel et al. 2012 =========================
 fig1, ax1 = plt.subplots(figsize=(7,5))
@@ -184,7 +187,7 @@ ax1.set_prop_cycle(color=[cm(1.*i/8) for i in range(0,len(timesteps)+1)])
 
 for i,o in enumerate(timesteps):
     dustgasratio = sigma_dust_tot_avg[i]/sigma_gas_avg[i]
-    ax1.plot(radii, dustgasratio, label=f"t={o} Myr")
+    ax1.plot(radii, dustgasratio, label=f"t={round(o, 2)} Myr")
 # ax1.axvline(20, linestyle='dashed', color='black')
 
 ax1.legend()
@@ -202,11 +205,12 @@ fig1.savefig(f"./images/{sim}_dustgasratio.png")
 fig2, ax2 = plt.subplots(figsize=(7,6))
 ax2.set_prop_cycle(color=[cm(1.*i/8) for i in range(0,len(timesteps)+1)])
 
-for i, o in enumerate(outputs):
-    ax2.plot(radii, sigma_gas_avg[i], label=f"{int(o*dt_outputs)} orbits")
+for i, o in enumerate(timesteps):
+    ax2.plot(radii, sigma_gas_avg[i], label=f"{round(o,2)} Myr")
 
-for rp in planet_rps:
-    ax2.axvline(rp, linestyle='dashed', color='black') 
+if planets:
+    for rp in rps:
+        ax2.axvline(rp, linestyle='dashed', color='black') 
 
 ax2.set_xlabel("R (AU)")
 ax2.set_ylabel("$\Sigma_{{gas}} (g/cm^{{2}})$")
