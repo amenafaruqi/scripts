@@ -4,6 +4,8 @@ import matplotlib
 import argparse
 plt.style.use('default')
 
+
+# ======================= Misc functions ==============================
 def sigma_at_r(r=10, t_index=-1):
     r_in_range = radii[(r*0.8<radii) & (radii<r*1.2)]                # values of r within % of chosen radius
     mini = np.where(radii == np.min(r_in_range))[0][0]
@@ -20,12 +22,13 @@ def plot_dust_contours():
     # levels = np.linspace(-11,1,7)                    # Brauer 2008 levels
     # levels = np.linspace(-7, 2, 10)                  # Birnstiel 2012 levels 
     levels = np.linspace(-18, 6, 13)                   
+    print("Plotting dust size contour maps....")
 
     for i, o in enumerate(outputs):
         ax0 = fig0.add_subplot(plotsizey, plotsizex, i+1)
         sigmas = sigma_dust_avg[i]
         c = ax0.contourf(R, A, np.log10(sigmas), cmap="Greys", levels=levels)
-        ax0.set_ylim(1e-4, 1e2)
+        ax0.set_ylim(np.min(a), np.max(a))
         ax0.set_xscale("log")
         ax0.set_yscale("log")
         ax0.set_title(f"{round(timesteps[i],3)} Myr")
@@ -47,7 +50,6 @@ def plot_dust_contours():
     cbar_ax = fig0.add_axes([0.91, 0.53, 0.02, 0.4])
     fig0.colorbar(c, cax=cbar_ax, orientation="vertical", label="log$[\Sigma (g/cm^{{2}})]$")
     ax0.legend(loc="upper right")
-
     fig0.savefig(f"{plots_savedir}/{sim}_contour.png")
 
 # ======================= Dust-Gas Ratio =========================
@@ -55,6 +57,7 @@ def plot_dust_contours():
 def plot_dustgasratio():
     fig, ax = plt.subplots(figsize=(7,5))
     ax.set_prop_cycle(color=[cm(1.*i/8) for i in range(0,len(timesteps)+1)])
+    print("Plotting dust-gas ratio....")
 
     for i,o in enumerate(timesteps):
         dustgasratio = sigma_dust_tot_avg[i]/sigma_gas_avg[i]
@@ -79,6 +82,7 @@ def plot_dustgasratio():
 def plot_gas_sigma():
     fig, ax = plt.subplots(figsize=(7,6))
     ax.set_prop_cycle(color=[cm(1.*i/8) for i in range(0,len(timesteps)+1)])
+    print("Plotting gas surface density....")
 
     for i, o in enumerate(timesteps):
         ax.plot(radii, sigma_gas_avg[i], label=f"{round(o,3)} Myr")
@@ -102,6 +106,7 @@ def plot_gas_sigma():
 def plot_dust_sigma():
     fig, ax = plt.subplots(figsize=(7,6))
     ax.set_prop_cycle(color=[cm(1.*i/8) for i in range(0,len(timesteps)+1)])
+    print("Plotting dust surface density....")
 
     for i, o in enumerate(timesteps):
         ax.plot(radii, sigma_dust_tot_avg[i], label=f"{round(o,3)} Myr")
@@ -126,6 +131,7 @@ def plot_sigma_at_r(rs=[10]):
     for r in rs:
         fig, ax = plt.subplots(1, dpi=150)
         ax.set_prop_cycle(color=[cm(1.*i/8) for i in range(len(timesteps)+1)])
+        print(f"Plotting dust surface density at R={r}AU....")
 
         for t in timesteps:
             c = next(ax._get_lines.prop_cycler)['color']
@@ -149,6 +155,7 @@ def plot_sigma_at_r(rs=[10]):
 def plot_dust_mass():
     fig, ax = plt.subplots(1, dpi=150)
     ax.set_prop_cycle(color=[cm(1.*i/8) for i in range(0,len(timesteps)+1)])
+    print("Plotting total dust mass....")
 
     delta_r = radii[1]-radii[0]   # works for a linear grid only!!
     M_disc = np.zeros(len(timesteps))
@@ -179,13 +186,11 @@ if __name__ == "__main__":
 
     args = parser.parse_args()
     outputs = args.o
-    print("Outputs: ", outputs)
     wd = args.wd[0]
     sim = args.sim[0]
-    print(sim)
+    print(f"Plotting outputs {outputs} for {sim}\n =============")
     simdir = f"{wd}/{sim}/"
     planets = args.noplanet
-    print(planets)
     grog = args.nogrog
     plot_window = args.plot_window
     plots_savedir = args.savedir
