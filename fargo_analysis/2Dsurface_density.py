@@ -96,7 +96,7 @@ def plot_surf_dens(wd,simdir,dustnums,outputnumber,lin_scaling,cbmin,cbmax,plot_
                 print(num_planets) 
 
             for n in range(num_planets):
-                planet_data = np.loadtxt(f"{wd}/{simdir}/planet{n}.dat")
+                planet_data = np.unique(np.loadtxt(f"{wd}/{simdir}/planet{n}.dat"), axis=0)
                 xp, yp = planet_data[outputnumber][1], planet_data[outputnumber][2]
                 plt.scatter([-xp], [-yp], color='g', marker='.')
         
