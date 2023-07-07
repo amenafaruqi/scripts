@@ -31,18 +31,23 @@ def plot_dust_contours():
         ax0.set_ylim(np.min(a), np.max(a))
         ax0.set_xscale("log")
         ax0.set_yscale("log")
-        ax0.set_title(f"{round(timesteps[i],3)} Myr")
         ax0.plot(radii, a_St1[i], c='black', alpha=0.7, label="St=1")
         ax0.plot(radii, a_drift[i], c='deepskyblue', alpha=0.7, label="$a_{{drift}}$")
         ax0.plot(radii, a_frag[i], c='red', alpha=0.7, label="$a_{{frag}}$")
+        
         if not i%plotsizex:
             ax0.set_ylabel("a (cm)")
         else:
             ax0.set_yticks([])
-        if i < plotsizex and len(timesteps) > plotsizex:
+        if i < plotsizex and len(outputs) > plotsizex:
             ax0.set_xticks([])
         else:
             ax0.set_xlabel("R (AU)")
+        
+        if not p_orbits:
+            ax0.set_title(f"{round(timesteps[i],3)} Myr")
+        elif planets:
+            ax0.set_title(f"{int(round(planet_orbits[i],0))} orbits")
 
     fig0.tight_layout()
 
@@ -59,9 +64,14 @@ def plot_dustgasratio():
     ax.set_prop_cycle(color=[cm(1.*i/8) for i in range(0,len(timesteps)+1)])
     print("Plotting dust-gas ratio....")
 
-    for i,o in enumerate(timesteps):
+    for i,t in enumerate(timesteps):
         dustgasratio = sigma_dust_tot_avg[i]/sigma_gas_avg[i]
-        ax.plot(radii, dustgasratio, label=f"t={round(o, 3)} Myr")
+        if not p_orbits:
+            tlabel = f"{round(t, 3)} Myr"
+        elif planets:
+            tlabel = f"{int(round(planet_orbits[i], 0))} orbits"
+
+        ax.plot(radii, dustgasratio, label=tlabel)
     
     if planets:
         for rp in rps:
@@ -85,7 +95,12 @@ def plot_gas_sigma():
     print("Plotting gas surface density....")
 
     for i, o in enumerate(timesteps):
-        ax.plot(radii, sigma_gas_avg[i], label=f"{round(o,3)} Myr")
+        if not p_orbits:
+            tlabel = f"{round(t, 3)} Myr"
+        elif planets:
+            tlabel = f"{int(round(planet_orbits[i], 0))} orbits"
+
+        ax.plot(radii, sigma_gas_avg[i], label=tlabel)
 
     if planets:
         for rp in rps:
@@ -108,8 +123,13 @@ def plot_dust_sigma():
     ax.set_prop_cycle(color=[cm(1.*i/8) for i in range(0,len(timesteps)+1)])
     print("Plotting dust surface density....")
 
-    for i, o in enumerate(timesteps):
-        ax.plot(radii, sigma_dust_tot_avg[i], label=f"{round(o,3)} Myr")
+    for i, t in enumerate(timesteps):
+        if not p_orbits:
+            tlabel = f"{round(t, 3)} Myr"
+        elif planets:
+            tlabel = f"{int(round(planet_orbits[i], 0))} orbits"
+
+        ax.plot(radii, sigma_dust_tot_avg[i], label=tlabel)
 
     if planets:
         for rp in rps:
@@ -127,20 +147,20 @@ def plot_dust_sigma():
 
 # ================== Dust sigma evolution over time (for different a) ===================
 
-def plot_sigma_at_r(rs=[10]):
+def plot_sigma_at_r(rs=[25]):
     for r in rs:
         fig, ax = plt.subplots(1, dpi=150)
         ax.set_prop_cycle(color=[cm(1.*i/8) for i in range(len(timesteps)+1)])
         print(f"Plotting dust surface density at R={r}AU....")
 
-        for t in timesteps:
+        for i,t in enumerate(timesteps):
             c = next(ax._get_lines.prop_cycler)['color']
-            sigma_at_rau, mini, maxi  = sigma_at_r(r)
+            sigma_at_rau, mini, maxi  = sigma_at_r(r, i)
             ax.plot(a, sigma_at_rau, linestyle='solid', label=f"t={round(t,3)} Myr", color=c)
-            a_frag_t = np.median(a_frag[i,mini:maxi])
-            a_drift_t = np.median(a_drift[i,mini:maxi])
-            a1 = np.min(a_frag_t, a_drift_t)
-            ax.axvline(a1, linestyle='dashed', color=c)
+            # a_frag_t = np.median(a_frag[i,mini:maxi])
+            # a_drift_t = np.median(a_drift[i,mini:maxi])
+            # a1 = np.min(a_frag_t, a_drift_t)
+            # ax.axvline(a1, linestyle='dashed', color=c)
 
         ax.set_xlim(np.min(a), np.max(a))
         ax.set_xlabel("a (cm)")
@@ -175,25 +195,26 @@ def plot_dust_mass():
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description='Generate 1D plots', prefix_chars='-')
-    
+
+    parser.add_argument('-wd', metavar='wd', type=str, nargs=1, default=["/home/astro/phrkvg/simulations/planet_growth/test_models"],help="working directory containing simulations")
+    parser.add_argument('-sim', metavar='sim', type=str, nargs=1, default=["planettest"] ,help="simulation directory containing output files")
+    parser.add_argument('-savedir', metavar='savedir', type=str, nargs=1, default="./images" ,help="directory to save plots to")
     parser.add_argument('-o', metavar='outputs',default=[], type=int, nargs="*" ,help="outputs to plot")
     parser.add_argument('-noplanet', action="store_false")
     parser.add_argument('-nogrog', action="store_false")
     parser.add_argument('-plot_window', action="store_true")
-    parser.add_argument('-wd', metavar='wd', type=str, nargs=1, default=["/home/astro/phrkvg/simulations/planet_growth/test_models"],help="working directory containing simulations")
-    parser.add_argument('-sim', metavar='sim', type=str, nargs=1, default=["planettest"] ,help="simulation directory containing output files")
-    parser.add_argument('-savedir', metavar='savedir', type=str, nargs=1, default="./images" ,help="directory to save plots to")
+    parser.add_argument('-porbits', action="store_true")
 
     args = parser.parse_args()
     outputs = args.o
     wd = args.wd[0]
     sim = args.sim[0]
-    print(f"Plotting outputs {outputs} for {sim}\n =============")
     simdir = f"{wd}/{sim}/"
     planets = args.noplanet
     grog = args.nogrog
     plot_window = args.plot_window
     plots_savedir = args.savedir
+    p_orbits = args.porbits
 
     if plot_window:
         matplotlib.use('TkAgg')
@@ -230,14 +251,14 @@ if __name__ == "__main__":
     dt_orbits = int(float(params_dict['DT'])/(2*np.pi))   # 2pi = 1 orbit = 1 yr
     ninterm = float(params_dict['NINTERM'])               # number of dts between outputs
     dt_outputs = dt_orbits*ninterm                        # time between outputs
-    timesteps = np.array(outputs)*dt_outputs*1e-6    # time in Myr
+    timesteps = np.array(outputs)*dt_outputs*1e-6         # time in Myr
 
     if planets:
         planets_data = np.genfromtxt(f"{simdir}/planet.cfg").reshape(1,6)
         rps = planets_data[:,1]
         Mps = planets_data[:,2]
-        planet_periods = (rps**3)**0.5    # orbital period of planet in yrs
-        # planet_orbits = timesteps/planet_periods
+        planet0_period = (rps[0]**3)**0.5    # orbital period of planet in yrs
+        planet_orbits = timesteps*1e6/planet0_period
 
     # FARGO initialises grains with sizes uniformly distributed across ndust bins in logspace
     if grog:
@@ -245,7 +266,7 @@ if __name__ == "__main__":
                         np.log10(maxgsize),
                         ndust+1)
 
-        a = (0.5*(a[1:] + a[:-1]))                                       # convert cm to um by multiplying by 1e4
+        a = (0.5*(a[1:] + a[:-1]))                                   # grain sizes in middles of bins (in cm)
     r_cells = np.loadtxt(f'{simdir}/domain_y.dat')[3:-3]             # ignore ghost cells
     phi_cells = np.loadtxt(f'{simdir}/domain_x.dat')[3:-3]
     radii = np.array([(r_cells[n]+r_cells[n+1])/2 for n in range(len(r_cells)-1)])
@@ -289,13 +310,15 @@ if __name__ == "__main__":
     if not plot_window:
         plt.style.use(['../styles/publication.mplstyle'])
 
+    print(f"Plotting outputs {outputs} for {sim}\n =============")
+
     plot_gas_sigma()
 
     if grog:
         plot_dust_contours()
         plot_dust_sigma()
         plot_dustgasratio()
-        # plot_sigma_at_r()
+        # plot_sigma_at_r([rps[0]+5])
 
     if plot_window:
         plt.show()
