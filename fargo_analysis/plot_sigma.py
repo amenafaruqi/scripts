@@ -267,7 +267,6 @@ if __name__ == "__main__":
                         ndust+1)
 
         a = (0.5*(a[1:] + a[:-1]))                                   # grain sizes in middles of bins (in cm)
-        sum_dustvol = np.sum(a**3)
 
     r_cells = np.loadtxt(f'{simdir}/domain_y.dat')[3:-3]             # ignore ghost cells
     phi_cells = np.loadtxt(f'{simdir}/domain_x.dat')[3:-3]
@@ -276,35 +275,40 @@ if __name__ == "__main__":
 
     sigma_gas = np.zeros((len(outputs), nrad, nphi))
     sigma_dust = np.zeros((len(outputs), ndust, nrad, nphi))
-    weighted_sum_dens = np.zeros((len(outputs), nrad, nphi))
+    avg_dust_dens = np.zeros((len(outputs), nrad, nphi))
+    sum_dustvol = np.zeros((len(outputs)))                      # total volume of dust at each timestep
 
     for i,t in enumerate(outputs):
         gasfile = f"gasdens{int(t)}.dat" 
         sigma_gas[i] = np.fromfile(simdir+gasfile).reshape(nrad,nphi)/(1.125e-7)         # convert back to g/cm2
+        n_grains = np.zeros((ndust))
         if grog:
             for n in np.arange(ndust):
                 dust_file = f"dustdens{n}_{int(t)}.dat" 
                 sigma_dust[i,n] = np.fromfile(simdir+dust_file).reshape(nrad,nphi)/(1.125e-7)
-                weighted_sum_dens[i] = weighted_sum_dens[i] + sigma_dust[i,n]*a[n]**3
-    
-    avgdustdens = weighted_sum_dens/sum_dustvol                      # mass-averaged dust densities
-    avgdustdens_azimsum = np.sum(avgdustdens, axis=2)                # sum over all phi
+                n_grains[n] = np.sum(sigma_dust[i,n])*3/(a[n]*rhodust)                    # number of dust grains at size a and time t
+                avg_dust_dens[i] = avg_dust_dens[i] + sigma_dust[i,n]*(a[n]**3)           # (mass)volume-weighted sum of densities
+            sum_dustvol[i] = np.sum(n_grains*(a**3))                                      # numbers of grains of each size x volume of grain
+            avg_dust_dens[i] = avg_dust_dens[i]/sum_dustvol[i]                            
+
+    avgdustdens_azimsum = np.sum(avg_dust_dens, axis=2)              # sum over all phi
     sigma_dust_azimsum = np.sum(sigma_dust, axis=3)                  # sum over all phi 
     sigma_gas_azimsum = np.sum(sigma_gas, axis=2)                    # sum over all phi   
 
     sigma_gas_1D = sigma_gas_azimsum/nphi                           # dimensions: (noutputs, nrad) 
     sigma_dust_1D = sigma_dust_azimsum/nphi                         # dimensions: (noutputs, ndust, nrad)
     sigma_dust_sum_1D = avgdustdens_azimsum/nphi                    # dimensions: (noutputs, nrad)
-    print(sigma_dust_sum_1D[0,:5], sigma_dust_sum_1D[1,:5])
+
     if grog:
         uf = 10                                               # fragmentation velocity
         hr = hr0*(radii**f)                                   # aspect ratio
-        a_St1 = (2/np.pi)*(sigma_gas_1D/rhodust)             # plot St=1 line
+        a_St1 = (2/np.pi)*(sigma_gas_1D/rhodust)              # plot St=1 line
 
         # size of largest grains in a fragmentation-dominated distribution
         a_frag = 100*(2/(3*np.pi))*((uf**2)/(rhodust*1000*alpha))*(hr**-2)*(sigma_gas_1D*10/((2e30)*(6.67e-11)))*(radii*1.5e11)  # from Birnstiel+2012
         # size of largest grains in a drift-dominated distribution
         a_drift = 100*(2/(rhodust*1000*np.pi))*(hr**-2)*np.sum(sigma_dust_1D, axis=1)*10*(2/3)   # from Birnstiel+2012
+
 
     # ======================== Generate Plots ==========================
 
