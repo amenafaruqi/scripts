@@ -4,9 +4,8 @@ import matplotlib.ticker as ticker
 from pylab import*
 import argparse
 import sys
-import os
 import math as mt
-from os import path
+import glob
 #from plot_section import create_simulation
 #from draggable_colorbar import DraggableColorbar
 #import mynormalize
@@ -27,12 +26,6 @@ def plot_surf_dens(wd,simdir,dustnums,outputnumber,lin_scaling,cbmin,cbmax,plot_
     filepaths = []
     print(wd)
 
-    if plot_gas in ["yes", "y"]:
-        filepaths.append(f'{wd}/{simdir}/gasdens{outputnumber}.dat')
-
-    for dustnum in dustnums:
-        filepaths.append(f'{wd}/{simdir}/dustdens{dustnum}_{outputnumber}.dat')
-
     params_file = f'{wd}/{simdir}/variables.par'
     params_dict = {}
     param_lines = open(params_file).readlines()
@@ -44,6 +37,83 @@ def plot_surf_dens(wd,simdir,dustnums,outputnumber,lin_scaling,cbmin,cbmax,plot_
     nphi = int(params_dict['NX'])
     nrad = int(params_dict['NY'])
     ndust = int(params_dict['NDUST'])
+    mingsize = float(params_dict['MIN_GRAIN_SIZE'])
+    maxgsize = float(params_dict['MAX_GRAIN_SIZE'])
+    sigma0 = float(params_dict['SIGMA0'])
+    Rc = float(params_dict['SIGMACUTOFF'])
+
+    phi = np.linspace(0,2*np.pi,nphi+1)
+    r_cells = np.loadtxt(f'{wd}/{simdir}/domain_y.dat')[3:-3]             # ignore ghost cells
+    radii = np.array([(r_cells[n]+r_cells[n+1])/2 for n in range(len(r_cells)-1)])
+
+    r,theta=np.meshgrid(radii,phi)
+    x = r*np.cos(theta)
+    y = r*np.sin(theta)
+    a = np.logspace(np.log10(mingsize),    
+                    np.log10(maxgsize),
+                    ndust+1)
+
+    a = (0.5*(a[1:] + a[:-1]))                                   # grain sizes in middles of bins (in cm)
+    sum_dustvol = np.sum(a**3)
+
+    if plot_gas in ["yes", "y"]:
+        filepaths.append(f'{wd}/{simdir}/gasdens{outputnumber}.dat')
+
+    if dustnums[0] == -1:
+        all_dust_files = glob.glob(f"{wd}/{simdir}/dustdens*_{outputnumber}.dat")
+        weighted_sum_dens = np.zeros((nrad, nphi))
+        for i,file in enumerate(all_dust_files):
+            surfdens = np.fromfile(file).reshape(nrad,nphi)/(1.125e-7)
+            weighted_sum_dens = weighted_sum_dens + surfdens*(a[i]**3)
+        avgdustdens = weighted_sum_dens/sum_dustvol
+        dens_first_wedge = avgdustdens[:,0].reshape(nrad,1)
+        dens_additional = np.concatenate((avgdustdens[:,:],dens_first_wedge),axis=1)
+        
+        if  np.isnan(cbmin):
+            vmin = np.percentile(avgdustdens, 10)
+        else: 
+            vmin = cbmin
+
+        if  np.isnan(cbmax):
+            vmax = np.percentile(avgdustdens, 90)
+        else: 
+            vmax = cbmax
+
+        fig = plt.figure()
+        if (lin_scaling not in ["no", "n"]):
+            plt.pcolormesh(x,y,dens_additional.T,cmap=cm.Oranges_r,shading="auto",vmin=vmin, vmax=vmax)
+            cbar_label = '$\Sigma$ [$g/cm^{2}$] '
+
+        else:
+            im = plt.pcolormesh(x,y,np.log10(dens_additional.T),cmap=cm.Oranges_r,shading="auto",vmin=np.log10(vmin), vmax=np.log10(vmax))
+            im.set_rasterized(True)
+            cbar_label = 'log $\Sigma$ [$g/cm^{2}$]'
+
+        cbar = plt.colorbar()
+        cbar.set_label(cbar_label)
+        plt.xlabel('x [AU]')
+        plt.ylabel('y [AU]')
+
+        if plot_planet not in ["no", "n"]:
+            with open(f"{wd}/{simdir}/planet.cfg", 'r') as f:
+                num_planets = len(f.readlines()) - 5        # ignore 5 lines of headers
+
+            for n in range(num_planets):
+                planet_data = np.unique(np.loadtxt(f"{wd}/{simdir}/planet{n}.dat"), axis=0)
+                xp, yp = planet_data[outputnumber][1], planet_data[outputnumber][2]
+                plt.scatter([-xp], [-yp], color='g', marker='.')
+        
+        if zoom:
+            plt.xlim(-zoom,zoom)
+            plt.ylim(-zoom,zoom)
+
+        plt.tight_layout()
+        plt.savefig(f'./images/dustavg_{simdir}_{outputnumber}.png', dpi=150)
+
+
+    else:
+        for dustnum in dustnums:
+            filepaths.append(f'{wd}/{simdir}/dustdens{dustnum}_{outputnumber}.dat')
 
     for file_i, filepath in enumerate(filepaths):
         print(f"Plotting {filepath.split('/')[-1]}...")
@@ -58,19 +128,8 @@ def plot_surf_dens(wd,simdir,dustnums,outputnumber,lin_scaling,cbmin,cbmax,plot_
         else: 
             vmax = cbmax
 
-        phi = np.linspace(0,2*np.pi,nphi+1)
-        r_cells = np.loadtxt(f'{wd}/{simdir}/domain_y.dat')[3:-3]             # ignore ghost cells
-        radii = np.array([(r_cells[n]+r_cells[n+1])/2 for n in range(len(r_cells)-1)])
-
-        # radii=loadtxt(f'/home/astro/phrkvg/simulations/planet_growth/{simdir}/used_rad.dat')
-        r,theta=np.meshgrid(radii,phi)
-        
         dens_first_wedge = surfdens[:,0].reshape(nrad,1)
-        # print(dens_first_wedge.shape)
         dens_additional = np.concatenate((surfdens[:,:],dens_first_wedge),axis=1)
-
-        x = r*np.cos(theta)
-        y = r*np.sin(theta)
 
         fig = plt.figure()
 
