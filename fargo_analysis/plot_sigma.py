@@ -286,7 +286,7 @@ if __name__ == "__main__":
             for n in np.arange(ndust):
                 dust_file = f"dustdens{n}_{int(t)}.dat" 
                 sigma_dust[i,n] = np.fromfile(simdir+dust_file).reshape(nrad,nphi)/(1.125e-7)
-                n_grains[n] = np.sum(sigma_dust[i,n])*3/(a[n]*rhodust)                    # number of dust grains at size a and time t
+                n_grains[n] = np.sum(sigma_dust[i,n])*3/(a[n]*rhodust*4)                  # number of dust grains at size a and time t
                 avg_dust_dens[i] = avg_dust_dens[i] + sigma_dust[i,n]*(a[n]**3)           # (mass)volume-weighted sum of densities
             sum_dustvol[i] = np.sum(n_grains*(a**3))                                      # numbers of grains of each size x volume of grain
             avg_dust_dens[i] = avg_dust_dens[i]/sum_dustvol[i]                            
