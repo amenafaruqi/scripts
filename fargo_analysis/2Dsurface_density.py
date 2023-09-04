@@ -16,7 +16,7 @@ from matplotlib import rcParams
 import matplotlib.ticker as mtick
 
 plt.style.use('default')
-plt.style.use(['../styles/publication.mplstyle'])
+plt.style.use(['../styles/darkbg.mplstyle', '../styles/presentation.mplstyle'])
 
 #____________________________________PLOTTING FUNCTIONS ____________________________________#
                                                                                                       

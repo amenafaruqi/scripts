@@ -195,20 +195,33 @@ def plot_dust_mass():
 # ================= Radial drift timescale  ===============
 
 def plot_t_drift():
-    fig, ax = plt.subplots(figsize=(7,6))
-    ax.set_prop_cycle(color=[cm(1.*i/8) for i in range(0,len(timesteps)+1)])
+    fig = plt.figure(figsize=(16,12))
+    levels = np.linspace(-6, 4, 11)                   
     print("Plotting drift timescale....")
     for i,t in  enumerate(timesteps):
+        ax = fig.add_subplot(plotsizey, plotsizex, i+1)
+        A,R = np.meshgrid(a,radii)  
+        print(np.nanmin(t_drift[i]), np.nanmax(t_drift[i]))      
+        con = ax.contourf(R, A, np.log10(t_drift[i]), cmap="Greys", levels=levels)
+        
         if not p_orbits:
-            tlabel = f"{round(t, 3)} Myr"
+            ax.set_title(f"{round(timesteps[i],3)} Myr")
         elif planets:
-            tlabel = f"{int(round(planet_orbits[i], 0))} orbits"
-        ax.plot(radii[1:-1], t_drift[i][1:-1], label=tlabel)
-    
-    ax.legend()
-    ax.set_yscale("log")
-    ax.set_xlabel("R (AU)")
-    ax.set_ylabel("$\\tau_{drift} (Myr)$")
+            ax.set_title(f"{int(round(planet_orbits[i],0))} orbits")
+        ax.set_xscale("log")
+        ax.set_yscale("log")
+        if not i%plotsizex:
+            ax.set_ylabel("a (cm)")
+        else:
+            ax.set_yticks([])
+        if i < plotsizex and len(outputs) > plotsizex:
+            ax.set_xticks([])
+        else:
+            ax.set_xlabel("R (AU)")
+
+    fig.subplots_adjust(right=0.89, hspace=0.3)
+    cbar_ax = fig.add_axes([0.91, 0.53, 0.02, 0.4])
+    fig.colorbar(con, cax=cbar_ax, orientation="vertical", label="log$[\\tau_{drift} (Myr)]$")
 
     fig.savefig(f"{plots_savedir}/{sim}_tdrift.png")
 
@@ -227,6 +240,7 @@ if __name__ == "__main__":
     parser.add_argument('-nogrog', action="store_false")
     parser.add_argument('-plot_window', action="store_true")
     parser.add_argument('-porbits', action="store_true")
+    parser.add_argument('-style', metavar='style', type=str, nargs=1, default=["publication"] ,help="style sheet to apply to plots")
 
     args = parser.parse_args()
     outputs = args.o
@@ -238,6 +252,7 @@ if __name__ == "__main__":
     plot_window = args.plot_window
     plots_savedir = args.savedir
     p_orbits = args.porbits
+    style= args.style
 
     if plot_window:
         matplotlib.use('TkAgg')
@@ -309,7 +324,7 @@ if __name__ == "__main__":
             for n in np.arange(ndust):
                 dust_file = f"dustdens{n}_{int(t)}.dat" 
                 sigma_dust[i,n] = np.fromfile(simdir+dust_file).reshape(nrad,nphi)/(1.125e-7)
-                n_grains[n] = np.sum(sigma_dust[i,n])*3/(a[n]*rhodust)                    # number of dust grains at size a and time t
+                n_grains[n] = np.sum(sigma_dust[i,n])*3/(a[n]*rhodust*4)                  # number of dust grains at size a and time t
                 avg_dust_dens[i] = avg_dust_dens[i] + sigma_dust[i,n]*(a[n]**3)           # (mass)volume-weighted sum of densities
             sum_dustvol[i] = np.sum(n_grains*(a**3))                                      # numbers of grains of each size * volume of grain
             avg_dust_dens[i] = avg_dust_dens[i]/sum_dustvol[i]                            
@@ -325,30 +340,32 @@ if __name__ == "__main__":
     if grog:
         uf = 10                                               # fragmentation velocity
         hr = hr0*(radii**f)                                   # aspect ratio
-        cs = hr*(((2e30)*(6.67e-11))/(radii*1.5e11))**0.5
+        cs = hr*(((2e30)*(6.67e-11))/(radii*1.5e11))**0.5     # [m/s]
         b = (uf**2/alpha)*(hr**-2)*(radii*1.5e11)/((2e30)*(6.67e-11)) # dimensionless
         p = (sigma_gas_1D*(cs**2)/((2*np.pi)**0.5))*(hr**-1)*((radii*1.5e11)**-1)
-        pad = np.empty((len(timesteps), 1))
+        pad = np.empty((len(timesteps), 1))*np.nan
         gamma = (radii/p)*np.abs(np.append(np.diff(p)/np.diff(radii), pad, axis=1))
         C = 2/(np.pi*hr)
-        a_vals = np.logspace(np.log10(mingsize),    
-                             np.log10(maxgsize),
-                             nrad)
         a_St1 = (2/np.pi)*(sigma_gas_1D/rhodust)              # plot St=1 line
 
         # size of largest grains in a fragmentation-dominated distribution
-        a_frag = 100*(2/(3*np.pi))*((uf**2)/(rhodust*1000*alpha))*(hr**-2)*(sigma_gas_1D*10/((2e30)*(6.67e-11)))*(radii*1.5e11)  # from Birnstiel+2012
-        # a_frag = (sigma_gas_1D/rhodust)*(3-(9-4*(b**2))**0.5)/(np.pi*b)
+        # a_frag = 100*(2/(3*np.pi))*((uf**2)/(rhodust*1000*alpha))*(hr**-2)*(sigma_gas_1D*10/((2e30)*(6.67e-11)))*(radii*1.5e11)  # from Birnstiel+2012
+        a_frag = (sigma_gas_1D/rhodust)*(3-(9-4*(b**2))**0.5)/(np.pi*b)
 
         # size of largest grains in a drift-dominated distribution
-        a_drift = 100*(2/(rhodust*1000*np.pi))*(hr**-2)*np.sum(sigma_dust_1D, axis=1)*10*(2/3)   # from Birnstiel+2012
-        # a_drift = (2/np.pi)*(sigma_dust_sum_1D/rhodust)*(1/gamma)*(hr**-2)
+        # a_drift = 100*(2/(rhodust*1000*np.pi))*(hr**-2)*np.sum(sigma_dust_1D, axis=1)*10*(2/3)   # from Birnstiel+2012 (assume gamma=3/2)
+        a_drift = (2/np.pi)*(np.sum(sigma_dust_1D, axis=1)/(rhodust*gamma*hr**2))
         
-        t_drift = ((C/gamma)*(sigma_gas_1D/(rhodust*a_vals))*(radii*1.5e11/cs))*3.17e-14    # drift timescale in Myr
+        t_drift = np.zeros((len(timesteps), nrad, ndust))
+        for i in range(len(timesteps)):
+            t_drift[i] = ((2/(np.pi*rhodust))*(np.dot((radii*sigma_gas_azimsum[i]/(gamma[i]*hr*cs)).reshape(nrad,1), a.reshape(1,ndust))*1.5e11))*3.17e-14    # drift timescale in Myr
+    
+    
     # ======================== Generate Plots ==========================
 
     if not plot_window:
-        plt.style.use(['../styles/publication.mplstyle'])
+        for s in style:
+            plt.style.use([f"../styles/{s}.mplstyle"])
 
     print(f"Plotting outputs {outputs} for {sim}\n =============")
 
@@ -360,7 +377,7 @@ if __name__ == "__main__":
         plot_dustgasratio()
         # plot_dust_mass()
         # plot_sigma_at_r([rps[0]+5])
-        plot_t_drift()
+        # plot_t_drift()
 
     if plot_window:
         plt.show()
