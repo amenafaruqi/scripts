@@ -293,8 +293,8 @@ if __name__ == "__main__":
         #___________________________________TAKE COMMAND LINE ARGUMENTS__________________________#     
 
     parser = argparse.ArgumentParser(description='Plot semi major axis', prefix_chars='-')
-    parser.add_argument('-o', metavar='output_number', type=int,default=-1, nargs=1 ,help="The output number for a certain orbit")
-    parser.add_argument('-d', metavar='dust_number',default=[], type=int, nargs="*" ,help="The dust type(s) which is an integer")
+    parser.add_argument('-o', metavar='output_number', type=int,default=0, nargs=1 ,help="The output number for a certain orbit")
+    parser.add_argument('-d', metavar='dust_number',default=[-1], type=int, nargs="*" ,help="The dust type(s) which is an integer")
     parser.add_argument('-cb', metavar='colourbar scale', type=float, nargs=2, default=[np.nan,np.nan], help="define the maximum and minimum colour bar scale")
     parser.add_argument('-lin', metavar='linear colour scale', type=str, nargs=1, default="no", help="linear plot")
     parser.add_argument('-gas', metavar='gas density', type=str, nargs=1, default="no", help="plot gas density")
