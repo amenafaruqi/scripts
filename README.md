@@ -21,7 +21,11 @@ python 2Dsurface_density.py -o [output] -wd [simulations working directory]  -di
 
 #### `plot_sigma.py`
 
-Plots the 1D surface density of gas and/or dust in g/cm^2 against different physical quantities.
+Plots the 1D surface density of gas and/or dust in g/cm^2 against different physical quantities. By default, it plots the following:
+- Gas surface density against R
+- Dust surface density (mass averaged sum across grain sizes) against R
+- Dust-gas ratio against R
+- 2D contour maps of dust against grain size and radius
 
 Run using  
 ```
@@ -34,7 +38,7 @@ python plot_sigma.py -o [outputs] -wd [simulations working directory] -sim [simu
 - savedir: directory to save plots to. Default is `./images` (assuming it exists).
 - noplanet: use this flag if there is no planet in the simulation.
 - nogrog:  use this  flag if plotting a `dusty_fargo` simulation (not `grain_growth`)
-- plot_window: use this  flag to open an interactive  plot window rather than saving  the plots as images.
-- porbits:  use this flag to express timestepsin planet orbits rather than Myr.
-- style: choen  matplotlib style, default is "publication" style.
+- plot_window: use this flag to open an interactive  plot window rather than saving the plots as images.
+- porbits:  use this flag to express timesteps in planet orbits rather than Myr.
+- style: chosen  matplotlib style, default is "publication" style.
 
