@@ -6,12 +6,8 @@ import argparse
 import sys
 import math as mt
 import glob
-#from plot_section import create_simulation
-#from draggable_colorbar import DraggableColorbar
-#import mynormalize
 from scipy.interpolate import RectBivariateSpline
 import scipy.ndimage
-#import visual.graph as vg
 from matplotlib import rcParams
 import matplotlib.ticker as mtick
 
@@ -165,97 +161,18 @@ def plot_surf_dens(wd,simdir,dustnums,outputnumber,lin_scaling,cbmin,cbmax,plot_
 
         plt.tight_layout()
 
-#        cbar.ax.yaxis.set_tick_params(color='white')
-#        cbar.ax.yaxis.set_major_formatter(mtick.FormatStrFormatter('%.1e'))
-        # plt.setp(plt.getp(cbar.ax.axes, 'yticklabels'))#, color='w')
-#        cbar.ax.set_xticklabels(color='white')
-#        cbar.ax.get_ticklabels('white')
-#        spines['top'].set_color('red')
-#        ax1.spines['top'].set_color('red')
-#        ax1.set_xlabel('X-axis')
-#        ax1.xaxis.label.set_color('red')
-        
-
-#        ax1 = plt.gca()
-        # ax = fig.add_subplot(111)
-        # plt.axis('scaled')
-        # ax.set_xlabel('x [code units]')
-        # ax.set_ylabel('y [code units]')
-        # ax.set_xlim([-1.3,1.3])
-        # ax.set_ylim([-1.3,1.3])
-#        ax.tick_params(axis='y', which='both', color='w')
-#        ax.xaxis.label.set_color('white')
-#        ax.yaxis.label.set_color('white')
-#        ax.xticks.set_color('red')
-#        ax.tick_params(axis='x', colors='red')
-
-#        for spine in ax.axes.spines.values():
-#            spine.set_edgecolor('white')
-
-#        [t.set_color('white') for t in ax.xaxis.get_ticklines()]
-#        [t.set_color('white') for t in ax.yaxis.get_ticklines()]
-
-
-#        [t.set_color('white') for t in ax.xaxis.get_ticklabels()]
-#        [t.set_color('white') for t in ax.yaxis.get_ticklabels()]
-#        [t.set_color('white') for t in cbar.set_ticklabels()]
-#        cbar.ax.label.set_color('white')
-#        [t.set_color('white') for t in cbar.ax.yaxis.set_tick_params()]
-#        cbar.ax.yaxis.set_tick_params(color='white')
-#        cbar.tick(color='white')
-#        cbar.outline.set_edgecolor('white')
-#        cbar.color = 'white'
-
-#        for tick in cbar.get_ticklabels():
-#            tick.set_color('red')
-
-# Uncomment the following text, as well as any future references to ax2, if a second plot is needed with the azimuthal averaged sigmad and four slices of the disc
-#        ax2 = fig.add_subplot(212)
-#        plt.figure()
-#        ax2 = plt.gca()
-#        ax2.set_xlabel('r')
-#        ax2.set_ylabel("dust surface density")
-#        sigmad_tot = sum(surfdens,axis=1)
-#        sigmad_azi = sigmad_tot/nphi
-
-
         r_celledge = [None]*nrad
         ncelledge = nrad+1
-#        print type(ncelledge), ncelledge
-
-#        filepath_r = 'link/used_rad.dat'
-#        f = open(filepath_r,'r')
-#        lines = f.readlines()
-#        print type(lines), lines
-
-#        for line in xrange(ncelledge-1):
-#            data = line.split()
-#            r_celledge.append(float(data[0]))
-#
-#            r_celledge.append(
 
         rcell = [None] * (len(radii)-1)
         for i in range(len(radii)-1):
-#            rcell[i] = (radii[i]*radii[i+1])**0.5
             rcell[i] = (radii[i]+radii[i+1])/2.
-#        ax2.plot(rcell,sigmad_azi)
 
         for i in range(4):
             j = int(nphi/4.*i)
-#            print nx/4.*i, j
             surfdensi = [None]*nrad
             for k in range(nrad):
-#                print "inside k = ",k
-#                print surfdens
-#                surfdens = []
-#                print type(surfdens)                
-#                print surfdens[0,0], type(surfdens[0,0])
-#                sys.exit()
-#                surfdensi = float(surfdens[k,j])
-#                print surfdensi
                 surfdensi[k] = surfdens[k,j]
-#            print len(rcell), len(surfdensi)
-#            ax2.plot(rcell,surfdensi)
 
         if (beam in ["yes", "y"]):
             # Put the image in cartesian co-ordinates
@@ -340,9 +257,5 @@ if __name__ == "__main__":
     zoom = args.zoom[0]
 
         #________________________________END COMMAND LINE ARGS__________________________________#      
-
-    # Change matplotlib.rcParams
-#    rcParams["text.color"] = 'white'
-#    rcParams["text.fontsize"] = 14
 
     plot_surf_dens(wd,simdir,DUSTNUMS,Out,lin_scale,cbmin,cbmax,gasdens,convolve,plot_planet,zoom)
