@@ -177,7 +177,11 @@ def plot_dust_mass():
     ax.set_prop_cycle(color=[cm(1.*i/8) for i in range(0,len(timesteps)+1)])
     print("Plotting total dust mass....")
 
-    delta_r = radii[1]-radii[0]   # works for a linear grid only!!
+    if spacing == "Linear":
+        delta_r = radii[1]-radii[0]
+    else:   # Log grid
+        delta_log_r = np.log10(radii[1]) - np.log10(radii[0])
+        delta_r = radii*delta_log_r
     M_disc = np.zeros(len(timesteps))
 
     for i in range(len(timesteps)):
@@ -279,6 +283,7 @@ if __name__ == "__main__":
     hr0 = float(params_dict['ASPECTRATIO'])      # aspect ratio at R=1AU
     ndust = int(params_dict['NDUST'])
     alpha = float(params_dict['ALPHA'])
+    spacing = str(params_dict['SPACING'])
     if grog:
         mingsize = float(params_dict['MIN_GRAIN_SIZE'])
         maxgsize = float(params_dict['MAX_GRAIN_SIZE'])
@@ -308,7 +313,10 @@ if __name__ == "__main__":
 
     r_cells = np.loadtxt(f'{simdir}/domain_y.dat')[3:-3]             # ignore ghost cells
     phi_cells = np.loadtxt(f'{simdir}/domain_x.dat')[3:-3]
-    radii = np.array([(r_cells[n]+r_cells[n+1])/2 for n in range(len(r_cells)-1)])
+    if spacing == "Linear":
+        radii = np.array([(r_cells[n]+r_cells[n+1])/2 for n in range(len(r_cells)-1)])
+    else:     # Log grid
+        radii = np.array([10**((np.log10(r_cells[n])+np.log10(r_cells[n+1]))/2) for n in range(len(r_cells)-1)])
     phis = np.array([(phi_cells[n]+phi_cells[n+1])/2 for n in range(len(phi_cells)-1)])
 
     sigma_gas = np.zeros((len(outputs), nrad, nphi))
