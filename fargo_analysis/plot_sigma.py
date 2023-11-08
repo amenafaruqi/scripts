@@ -316,7 +316,7 @@ if __name__ == "__main__":
     if spacing == "Linear":
         radii = np.array([(r_cells[n]+r_cells[n+1])/2 for n in range(len(r_cells)-1)])
     else:     # Log grid
-        radii = np.array([10**((np.log10(r_cells[n])+np.log10(r_cells[n+1]))/2) for n in range(len(r_cells)-1)])
+        radii = np.array([np.exp((np.log10(r_cells[n])+np.log10(r_cells[n+1]))/2) for n in range(len(r_cells)-1)])
     phis = np.array([(phi_cells[n]+phi_cells[n+1])/2 for n in range(len(phi_cells)-1)])
 
     sigma_gas = np.zeros((len(outputs), nrad, nphi))
