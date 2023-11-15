@@ -34,7 +34,10 @@ def plot_dust_contours():
         ax0.plot(radii, a_St1[i], c='black', alpha=0.7, label="St=1")
         ax0.plot(radii, a_drift[i], c='deepskyblue', alpha=0.7, label="$a_{{drift}}$")
         ax0.plot(radii, a_frag[i], c='red', alpha=0.7, label="$a_{{frag}}$")
-        
+        if planets:
+            for rp in rps:
+                ax0.axvline(rp, linestyle='dashed', color='black')
+            
         if not i%plotsizex:
             ax0.set_ylabel("a (cm)")
         else:
@@ -316,7 +319,7 @@ if __name__ == "__main__":
     if spacing == "Linear":
         radii = np.array([(r_cells[n]+r_cells[n+1])/2 for n in range(len(r_cells)-1)])
     else:     # Log grid
-        radii = np.array([np.exp((np.log10(r_cells[n])+np.log10(r_cells[n+1]))/2) for n in range(len(r_cells)-1)])
+        radii = np.array([np.exp((np.log(r_cells[n])+np.log(r_cells[n+1]))/2) for n in range(len(r_cells)-1)])
     phis = np.array([(phi_cells[n]+phi_cells[n+1])/2 for n in range(len(phi_cells)-1)])
 
     sigma_gas = np.zeros((len(outputs), nrad, nphi))
