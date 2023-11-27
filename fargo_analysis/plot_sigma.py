@@ -199,39 +199,6 @@ def plot_dust_mass():
     fig.tight_layout()
     fig.savefig(f"{plots_savedir}/{sim}_Mdust.png")
 
-# ================= Radial drift timescale  ===============
-
-def plot_t_drift():
-    fig = plt.figure(figsize=(16,12))
-    levels = np.linspace(-6, 4, 11)                   
-    print("Plotting drift timescale....")
-    for i,t in  enumerate(timesteps):
-        ax = fig.add_subplot(plotsizey, plotsizex, i+1)
-        A,R = np.meshgrid(a,radii)  
-        print(np.nanmin(t_drift[i]), np.nanmax(t_drift[i]))      
-        con = ax.contourf(R, A, np.log10(t_drift[i]), cmap="Greys", levels=levels)
-        
-        if not p_orbits:
-            ax.set_title(f"{round(timesteps[i],3)} Myr")
-        elif planets:
-            ax.set_title(f"{int(round(planet_orbits[i],0))} orbits")
-        ax.set_xscale("log")
-        ax.set_yscale("log")
-        if not i%plotsizex:
-            ax.set_ylabel("a (cm)")
-        else:
-            ax.set_yticks([])
-        if i < plotsizex and len(outputs) > plotsizex:
-            ax.set_xticks([])
-        else:
-            ax.set_xlabel("R (AU)")
-
-    fig.subplots_adjust(right=0.89, hspace=0.3)
-    cbar_ax = fig.add_axes([0.91, 0.53, 0.02, 0.4])
-    fig.colorbar(con, cax=cbar_ax, orientation="vertical", label="log$[\\tau_{drift} (Myr)]$")
-
-    fig.savefig(f"{plots_savedir}/{sim}_tdrift.png")
-
 
 # ==========================================================
 
@@ -365,12 +332,7 @@ if __name__ == "__main__":
 
         # size of largest grains in a drift-dominated distribution
         # a_drift = 100*(2/(rhodust*1000*np.pi))*(hr**-2)*np.sum(sigma_dust_1D, axis=1)*10*(2/3)   # from Birnstiel+2012 (assume gamma=3/2)
-        a_drift = (2/np.pi)*(np.sum(sigma_dust_1D, axis=1)/(rhodust*gamma*hr**2))
-        
-        t_drift = np.zeros((len(timesteps), nrad, ndust))
-        for i in range(len(timesteps)):
-            t_drift[i] = ((2/(np.pi*rhodust))*(np.dot((radii*sigma_gas_azimsum[i]/(gamma[i]*hr*cs)).reshape(nrad,1), a.reshape(1,ndust))*1.5e11))*3.17e-14    # drift timescale in Myr
-    
+        a_drift = (2/np.pi)*(np.sum(sigma_dust_1D, axis=1)/(rhodust*gamma*hr**2))    
     
     # ======================== Generate Plots ==========================
 
@@ -388,7 +350,6 @@ if __name__ == "__main__":
         plot_dustgasratio()
         # plot_dust_mass()
         # plot_sigma_at_r([rps[0]+5])
-        # plot_t_drift()
 
     if plot_window:
         plt.show()
