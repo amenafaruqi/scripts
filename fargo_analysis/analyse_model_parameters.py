@@ -41,7 +41,7 @@ def plot_tmigration():  # as function of R
     gamma = 5/3
     zeta = beta - (gamma-1)*alpha
     Rs = np.arange(10,101,5)
-    Ms = np.arange(10,301,10)
+    Ms = np.arange(10,201,10)*3e-6                   # in units of Msun
     tauI_arr_R = np.zeros(len(Rs))
     tauI_arr_M = np.zeros(len(Ms))
     for i,R in enumerate(Rs):
@@ -49,26 +49,29 @@ def plot_tmigration():  # as function of R
         h = hr0*(R**f)                                   # aspect ratio H/R at Rp
         Sigmap = sigma0*(float(R)**-sigmaslope)*np.exp(-R/Rc)
         Gamma = (-2.5-(1.7*beta)+(alpha/10)+(1.1*(1.5-alpha))+(7.9*zeta/gamma))*((Mp/h)**2)*Sigmap*(R**4)*(Omega**2)/gamma
-        tauI_arr_R[i] = (R**2)*Omega*Mp/(2*Gamma)
+        tauI_arr_R[i] = (R**2)*Omega*Mp/(2*Gamma)*1e-6    # convert to Myr
 
     for i,M in enumerate(Ms):
         Omega = np.sqrt(4*(np.pi**2)/(Rp**3))
         h = hr0*(Rp**f)                                   # aspect ratio H/R at Rp
         Sigmap = sigma0*(float(Rp)**-sigmaslope)*np.exp(-Rp/Rc)
         Gamma = (-2.5-(1.7*beta)+(alpha/10)+(1.1*(1.5-alpha))+(7.9*zeta/gamma))*((M/h)**2)*Sigmap*(Rp**4)*(Omega**2)/gamma
-        tauI_arr_M[i] = (Rp**2)*Omega*M/(2*Gamma)
+        tauI_arr_M[i] = (Rp**2)*Omega*M/(2*Gamma)*1e-6
 
     fig2, ax2 = plt.subplots(nrows=2, figsize=(7,6))
     ax2[0].plot(Rs,tauI_arr_R)
     ax2[0].set_xlabel("R (AU)")
-    ax2[0].set_ylabel("$\\tau_{I}$")
+    ax2[0].set_ylabel("$\\tau_{I}$ (Myr)")
     ax2[0].set_xlim(np.min(Rs), np.max(Rs))
+    ax2[0].axvline(Rp, linestyle='dashed', color='black')
 
-    ax2[1].plot(Ms,tauI_arr_M)
-    ax2[1].set_xlabel("M (Msun)")
-    ax2[1].set_ylabel("$\\tau_{I}$")
-    ax2[1].set_xlim(np.min(Rs), np.max(Rs))
+    ax2[1].plot(Ms/3e-6,tauI_arr_M)
+    ax2[1].set_xlabel("$M (M_\oplus)$")
+    ax2[1].set_ylabel("$\\tau_{I}$ (Myr)")
+    ax2[1].set_xlim(np.min(Ms/3e-6), np.max(Ms/3e-6))
+    ax2[1].axvline(Mp/3e-6, linestyle='dashed', color='black')
 
+    fig2.tight_layout()
     fig2.savefig(f"{plots_savedir}/{sim}_tmig.png")
 
 
@@ -147,6 +150,10 @@ if __name__ == "__main__":
     sigma_gas_1D = sigma_gas_azimsum/nphi                                         # dimensions: (noutputs, nrad) 
 
 
-plot_tdrift()
-plot_tmigration()
+    if not plot_window:
+        for s in style:
+            plt.style.use([f"../styles/{s}.mplstyle"])
+
+    plot_tdrift()
+    plot_tmigration()
 
