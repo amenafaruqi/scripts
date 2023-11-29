@@ -4,23 +4,26 @@ import matplotlib
 import argparse
 plt.style.use('default')
 
+# ======================= Plot Regimes for Gap-Opening ============================
 
 def plot_Mp_regimes():  #figure 2 from dipierro 2017 i.e. as function of Mp and a
     pass
 
+
+# ======================= Plot Drift Timescale ============================
 
 def plot_tdrift(): #as function of R and a
     hr = hr0*(radii**f)                                   # aspect ratio
     cs = hr*(((2e30)*(6.67e-11))/(radii*1.5e11))**0.5     # [m/s]
     p = (sigma_gas_1D*(cs**2)/((2*np.pi)**0.5))*(hr**-1)*((radii*1.5e11)**-1)
     gamma = (radii/p)*np.abs(np.append(np.diff(p)/np.diff(radii), 0))
-    t_drift = ((2/(np.pi*rhodust))*(np.dot((radii*sigma_gas_azimsum/(gamma*hr*cs)).reshape(nrad,1), a.reshape(1,ndust))*1.5e11))*3.17e-14    # drift timescale in Myr
+    tau_drift = ((2/(np.pi*rhodust))*(np.dot((radii*sigma_gas_azimsum/(gamma*hr*cs)).reshape(nrad,1), a.reshape(1,ndust))*1.5e11))*3.17e-14    # drift timescale in Myr
 
-    fig,ax = plt.subplots(figsize=(16,12))
+    fig,ax = plt.subplots(figsize=(9,6))
     levels = np.linspace(-6, 4, 11)                   
     print("Plotting drift timescale....")
     A,R = np.meshgrid(a,radii)
-    con = ax.contourf(R, A, np.log10(t_drift), cmap="Greys", levels=levels)
+    con = ax.contourf(R, A, np.log10(tau_drift), cmap="RdPu", levels=levels)
     
     ax.set_xscale("log")
     ax.set_yscale("log")
@@ -30,10 +33,12 @@ def plot_tdrift(): #as function of R and a
     fig.subplots_adjust(right=0.89, hspace=0.3)
     cbar_ax = fig.add_axes([0.91, 0.53, 0.02, 0.4])
     fig.colorbar(con, cax=cbar_ax, orientation="vertical", label="log$[\\tau_{drift} (Myr)]$")
+    ax.axvline(Rp, linestyle='dashed', color='black')
 
     fig.savefig(f"{plots_savedir}/{sim}_tdrift.png")
 
 
+# ======================= Plot Migration Timescale ============================
 
 def plot_tmigration():  # as function of R
     alpha = -1
@@ -58,6 +63,8 @@ def plot_tmigration():  # as function of R
         Gamma = (-2.5-(1.7*beta)+(alpha/10)+(1.1*(1.5-alpha))+(7.9*zeta/gamma))*((M/h)**2)*Sigmap*(Rp**4)*(Omega**2)/gamma
         tauI_arr_M[i] = (Rp**2)*Omega*M/(2*Gamma)*1e-6
 
+    print("Plotting migration timescales....")
+
     fig2, ax2 = plt.subplots(nrows=2, figsize=(7,6))
     ax2[0].plot(Rs,tauI_arr_R)
     ax2[0].set_xlabel("R (AU)")
@@ -75,10 +82,47 @@ def plot_tmigration():  # as function of R
     fig2.savefig(f"{plots_savedir}/{sim}_tmig.png")
 
 
+# ======================= Plot Growth Timescale ============================
 
 def plot_tgrowth():  #as function of R and a
-    pass
+    dust_vy = np.zeros((ndust,nrad,nphi))
+    dmdt = np.zeros((ndust,nrad))
+    m = rhodust*(a**3)*4*np.pi/3
+    for dust_bin in range(ndust):
+        dust_vy[dust_bin] = np.fromfile(simdir+f"dustvy{dust_bin}_{output}.dat").reshape(nrad, nphi)*1.5e13  # [vy] = cm/yr
+    for i,r in enumerate(radii):
+        h = hr0*(r**f)*r
+        rho0 = sigma_gas_1D[i]/(h*(2*np.pi)**0.5)
+        for n,s in enumerate(a):
+            epsilon = sigma_dust_1D[n,i]/sigma_gas_1D[i]
+            vr = np.mean(dust_vy[n,i])       # average over all phi??
+            dmdt[n,i] = np.pi*(s**2)*np.abs(vr)*epsilon*rho0
+    m_tiled = np.tile(m,(nrad,1)).reshape(ndust,nrad)
+    dmdt[dmdt == 0] = np.nan
+    tau_growth = m_tiled/dmdt
+    
+    print("Plotting growth timescale....")
 
+    fig3,ax3 = plt.subplots(figsize=(9,6))
+    levels = np.linspace(-20, 20, 7)                   
+    R,A = np.meshgrid(radii,a)
+    con = ax3.contourf(R,A, np.log10(tau_growth), cmap="RdPu", levels=levels)
+    
+    ax3.set_xscale("log")
+    ax3.set_yscale("log")
+    ax3.set_ylabel("a (cm)")
+    ax3.set_xlabel("R (AU)")
+
+    fig3.subplots_adjust(right=0.89, hspace=0.3)
+    cbar_ax = fig3.add_axes([0.91, 0.53, 0.02, 0.4])
+    fig3.colorbar(con, cax=cbar_ax, orientation="vertical", label="log$[\\tau_{growth} (Myr)]$")
+    ax3.axvline(Rp, linestyle='dashed', color='black')
+
+    fig3.savefig(f"{plots_savedir}/{sim}_tgrowth.png")
+
+
+
+# ==========================================================================
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description='Generate 1D plots', prefix_chars='-')
@@ -89,6 +133,7 @@ if __name__ == "__main__":
     parser.add_argument('-plot_window', action="store_true")
     parser.add_argument('-porbits', action="store_true")
     parser.add_argument('-style', metavar='style', type=str, nargs=1, default=["publication"] ,help="style sheet to apply to plots")
+    parser.add_argument('-o', metavar='output',default=1, type=int, nargs=1 ,help="output to plot")
 
     args = parser.parse_args()
     wd = args.wd[0]
@@ -98,6 +143,7 @@ if __name__ == "__main__":
     plots_savedir = args.savedir
     p_orbits = args.porbits
     style = args.style
+    output = args.o[0]
 
     if plot_window:
         matplotlib.use('TkAgg') 
@@ -144,11 +190,22 @@ if __name__ == "__main__":
         radii = np.array([np.exp((np.log(r_cells[n])+np.log(r_cells[n+1]))/2) for n in range(len(r_cells)-1)])
     phis = np.array([(phi_cells[n]+phi_cells[n+1])/2 for n in range(len(phi_cells)-1)])
 
-    gasfile = "gasdens0.dat" 
+    gasfile = f"gasdens{output}.dat" 
     sigma_gas = np.fromfile(simdir+gasfile).reshape(nrad,nphi)/(1.125e-7)         # convert back to g/cm2
     sigma_gas_azimsum = np.sum(sigma_gas, axis=1)                                 # sum over all phi   
-    sigma_gas_1D = sigma_gas_azimsum/nphi                                         # dimensions: (noutputs, nrad) 
+    sigma_gas_1D = sigma_gas_azimsum/nphi                                         # dimensions: (nrad) 
 
+    sigma_dust = np.zeros((ndust, nrad, nphi))
+    n_grains = np.zeros((ndust))
+
+    for n in np.arange(ndust):
+        dust_file = f"dustdens{n}_{output}.dat" 
+        sigma_dust[n] = np.fromfile(simdir+dust_file).reshape(nrad,nphi)/(1.125e-7)
+        n_grains[n] = np.sum(sigma_dust[n])*3/(a[n]*rhodust*4)                  # number of dust grains at size a and time t
+
+    sigma_dust_azimsum = np.sum(sigma_dust, axis=2)                  # sum over all phi 
+    sigma_dust_1D = sigma_dust_azimsum/nphi                          # dimensions: (ndust, nrad)
+    sigma_gas_azimsum = np.sum(sigma_gas, axis=1)                    # sum over all phi   
 
     if not plot_window:
         for s in style:
@@ -156,4 +213,7 @@ if __name__ == "__main__":
 
     plot_tdrift()
     plot_tmigration()
+    plot_tgrowth()
 
+    if plot_window:
+        plt.show()
