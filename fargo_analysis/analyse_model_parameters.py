@@ -7,7 +7,48 @@ plt.style.use('default')
 # ======================= Plot Regimes for Gap-Opening ============================
 
 def plot_Mp_regimes():  #figure 2 from dipierro 2017 i.e. as function of Mp and a
-    pass
+    hr = hr0*(Rp**f)                                   # aspect ratio at R=Rp
+    factor = 0.4                                       # can be 0.1 (Rafikov+ 2012), 0.15 (Lin+ 1979), 0.4 (Goldreich+ 1979)
+    Mp_th = 3*((hr)**3)                                # Mp in solar masses
+    Mp_visc = ((3/(2*factor))**0.5)*(hr**2.5)*alpha**0.5
+    Mp_gap = np.max((0.2*Mp_th, Mp_visc))       # convert Mp to Mearth
+    Mp_lim = 0.1*Mp_th
+    
+    St = np.arange(1e-1,1e2)                # chosen arbitrarily based on the condition that "large" grains is St>alpha and St>dgr.
+    sig = -(sigmaslope + f + 1.5)
+    zeta = ((2*factor)**-1.5)/9
+    z = (-sig+(6+3*sig)*alpha/St)/(1+dgr+(dgr/(St**2)))
+    Mp_dustonly = (3**1.5)*zeta*((z/St)**1.5)*(hr**3)
+
+    fig0,ax0 = plt.subplots(figsize=(9,6))
+
+    ax0.set_xlim(1e-1,1e2)
+    ax0.set_ylim(1e-6,1e-2)
+    # ax0.plot(St,Mp_dustonly, color="red")
+    # ax0.axhline(Mp_gap, color="green")
+    # ax0.axhline(Mp_lim, color="skyblue")
+    ax0.fill_between(St, Mp_dustonly, 1e-2, color="red")
+    ax0.fill_between(St, Mp_lim, 1e-2, color="skyblue")
+    ax0.fill_between(St, Mp_gap, 1e-2, color="green")
+    ax0.text(2e-1,Mp_gap*1.1,f"$M_{{p,gap}}$ = {round(Mp_gap/3e-6,1)} $M_\oplus$")
+    ax0.text(2e-1,Mp_lim*1.05,f"$M_{{p,lim}}$ = {round(Mp_lim/3e-6,1)} $M_\oplus$")
+    ax0.text(50,Mp_lim*0.7, f"$M_{{dustonly}}$")
+    ax0.set_xlabel("St")
+    ax0.set_ylabel("$M_{p}/M_\odot$")
+    ax0.set_xscale("log")
+    ax0.set_yscale("log")
+
+    def Msun_to_Mearth(M):
+        return M/3e-6
+    
+    def Mearth_to_Msun(M):
+        return M*3e-6
+    
+    secax_y = ax0.secondary_yaxis('right', functions=(Msun_to_Mearth, Mearth_to_Msun))
+    secax_y.set_ylabel("$M_{p}/M_\oplus$")
+    secax_y.set_yscale("log")
+
+    fig0.savefig(f"{plots_savedir}/{sim}_Mpregimes.png")
 
 
 # ======================= Plot Drift Timescale ============================
@@ -23,7 +64,7 @@ def plot_tdrift(): #as function of R and a
     levels = np.linspace(-6, 4, 11)                   
     print("Plotting drift timescale....")
     A,R = np.meshgrid(a,radii)
-    con = ax.contourf(R, A, np.log10(tau_drift), cmap="RdPu", levels=levels)
+    con = ax.contourf(R, A, np.log10(tau_drift), cmap="YlGnBu", levels=levels)
     
     ax.set_xscale("log")
     ax.set_yscale("log")
@@ -41,42 +82,65 @@ def plot_tdrift(): #as function of R and a
 # ======================= Plot Migration Timescale ============================
 
 def plot_tmigration():  # as function of R
-    alpha = -1
-    beta = -0.5
+    p = -1*sigmaslope
+    q = -2*f
     gamma = 5/3
-    zeta = beta - (gamma-1)*alpha
-    Rs = np.arange(10,101,5)
-    Ms = np.arange(10,201,10)*3e-6                   # in units of Msun
+    zeta = q - (gamma-1)*p
+    Rs = np.arange(10,101,5)                         # in units of AU
+    Ms = np.arange(1,301,10)*3e-6                   # in units of Msun
     tauI_arr_R = np.zeros(len(Rs))
     tauI_arr_M = np.zeros(len(Ms))
+    tauII_arr_R = np.zeros(len(Rs))
+    tauII_arr_M = np.zeros(len(Ms))
     for i,R in enumerate(Rs):
         Omega = np.sqrt(4*(np.pi**2)/(R**3))
-        h = hr0*(R**f)                                   # aspect ratio H/R at Rp
+        hr = hr0*(R**f)                                   # aspect ratio H/R at Rp
         Sigmap = sigma0*(float(R)**-sigmaslope)*np.exp(-R/Rc)
-        Gamma = (-2.5-(1.7*beta)+(alpha/10)+(1.1*(1.5-alpha))+(7.9*zeta/gamma))*((Mp/h)**2)*Sigmap*(R**4)*(Omega**2)/gamma
-        tauI_arr_R[i] = (R**2)*Omega*Mp/(2*Gamma)*1e-6    # convert to Myr
+        Gamma = (-2.5-(1.7*q)+(p/10)+(1.1*(1.5-p))+(7.9*zeta/gamma))*((Mp/hr)**2)*Sigmap*(R**4)*(Omega**2)/gamma
+        tauI_arr_R[i] = ((R**2)*Omega*Mp/(2*Gamma))*1e-6    # convert to Myr
+
+        h = hr*R
+        nu = alpha*Omega*(h**2)
+        B = Mp/(np.pi*Sigmap*(R**2))
+        print(B,nu)
+        tauII_arr_R[i] = ((R**2)*(1+B)/nu)*1e-6
 
     for i,M in enumerate(Ms):
         Omega = np.sqrt(4*(np.pi**2)/(Rp**3))
-        h = hr0*(Rp**f)                                   # aspect ratio H/R at Rp
+        hr = hr0*(Rp**f)                                   # aspect ratio H/R at Rp
         Sigmap = sigma0*(float(Rp)**-sigmaslope)*np.exp(-Rp/Rc)
-        Gamma = (-2.5-(1.7*beta)+(alpha/10)+(1.1*(1.5-alpha))+(7.9*zeta/gamma))*((M/h)**2)*Sigmap*(Rp**4)*(Omega**2)/gamma
-        tauI_arr_M[i] = (Rp**2)*Omega*M/(2*Gamma)*1e-6
+        Gamma = (-2.5-(1.7*q)+(p/10)+(1.1*(1.5-p))+(7.9*zeta/gamma))*((M/hr)**2)*Sigmap*(Rp**4)*(Omega**2)/gamma
+        tauI_arr_M[i] = ((Rp**2)*Omega*M/(2*Gamma))*1e-6
 
+        h = hr*Rp
+        nu = alpha*Omega*(h**2)
+        B = M/(np.pi*Sigmap*(Rp**2))
+        print(B,nu, Omega)
+        tauII_arr_M[i] = ((Rp**2)*(1+B)/nu)*1e-6
+    
+    print(tauI_arr_M[::2])
+    print(tauII_arr_M[::2])
     print("Plotting migration timescales....")
 
     fig2, ax2 = plt.subplots(nrows=2, figsize=(7,6))
-    ax2[0].plot(Rs,tauI_arr_R)
+    ax2[0].plot(Rs,tauI_arr_R, color='blue', label="Type I")
+    ax2[0].plot(Rs,tauII_arr_R, color='red', label="Type II")
     ax2[0].set_xlabel("R (AU)")
-    ax2[0].set_ylabel("$\\tau_{I}$ (Myr)")
-    ax2[0].set_xlim(np.min(Rs), np.max(Rs))
+    ax2[0].set_ylabel("$\\tau$ (Myr)")
+    # ax2[0].set_xlim(np.min(np.log10(Rs)), np.max(np.log10(Rs)))
     ax2[0].axvline(Rp, linestyle='dashed', color='black')
+    ax2[0].set_yscale("log")
+    ax2[0].set_xscale("log")
+    ax2[0].legend()
 
-    ax2[1].plot(Ms/3e-6,tauI_arr_M)
+    ax2[1].plot(Ms/(3e-6),tauI_arr_M, color='blue')
+    ax2[1].plot(Ms/(3e-6),tauII_arr_M, color='red')
     ax2[1].set_xlabel("$M (M_\oplus)$")
-    ax2[1].set_ylabel("$\\tau_{I}$ (Myr)")
-    ax2[1].set_xlim(np.min(Ms/3e-6), np.max(Ms/3e-6))
+    ax2[1].set_ylabel("$\\tau$ (Myr)")
+    # ax2[1].set_xlim(np.min(np.log10(Ms/3e-6)), np.max(np.log10(Ms/3e-6)))
     ax2[1].axvline(Mp/3e-6, linestyle='dashed', color='black')
+    ax2[1].set_yscale("log")
+    ax2[1].set_xscale("log")
 
     fig2.tight_layout()
     fig2.savefig(f"{plots_savedir}/{sim}_tmig.png")
@@ -100,13 +164,17 @@ def plot_tgrowth():  #as function of R and a
     m_tiled = np.tile(m,(nrad,1)).reshape(ndust,nrad)
     dmdt[dmdt == 0] = np.nan
     tau_growth = m_tiled/dmdt
+    print(tau_growth)
+    Omega = np.sqrt(4*(np.pi**2)/(radii**3))
+    print((1/(epsilon*Omega))*1e-6)
+
     
     print("Plotting growth timescale....")
 
     fig3,ax3 = plt.subplots(figsize=(9,6))
     levels = np.linspace(-20, 20, 7)                   
     R,A = np.meshgrid(radii,a)
-    con = ax3.contourf(R,A, np.log10(tau_growth), cmap="RdPu", levels=levels)
+    con = ax3.contourf(R,A, np.log10(tau_growth), cmap="YlGnBu", levels=levels)
     
     ax3.set_xscale("log")
     ax3.set_yscale("log")
@@ -133,7 +201,7 @@ if __name__ == "__main__":
     parser.add_argument('-plot_window', action="store_true")
     parser.add_argument('-porbits', action="store_true")
     parser.add_argument('-style', metavar='style', type=str, nargs=1, default=["publication"] ,help="style sheet to apply to plots")
-    parser.add_argument('-o', metavar='output',default=1, type=int, nargs=1 ,help="output to plot")
+    parser.add_argument('-o', metavar='output',default=[1], type=int, nargs=1 ,help="output to plot")
 
     args = parser.parse_args()
     wd = args.wd[0]
@@ -170,6 +238,7 @@ if __name__ == "__main__":
     mingsize = float(params_dict['MIN_GRAIN_SIZE'])
     maxgsize = float(params_dict['MAX_GRAIN_SIZE'])
     rhodust = float(params_dict['RHO_DUST'])
+    dgr = float(params_dict['DUST_TO_GAS'])
 
     planets_data = np.genfromtxt(f"{simdir}/planet.cfg").reshape(1,6)
     Rp = planets_data[:,1][0]
@@ -211,9 +280,10 @@ if __name__ == "__main__":
         for s in style:
             plt.style.use([f"../styles/{s}.mplstyle"])
 
-    plot_tdrift()
-    plot_tmigration()
+    # plot_tdrift()
+    # plot_tmigration()
     plot_tgrowth()
+    # plot_Mp_regimes()
 
     if plot_window:
         plt.show()
