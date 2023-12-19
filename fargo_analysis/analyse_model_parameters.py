@@ -102,7 +102,7 @@ def plot_tmigration():  # as function of R
         h = hr*R
         nu = alpha*Omega*(h**2)
         B = Mp/(np.pi*Sigmap*(R**2))
-        print(B,nu)
+        B=0
         tauII_arr_R[i] = ((R**2)*(1+B)/nu)*1e-6
 
     for i,M in enumerate(Ms):
@@ -115,11 +115,12 @@ def plot_tmigration():  # as function of R
         h = hr*Rp
         nu = alpha*Omega*(h**2)
         B = M/(np.pi*Sigmap*(Rp**2))
+        B=0
         print(B,nu, Omega)
         tauII_arr_M[i] = ((Rp**2)*(1+B)/nu)*1e-6
     
-    print(tauI_arr_M[::2])
-    print(tauII_arr_M[::2])
+    print(tauI_arr_M[::4])
+    print(tauII_arr_M[::4])
     print("Plotting migration timescales....")
 
     fig2, ax2 = plt.subplots(nrows=2, figsize=(7,6))
@@ -149,31 +150,17 @@ def plot_tmigration():  # as function of R
 # ======================= Plot Growth Timescale ============================
 
 def plot_tgrowth():  #as function of R and a
-    dust_vy = np.zeros((ndust,nrad,nphi))
-    dmdt = np.zeros((ndust,nrad))
-    m = rhodust*(a**3)*4*np.pi/3
-    for dust_bin in range(ndust):
-        dust_vy[dust_bin] = np.fromfile(simdir+f"dustvy{dust_bin}_{output}.dat").reshape(nrad, nphi)*1.5e13  # [vy] = cm/yr
-    for i,r in enumerate(radii):
-        h = hr0*(r**f)*r
-        rho0 = sigma_gas_1D[i]/(h*(2*np.pi)**0.5)
-        for n,s in enumerate(a):
-            epsilon = sigma_dust_1D[n,i]/sigma_gas_1D[i]
-            vr = np.mean(dust_vy[n,i])       # average over all phi??
-            dmdt[n,i] = np.pi*(s**2)*np.abs(vr)*epsilon*rho0
-    m_tiled = np.tile(m,(nrad,1)).reshape(ndust,nrad)
-    dmdt[dmdt == 0] = np.nan
-    tau_growth = m_tiled/dmdt
-    print(tau_growth)
-    Omega = np.sqrt(4*(np.pi**2)/(radii**3))
-    print((1/(epsilon*Omega))*1e-6)
-
-    
+    R,A = np.meshgrid(radii,a)
+    hr = hr0*(radii**0.25)
+    h = hr*radii
+    cs = hr*(((2e30)*(6.67e-11))/(radii*1.5e11))**0.5     # [m/s]
+    St = A*rhodust*np.pi/(sigma_gas_1D*2)
+    const = ((4/3)*(2*np.pi/3)**0.5)
+    tau_growth = const*A*rhodust*h/(sigma_dust_1D*cs*((alpha*St)**0.5))
     print("Plotting growth timescale....")
 
-    fig3,ax3 = plt.subplots(figsize=(9,6))
-    levels = np.linspace(-20, 20, 7)                   
-    R,A = np.meshgrid(radii,a)
+    fig3,ax3 = plt.subplots(figsize=(10,6))
+    levels = np.linspace(-4, 16, 11)                   
     con = ax3.contourf(R,A, np.log10(tau_growth), cmap="YlGnBu", levels=levels)
     
     ax3.set_xscale("log")
@@ -181,7 +168,7 @@ def plot_tgrowth():  #as function of R and a
     ax3.set_ylabel("a (cm)")
     ax3.set_xlabel("R (AU)")
 
-    fig3.subplots_adjust(right=0.89, hspace=0.3)
+    fig3.subplots_adjust(right=0.89, hspace=0.35)
     cbar_ax = fig3.add_axes([0.91, 0.53, 0.02, 0.4])
     fig3.colorbar(con, cax=cbar_ax, orientation="vertical", label="log$[\\tau_{growth} (Myr)]$")
     ax3.axvline(Rp, linestyle='dashed', color='black')
@@ -281,8 +268,8 @@ if __name__ == "__main__":
             plt.style.use([f"../styles/{s}.mplstyle"])
 
     # plot_tdrift()
-    # plot_tmigration()
     plot_tgrowth()
+    # plot_tmigration()
     # plot_Mp_regimes()
 
     if plot_window:
