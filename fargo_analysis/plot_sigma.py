@@ -73,12 +73,13 @@ def plot_dustgasratio():
             tlabel = f"{round(t, 3)} Myr"
         elif planets:
             tlabel = f"{int(round(planet_orbits[i], 0))} orbits"
-
-        ax.plot(radii, dustgasratio, label=tlabel)
+        
+        color = next(ax._get_lines.prop_cycler)['color']
+        ax.plot(radii, dustgasratio, label=tlabel, color=color)
     
     if planets:
         for rp in rps:
-            ax.axvline(rp, linestyle='dashed', color='black')
+            ax.axvline(rp, linestyle='dashed', color=color)
 
     ax.legend()
     ax.set_xlim(np.min(radii), np.max(radii))
@@ -103,11 +104,12 @@ def plot_gas_sigma():
         elif planets:
             tlabel = f"{int(round(planet_orbits[i], 0))} orbits"
 
-        ax.plot(radii, sigma_gas_1D[i], label=tlabel)
+        color = next(ax._get_lines.prop_cycler)['color']
+        ax.plot(radii, sigma_gas_1D[i], label=tlabel, color=color)
 
-    if planets:
-        for rp in rps:
-            ax.axvline(rp, linestyle='dashed', color='black') 
+        if planets:
+            for rp in rps[:,i]:
+                ax.axvline(rp, linestyle='dashed', color=color)
 
     ax.set_xlabel("R (AU)")
     ax.set_ylabel("$\Sigma_{gas} (g/cm^{2})$")
@@ -132,11 +134,12 @@ def plot_dust_sigma():
         elif planets:
             tlabel = f"{int(round(planet_orbits[i], 0))} orbits"
 
-        ax.plot(radii, sigma_dust_sum_1D[i], label=tlabel)
+        color = next(ax._get_lines.prop_cycler)['color']
+        ax.plot(radii, sigma_dust_sum_1D[i], label=tlabel, color=color)
 
     if planets:
         for rp in rps:
-            ax.axvline(rp, linestyle='dashed', color='black') 
+            ax.axvline(rp, linestyle='dashed', color=color)
 
     ax.set_xlabel("R (AU)")
     ax.set_ylabel("$ \Sigma_{dust} (g/cm^{2})$")
@@ -267,9 +270,16 @@ if __name__ == "__main__":
     timesteps = np.array(outputs)*dt_outputs*1e-6         # time in Myr
 
     if planets:
-        planets_data = np.genfromtxt(f"{simdir}/planet.cfg").reshape(1,6)
-        rps = planets_data[:,1]
-        Mps = planets_data[:,2]
+        with open(f"{simdir}/planet.cfg", 'r') as pfile:
+            num_planets = len(pfile.readlines()) - 5        # ignore 5 lines of headers
+        
+        rps = np.zeros((num_planets, len(outputs)))
+        for n in range(num_planets):
+            planet_data = np.unique(np.loadtxt(f"{simdir}/planet{n}.dat"), axis=0)
+            xp, yp = planet_data[outputs][:,1], planet_data[outputs][:,2]
+            # print(xp,yp)
+            rps[n] = ((xp**2) + (yp**2))**0.5
+
         planet0_period = (rps[0]**3)**0.5                 # orbital period of planet in yrs
         planet_orbits = timesteps*1e6/planet0_period
 
@@ -346,8 +356,8 @@ if __name__ == "__main__":
 
     if grog:
         plot_dust_contours()
-        plot_dust_sigma()
-        plot_dustgasratio()
+        # plot_dust_sigma()
+        # plot_dustgasratio()
         # plot_dust_mass()
         # plot_sigma_at_r([rps[0]+5])
 
