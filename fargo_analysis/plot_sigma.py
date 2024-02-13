@@ -35,7 +35,7 @@ def plot_dust_contours():
         ax0.plot(radii, a_drift[i], c='deepskyblue', alpha=0.7, label="$a_{{drift}}$")
         ax0.plot(radii, a_frag[i], c='red', alpha=0.7, label="$a_{{frag}}$")
         if planets:
-            for rp in rps:
+            for rp in rps[:,i]:
                 ax0.axvline(rp, linestyle='dashed', color='black')
             
         if not i%plotsizex:
@@ -68,7 +68,8 @@ def plot_dustgasratio():
     print("Plotting dust-gas ratio....")
 
     for i,t in enumerate(timesteps):
-        dustgasratio = sigma_dust_sum_1D[i]/sigma_gas_1D[i]
+
+        dustgasratio = dust_mass_tot[i]/gas_mass[i]
         if not p_orbits:
             tlabel = f"{round(t, 3)} Myr"
         elif planets:
@@ -78,7 +79,7 @@ def plot_dustgasratio():
         ax.plot(radii, dustgasratio, label=tlabel, color=color)
     
     if planets:
-        for rp in rps:
+        for rp in rps[:,i]:
             ax.axvline(rp, linestyle='dashed', color=color)
 
     ax.legend()
@@ -138,7 +139,7 @@ def plot_dust_sigma():
         ax.plot(radii, sigma_dust_sum_1D[i], label=tlabel, color=color)
 
     if planets:
-        for rp in rps:
+        for rp in rps[:,i]:
             ax.axvline(rp, linestyle='dashed', color=color)
 
     ax.set_xlabel("R (AU)")
@@ -183,22 +184,25 @@ def plot_dust_mass():
     ax.set_prop_cycle(color=[cm(1.*i/8) for i in range(0,len(timesteps)+1)])
     print("Plotting total dust mass....")
 
-    if spacing == "Linear":
-        delta_r = radii[1]-radii[0]
-    else:   # Log grid
-        delta_log_r = np.log10(radii[1]) - np.log10(radii[0])
-        delta_r = radii*delta_log_r
-    M_disc = np.zeros(len(timesteps))
+    for i, t in enumerate(timesteps):
+        if not p_orbits:
+            tlabel = f"{round(t, 3)} Myr"
+        elif planets:
+            tlabel = f"{int(round(planet_orbits[i], 0))} orbits"
 
-    for i in range(len(timesteps)):
-        M_cell = sigma_dust_sum_1D[i]*(radii*1.5e13)*2*np.pi*(delta_r*1.5e13)
-        M_disc[i] = np.sum(M_cell)
+        color = next(ax._get_lines.prop_cycler)['color']
+        ax.plot(radii, dust_mass_tot[i], label=tlabel, color=color)
 
-    ax.plot(timesteps, M_disc)
-    ax.set_xlabel("t (Myr)")
+        if planets:
+            for rp in rps[:,i]:
+                ax.axvline(rp, linestyle='dashed', color=color)
+
+    ax.set_xlabel("R (AU)")
     ax.set_ylabel("Total $M_{{dust}} (g/cm^{{2}})$")
-    ax.set_yscale("log")
-    ax.set_xlim(min(timesteps), max(timesteps))
+        ax.set_xscale("log")
+        ax.set_yscale("log")
+        ax.legend()
+    ax.set_xlim(min(radii), max(radii))
     fig.tight_layout()
     fig.savefig(f"{plots_savedir}/{sim}_Mdust.png")
 
@@ -295,14 +299,17 @@ if __name__ == "__main__":
     phi_cells = np.loadtxt(f'{simdir}/domain_x.dat')[3:-3]
     if spacing == "Linear":
         radii = np.array([(r_cells[n]+r_cells[n+1])/2 for n in range(len(r_cells)-1)])
+        delta_r = radii[1]-radii[0]
     else:     # Log grid
         radii = np.array([np.exp((np.log(r_cells[n])+np.log(r_cells[n+1]))/2) for n in range(len(r_cells)-1)])
+        delta_log_r = np.log10(radii[1]) - np.log10(radii[0])
+        delta_r = radii*delta_log_r
     phis = np.array([(phi_cells[n]+phi_cells[n+1])/2 for n in range(len(phi_cells)-1)])
 
     sigma_gas = np.zeros((len(outputs), nrad, nphi))
     sigma_dust = np.zeros((len(outputs), ndust, nrad, nphi))
-    avg_dust_dens = np.zeros((len(outputs), nrad, nphi))
-    sum_dustvol = np.zeros((len(outputs)))                      # total volume of dust at each timestep
+    dust_mass = np.zeros((len(outputs), ndust, nrad))
+    gas_mass = np.zeros((len(outputs), nrad))
 
     for i,t in enumerate(outputs):
         gasfile = f"gasdens{int(t)}.dat" 
@@ -310,20 +317,21 @@ if __name__ == "__main__":
         n_grains = np.zeros((ndust))
         if grog:
             for n in np.arange(ndust):
-                dust_file = f"dustdens{n}_{int(t)}.dat" 
+                dust_file = f"dustdens{n}_{int(t)}.dat"
                 sigma_dust[i,n] = np.fromfile(simdir+dust_file).reshape(nrad,nphi)/(1.125e-7)
-                n_grains[n] = np.sum(sigma_dust[i,n])*3/(a[n]*rhodust*4)                  # number of dust grains at size a and time t
-                avg_dust_dens[i] = avg_dust_dens[i] + sigma_dust[i,n]*(a[n]**3)           # (mass)volume-weighted sum of densities
-            sum_dustvol[i] = np.sum(n_grains*(a**3))                                      # numbers of grains of each size * volume of grain
-            avg_dust_dens[i] = avg_dust_dens[i]/sum_dustvol[i]                            
-
-    avgdustdens_azimsum = np.sum(avg_dust_dens, axis=2)              # sum over all phi
     sigma_dust_azimsum = np.sum(sigma_dust, axis=3)                  # sum over all phi 
     sigma_gas_azimsum = np.sum(sigma_gas, axis=2)                    # sum over all phi   
 
     sigma_gas_1D = sigma_gas_azimsum/nphi                           # dimensions: (noutputs, nrad) 
-    sigma_dust_1D = sigma_dust_azimsum/nphi                         # dimensions: (noutputs, ndust, nrad)
-    sigma_dust_sum_1D = avgdustdens_azimsum/nphi                    # dimensions: (noutputs, nrad)
+    sigma_dust_1D = sigma_dust_azimsum/nphi                         # dimensions: (noutputs, ndust, nrad)   
+    # sigma_dust_sum_1D = avgdustdens_azimsum/nphi                  # dimensions: (noutputs, nrad)
+    
+    for i,t in enumerate(outputs):
+        # dust mass for dust of size a as a function of r
+        dust_mass[i,:,:] = [2*np.pi*radii*sigma_dust_1D[i,n,:]*delta_r for n in range(ndust)]
+        gas_mass[i,:] = 2*np.pi*radii*sigma_gas_1D[i,:]*delta_r
+
+    dust_mass_tot = np.sum(dust_mass, axis=1)
 
     if grog:
         uf = 10                                               # fragmentation velocity
@@ -357,7 +365,7 @@ if __name__ == "__main__":
     if grog:
         plot_dust_contours()
         # plot_dust_sigma()
-        # plot_dustgasratio()
+        plot_dustgasratio()
         # plot_dust_mass()
         # plot_sigma_at_r([rps[0]+5])
 
