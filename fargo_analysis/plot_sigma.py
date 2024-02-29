@@ -206,6 +206,32 @@ def plot_dust_mass():
     fig.tight_layout()
     fig.savefig(f"{plots_savedir}/{sim}_Mdust.png")
 
+def plot_dust_size_distribution():
+    fig, ax = plt.subplots(1, dpi=150)
+    ax.set_prop_cycle(color=[cm(1.*i/8) for i in range(0,len(timesteps)+1)])
+    print("Plotting dust mass distribution....")
+
+    for i, t in enumerate(timesteps):
+        if not p_orbits:
+            tlabel = f"{round(t, 3)} Myr"
+        elif planets:
+            tlabel = f"{int(round(planet_orbits[i], 0))} orbits"
+
+        color = next(ax._get_lines.prop_cycler)['color']
+        dust_mass_in_bin = np.sum(dust_mass[i], axis=1)
+        ax.plot(a, dust_mass_in_bin, label=tlabel, color=color)
+
+
+    ax.set_xlabel("a (cm)")
+    ax.set_ylabel("$M_{{dust}} (g/cm^{{2}})$")
+    ax.set_xscale("log")
+    ax.set_yscale("log")
+    ax.legend()
+    ax.set_xlim(min(a), max(a))
+    fig.tight_layout()
+    fig.savefig(f"{plots_savedir}/{sim}_dustsizes.png")
+
+
 
 # ==========================================================
 
@@ -366,6 +392,7 @@ if __name__ == "__main__":
         plot_dust_contours()
         # plot_dust_sigma()
         plot_dustgasratio()
+        plot_dust_size_distribution()
         # plot_dust_mass()
         # plot_sigma_at_r([rps[0]+5])
 
