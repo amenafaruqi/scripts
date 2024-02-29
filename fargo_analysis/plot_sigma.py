@@ -78,9 +78,9 @@ def plot_dustgasratio():
         color = next(ax._get_lines.prop_cycler)['color']
         ax.plot(radii, dustgasratio, label=tlabel, color=color)
     
-    if planets:
-        for rp in rps[:,i]:
-            ax.axvline(rp, linestyle='dashed', color=color)
+        if planets:
+            for rp in rps[:,i]:
+                ax.axvline(rp, linestyle='dashed', color=color)
 
     ax.legend()
     ax.set_xlim(np.min(radii), np.max(radii))
@@ -199,9 +199,9 @@ def plot_dust_mass():
 
     ax.set_xlabel("R (AU)")
     ax.set_ylabel("Total $M_{{dust}} (g/cm^{{2}})$")
-        ax.set_xscale("log")
-        ax.set_yscale("log")
-        ax.legend()
+    ax.set_xscale("log")
+    ax.set_yscale("log")
+    ax.legend()
     ax.set_xlim(min(radii), max(radii))
     fig.tight_layout()
     fig.savefig(f"{plots_savedir}/{sim}_Mdust.png")

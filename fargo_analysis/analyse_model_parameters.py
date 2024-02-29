@@ -1,12 +1,72 @@
 import numpy as np
 import matplotlib.pyplot as plt
-import matplotlib
 import argparse
+import matplotlib as mpl
 plt.style.use('default')
 
 # ======================= Plot Regimes for Gap-Opening ============================
 
-def plot_Mp_regimes():  #figure 2 from dipierro 2017 i.e. as function of Mp and a
+def plot_Mp_regimes():
+    mps = np.array([12, 70, 100, 120, 150])
+    fig0,ax0 = plt.subplots(figsize=(9,6))
+    m_range = np.linspace(0,200,50)
+    r_range = np.linspace(5,200,50)
+
+    # Plot pebble isolation criterion (Lambrechts et al. 2014)
+    M_iso = 20*((r_range/rmin)**0.75)
+    ax0.fill_between(r_range, M_iso, 200, color='yellow', alpha=0.4)
+    ax0.fill_between(r_range, M_iso, 0, color='coral', alpha=0.4)
+
+    # Plot gap-opening criterion region (Crida et al. 2006)
+    Ms, Rs = np.meshgrid(m_range, r_range)
+    hr = hr0*(Rs**f)
+    R_h = Rs*((Ms*1e-6)**(1/3))
+    p_crida = 0.75*(hr*Rs)/R_h + 50*alpha*(hr**2)/(Ms*3e-6)
+    ax0.contourf(Rs, Ms, p_crida, levels=[0,1])
+
+    # Plot planet migration tracks
+    Rp = 30 # remove this afterwards, for testing only
+
+    # Calculate migration timescale for each planet mass
+    tau = np.zeros(len(mps))
+
+    hr_Rp = hr0*(Rp**f)
+    R_h_Rp = Rp*((mps*1e-6)**(1/3))
+    p_crida_Rp = 0.75*(hr_Rp*Rp)/R_h_Rp + 50*alpha*(hr_Rp**2)/(mps*3e-6)   # Crida parameter for R=Rp
+    print(p_crida_Rp)
+    p = -1*sigmaslope
+    q = -2*f
+    gamma = 5/3
+    zeta = q - (gamma-1)*p
+    Omega = np.sqrt(4*(np.pi**2)/(Rp**3))
+    Sigmap = sigma0*(float(Rp)**-sigmaslope)*np.exp(-Rp/Rc)
+
+    for m in range(len(mps)):
+        if p_crida_Rp[m] > 1:     # type I migration regime
+            Gamma = (-2.5-(1.7*q)+(p/10)+(1.1*(1.5-p))+(7.9*zeta/gamma))*((mps[m]*3e-6/hr_Rp)**2)*Sigmap*(Rp**4)*(Omega**2)/gamma
+            tau[m] = ((Rp**2)*Omega*mps[m]*3e-6/(2*Gamma))*1e-6    # convert to Myr
+        else:                     # type II migration regime
+            h = hr_Rp*Rp
+            nu = alpha*Omega*(h**2)
+            B = mps[m]*3e-6/(np.pi*Sigmap*(Rp**2))
+            tau[m] = ((Rp**2)*(1+B)/nu)*1e-6
+
+    print(tau)
+    for i,mp in enumerate(mps):
+        d = (0.5/tau[i])*Rp        # assuming a constant migration rate? 
+        xmin = np.abs(Rp-d)
+        print(xmin)
+        ax0.hlines(y=mp, xmin=xmin, xmax=Rp, linewidth=2, color='r', linestyle='--')
+        ax0.scatter(Rp, mp, marker='x', color='r')
+    
+    ax0.set_xlim(5,120)
+    ax0.set_ylim(0,200)
+    ax0.set_xlabel("R (AU)")
+    ax0.set_ylabel("$M_{{p}} (M_\oplus)$")
+    fig0.savefig("Mp_regimes.png", dpi=200)
+
+
+def plot_Dipierro_Mp_regimes():  #figure 2 from dipierro 2017 i.e. as function of Mp and a
     hr = hr0*(Rp**f)                                   # aspect ratio at R=Rp
     factor = 0.4                                       # can be 0.1 (Rafikov+ 2012), 0.15 (Lin+ 1979), 0.4 (Goldreich+ 1979)
     Mp_th = 3*((hr)**3)                                # Mp in solar masses
@@ -201,7 +261,7 @@ if __name__ == "__main__":
     output = args.o[0]
 
     if plot_window:
-        matplotlib.use('TkAgg') 
+        mpl.use('TkAgg') 
 
     params_file = f'{simdir}/variables.par'
     params_dict = {}
@@ -214,6 +274,8 @@ if __name__ == "__main__":
 
     nphi = int(params_dict['NX'])
     nrad = int(params_dict['NY'])
+    rmin = int(params_dict['YMIN'])
+    rmax = int(params_dict['YMAX'])
     f = float(params_dict['FLARINGINDEX'])
     hr0 = float(params_dict['ASPECTRATIO'])      # aspect ratio at R=1AU
     alpha = float(params_dict['ALPHA'])
@@ -268,9 +330,9 @@ if __name__ == "__main__":
             plt.style.use([f"../styles/{s}.mplstyle"])
 
     # plot_tdrift()
-    plot_tgrowth()
+    # plot_tgrowth()
     # plot_tmigration()
-    # plot_Mp_regimes()
+    plot_Mp_regimes()
 
     if plot_window:
         plt.show()
