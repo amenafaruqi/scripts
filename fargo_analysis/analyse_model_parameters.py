@@ -6,14 +6,52 @@ plt.style.use('default')
 
 # ======================= Plot Regimes for Gap-Opening ============================
 
+def calc_t_migration(mass, radius):
+        hr = hr0*(radius**f)
+        R_h = radius*((mass*1e-6)**(1/3))
+        p_crida_Rp = 0.75*(hr*radius)/R_h + 50*alpha*(hr**2)/(mass*3e-6)   # Crida parameter for R=Rp
+
+        p = -1*sigmaslope
+        q = -2*f
+        gamma = 5/3
+        zeta = q - (gamma-1)*p
+        Omega = np.sqrt(4*(np.pi**2)/(radius**3))
+        Sigmap = sigma0*(float(radius)**-sigmaslope)*np.exp(-radius/Rc)     # assuming sigma profile is not changing!
+        # print(mass)
+        if p_crida_Rp > 1:     # type I migration regime
+            # print("Type I")
+            Gamma = (-2.5-(1.7*q)+(p/10)+(1.1*(1.5-p))+(7.9*zeta/gamma))*((mass*3e-6/hr)**2)*Sigmap*(radius**4)*(Omega**2)/gamma
+            tau = ((radius**2)*Omega*mass*3e-6/(2*Gamma))*1e-6    # convert to Myr
+        else:                  # type II migration regime
+            h = hr*radius
+            nu = alpha*Omega*(h**2)
+            B = mass*3e-6/(np.pi*Sigmap*(radius**2))
+            tau = ((radius**2)*(1+B)/nu)*1e-6
+            # print("Type II")
+        return tau
+
+
 def plot_Mp_regimes():
-    mps = np.array([12, 70, 100, 120, 150])
+    mps = np.array([6, 18, 36, 120, 180]) 
+    # mps = np.array([12, 60, 100, 120, 150])
+    # mps = np.array([12,60,120])
     fig0,ax0 = plt.subplots(figsize=(9,6))
     m_range = np.linspace(0,200,50)
-    r_range = np.linspace(5,200,50)
-
+    r_range = np.linspace(0,200,201)
     # Plot pebble isolation criterion (Lambrechts et al. 2014)
-    M_iso = 20*((r_range/rmin)**0.75)
+    # M_iso = 20*((r_range/7)**0.75)
+    hr1d = hr0*(r_range**f)
+    dlogPdlogR = f - sigmaslope + 2
+    dlogPdlogR = 2*f - 1 - sigmaslope
+    print(dlogPdlogR)
+    f_fit = ((hr1d/0.05)**3)*(0.34*(np.log10(0.001)/np.log10(alpha))**4 + 0.66)*(1-((dlogPdlogR+2.5)/6))
+    M_iso = 25*f_fit
+    print(M_iso)
+    alpha_St = 0.01
+    Pi_crit = alpha_St/2
+    Lambda = 0.00476/f_fit
+    M_iso += Pi_crit/Lambda                  # PIM considering diffusion
+    print(M_iso)
     ax0.fill_between(r_range, M_iso, 200, color='yellow', alpha=0.4)
     ax0.fill_between(r_range, M_iso, 0, color='coral', alpha=0.4)
 
@@ -25,45 +63,37 @@ def plot_Mp_regimes():
     ax0.contourf(Rs, Ms, p_crida, levels=[0,1])
 
     # Plot planet migration tracks
-    Rp = 30 # remove this afterwards, for testing only
+    Rp0 = 40 # remove this afterwards, for testing only
+    dt = 0.1     # timestep to recalculate planet's location
 
+    # Calculate location of inner damping zone
+    Rid = (2*(rmin**-1.5)/3)**(-2/3)
     # Calculate migration timescale for each planet mass
-    tau = np.zeros(len(mps))
+    for mp in mps:
+        tau_t = calc_t_migration(mp, Rp0)     # tau at starting position of planet
+        Rp_t = Rp0
+        R_21 = (2**(-2/3))*Rp_t
+        t = 0
+        while R_21 > Rid and t <= 0.5:
+            t += dt
+            d_t = Rp_t*dt/tau_t
+            if d_t >= Rp_t:
+                break
+            Rp_t = Rp_t - d_t
+            R_21 = (2**(-2/3))*Rp_t              # location  of  2:1 resonance
+            tau_t = calc_t_migration(mp, Rp_t)
+            print(Rp_t, R_21)
+            ax0.scatter(Rp_t, mp, marker='|', color='k')
 
-    hr_Rp = hr0*(Rp**f)
-    R_h_Rp = Rp*((mps*1e-6)**(1/3))
-    p_crida_Rp = 0.75*(hr_Rp*Rp)/R_h_Rp + 50*alpha*(hr_Rp**2)/(mps*3e-6)   # Crida parameter for R=Rp
-    print(p_crida_Rp)
-    p = -1*sigmaslope
-    q = -2*f
-    gamma = 5/3
-    zeta = q - (gamma-1)*p
-    Omega = np.sqrt(4*(np.pi**2)/(Rp**3))
-    Sigmap = sigma0*(float(Rp)**-sigmaslope)*np.exp(-Rp/Rc)
-
-    for m in range(len(mps)):
-        if p_crida_Rp[m] > 1:     # type I migration regime
-            Gamma = (-2.5-(1.7*q)+(p/10)+(1.1*(1.5-p))+(7.9*zeta/gamma))*((mps[m]*3e-6/hr_Rp)**2)*Sigmap*(Rp**4)*(Omega**2)/gamma
-            tau[m] = ((Rp**2)*Omega*mps[m]*3e-6/(2*Gamma))*1e-6    # convert to Myr
-        else:                     # type II migration regime
-            h = hr_Rp*Rp
-            nu = alpha*Omega*(h**2)
-            B = mps[m]*3e-6/(np.pi*Sigmap*(Rp**2))
-            tau[m] = ((Rp**2)*(1+B)/nu)*1e-6
-
-    print(tau)
-    for i,mp in enumerate(mps):
-        d = (0.5/tau[i])*Rp        # assuming a constant migration rate? 
-        xmin = np.abs(Rp-d)
-        print(xmin)
-        ax0.hlines(y=mp, xmin=xmin, xmax=Rp, linewidth=2, color='r', linestyle='--')
-        ax0.scatter(Rp, mp, marker='x', color='r')
+        ax0.hlines(y=mp, xmin=Rp_t, xmax=Rp0, linewidth=2, color='k', linestyle='--')
+        # ax0.vlines(x=R_21, ymin=0, ymax = 200, linewidth=2, color='r', linestyle=':')
+        ax0.scatter(Rp0, mp, marker='x', color='k')
     
-    ax0.set_xlim(5,120)
+    ax0.set_xlim(1,100)
     ax0.set_ylim(0,200)
     ax0.set_xlabel("R (AU)")
     ax0.set_ylabel("$M_{{p}} (M_\oplus)$")
-    fig0.savefig("Mp_regimes.png", dpi=200)
+    fig0.savefig(f"{plots_savedir}/Mp_regimes.png", dpi=200)
 
 
 def plot_Dipierro_Mp_regimes():  #figure 2 from dipierro 2017 i.e. as function of Mp and a
@@ -92,7 +122,7 @@ def plot_Dipierro_Mp_regimes():  #figure 2 from dipierro 2017 i.e. as function o
     ax0.fill_between(St, Mp_gap, 1e-2, color="green")
     ax0.text(2e-1,Mp_gap*1.1,f"$M_{{p,gap}}$ = {round(Mp_gap/3e-6,1)} $M_\oplus$")
     ax0.text(2e-1,Mp_lim*1.05,f"$M_{{p,lim}}$ = {round(Mp_lim/3e-6,1)} $M_\oplus$")
-    ax0.text(50,Mp_lim*0.7, f"$M_{{dustonly}}$")
+    ax0.text(50,Mp_lim*0.7, f"$M_{{dustonly}}$")   
     ax0.set_xlabel("St")
     ax0.set_ylabel("$M_{p}/M_\odot$")
     ax0.set_xscale("log")
