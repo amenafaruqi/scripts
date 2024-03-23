@@ -32,8 +32,7 @@ def calc_t_migration(mass, radius):
 
 
 def plot_Mp_regimes():
-    mps = np.array([6, 18, 36, 120, 180]) 
-    # mps = np.array([12, 60, 100, 120, 150])
+    mps = np.array([8, 20, 60, 120, 150]) 
     # mps = np.array([12,60,120])
     fig0,ax0 = plt.subplots(figsize=(9,6))
     m_range = np.linspace(0,200,50)
@@ -41,8 +40,7 @@ def plot_Mp_regimes():
     # Plot pebble isolation criterion (Lambrechts et al. 2014)
     # M_iso = 20*((r_range/7)**0.75)
     hr1d = hr0*(r_range**f)
-    dlogPdlogR = f - sigmaslope + 2
-    dlogPdlogR = 2*f - 1 - sigmaslope
+    dlogPdlogR = f - sigmaslope - 2     # taken from eq. 9 from Bitsch et al. 2018, accounting for their s being negative. 
     print(dlogPdlogR)
     f_fit = ((hr1d/0.05)**3)*(0.34*(np.log10(0.001)/np.log10(alpha))**4 + 0.66)*(1-((dlogPdlogR+2.5)/6))
     M_iso = 25*f_fit
@@ -63,26 +61,26 @@ def plot_Mp_regimes():
     ax0.contourf(Rs, Ms, p_crida, levels=[0,1])
 
     # Plot planet migration tracks
-    Rp0 = 40 # remove this afterwards, for testing only
+    Rp0 = 40     # remove this afterwards, for testing only
     dt = 0.1     # timestep to recalculate planet's location
 
     # Calculate location of inner damping zone
     Rid = (2*(rmin**-1.5)/3)**(-2/3)
     # Calculate migration timescale for each planet mass
     for mp in mps:
-        tau_t = calc_t_migration(mp, Rp0)     # tau at starting position of planet
+        tau = calc_t_migration(mp, Rp0)     # tau at starting position of planet
         Rp_t = Rp0
         R_21 = (2**(-2/3))*Rp_t
         t = 0
-        while R_21 > Rid and t <= 0.5:
+        while R_21 > Rid and t < 0.5:
             t += dt
-            d_t = Rp_t*dt/tau_t
-            if d_t >= Rp_t:
-                break
-            Rp_t = Rp_t - d_t
+            Rp_new = Rp_t*np.exp(-dt/tau)
+            if Rp_new > rmin:
+                Rp_t = Rp_new
             R_21 = (2**(-2/3))*Rp_t              # location  of  2:1 resonance
-            tau_t = calc_t_migration(mp, Rp_t)
-            print(Rp_t, R_21)
+            tau = calc_t_migration(mp, Rp_t)
+            # print(mp, " ---- \n")
+            # print(Rp_t, R_21)
             ax0.scatter(Rp_t, mp, marker='|', color='k')
 
         ax0.hlines(y=mp, xmin=Rp_t, xmax=Rp0, linewidth=2, color='k', linestyle='--')

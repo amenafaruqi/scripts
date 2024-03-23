@@ -219,6 +219,7 @@ def plot_dust_size_distribution():
 
         color = next(ax._get_lines.prop_cycler)['color']
         dust_mass_in_bin = np.sum(dust_mass[i], axis=1)
+        ax.scatter(a, dust_mass_in_bin, label=tlabel, color=color)
         ax.plot(a, dust_mass_in_bin, label=tlabel, color=color)
 
 
