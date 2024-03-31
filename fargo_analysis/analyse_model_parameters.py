@@ -4,6 +4,9 @@ import argparse
 import matplotlib as mpl
 plt.style.use('default')
 
+import warnings
+warnings.filterwarnings("ignore")
+
 # ======================= Plot Regimes for Gap-Opening ============================
 
 def calc_t_migration(mass, radius):
@@ -37,19 +40,16 @@ def plot_Mp_regimes():
     fig0,ax0 = plt.subplots(figsize=(9,6))
     m_range = np.linspace(0,200,50)
     r_range = np.linspace(0,200,201)
+
     # Plot pebble isolation criterion (Lambrechts et al. 2014)
-    # M_iso = 20*((r_range/7)**0.75)
     hr1d = hr0*(r_range**f)
-    dlogPdlogR = f - sigmaslope - 2     # taken from eq. 9 from Bitsch et al. 2018, accounting for their s being negative. 
-    print(dlogPdlogR)
+    dlogPdlogR = f - sigmaslope - 2     # taken from eq. 9 from Bitsch et al. 2018, accounting for their s being -ve. 
     f_fit = ((hr1d/0.05)**3)*(0.34*(np.log10(0.001)/np.log10(alpha))**4 + 0.66)*(1-((dlogPdlogR+2.5)/6))
     M_iso = 25*f_fit
-    print(M_iso)
     alpha_St = 0.01
     Pi_crit = alpha_St/2
     Lambda = 0.00476/f_fit
     M_iso += Pi_crit/Lambda                  # PIM considering diffusion
-    print(M_iso)
     ax0.fill_between(r_range, M_iso, 200, color='yellow', alpha=0.4)
     ax0.fill_between(r_range, M_iso, 0, color='coral', alpha=0.4)
 
@@ -64,8 +64,22 @@ def plot_Mp_regimes():
     Rp0 = 40     # remove this afterwards, for testing only
     dt = 0.1     # timestep to recalculate planet's location
 
+    # Plot radius where dust drift velocity = planet migration velocity
+    St = 0.1                            # pebble Stokes number
+    u_drift = dlogPdlogR*(hr0**2)*2*np.pi/(St+(1/St))   # in AU/yr
+    print(u_drift)
+    q = -2*f
+    gamma = 5/3
+    zeta = q - (gamma-1)*-sigmaslope
+    Omega = np.sqrt(4*(np.pi**2)/(Rp0**3))
+    Sigmap = sigma0*(float(Rp0)**-sigmaslope)*np.exp(-Rp0/Rc)
+    A = (-2.5-(1.7*q)+(-sigmaslope/10)+(1.1*(1.5+sigmaslope))+(7.9*zeta/gamma))
+    M_drift_mig = u_drift*((hr0*(Rp0**f))**2)*gamma/(2*A*Sigmap*Omega*Rp0**3)
+    print(M_drift_mig/3e-6)  # convert to Earth masses
+
     # Calculate location of inner damping zone
     Rid = (2*(rmin**-1.5)/3)**(-2/3)
+
     # Calculate migration timescale for each planet mass
     for mp in mps:
         tau = calc_t_migration(mp, Rp0)     # tau at starting position of planet
