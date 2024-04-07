@@ -9,6 +9,9 @@ import scipy.ndimage
 from matplotlib import rcParams
 import matplotlib.ticker as mtick
 
+import warnings
+warnings.filterwarnings("ignore")
+
 plt.style.use('default')
 
 #____________________________________PLOTTING FUNCTIONS ____________________________________#
@@ -36,7 +39,10 @@ def plot_surf_dens(wd,simdir,dustnums,outputnumber,lin_scaling,cbmin,cbmax,plot_
     dt_orbits = int(float(params_dict['DT'])/(2*np.pi))   # 2pi = 1 orbit = 1 yr
     ninterm = float(params_dict['NINTERM'])               # number of dts between outputs
     dt_outputs = dt_orbits*ninterm                        # time between outputs
-    time = round(outputnumber*dt_outputs*1e-6,2)                   # time in Myrs
+    time = round(outputnumber*dt_outputs*1e-6,2)          # time in Myrs
+    n_size_decades = np.log10(maxgsize) - np.log10(mingsize)
+    dustsizes = mingsize*10**((np.array(dustnums)/ndust)*(n_size_decades))
+    dustsizes = [np.format_float_positional(d,3,fractional=False,unique=True) for d in dustsizes]
 
     phi = np.linspace(0,2*np.pi,nphi+1)
     r_cells = np.loadtxt(f'{wd}/{simdir}/domain_y.dat')[3:-3]             # ignore ghost cells
@@ -154,7 +160,6 @@ def plot_surf_dens(wd,simdir,dustnums,outputnumber,lin_scaling,cbmin,cbmax,plot_
         if plot_planet not in ["no", "n"]:
             with open(f"{wd}/{simdir}/planet.cfg", 'r') as f:
                 num_planets = len(f.readlines()) - 5        # ignore 5 lines of headers
-                print(num_planets) 
 
             for n in range(num_planets):
                 planet_data = np.unique(np.loadtxt(f"{wd}/{simdir}/planet{n}.dat"), axis=0)
@@ -214,7 +219,7 @@ def plot_surf_dens(wd,simdir,dustnums,outputnumber,lin_scaling,cbmin,cbmax,plot_
             plt.title(f"Gas density at t = {time}Myr = {planet_orbits} orbits")
             plt.savefig(f'./images/gas_{simdir}_{outputnumber}.png', dpi=150)
         else:
-            plt.title(f"Dust density of cm grains at t = {time}Myr = {planet_orbits} orbits")
+            plt.title(f"Dust density of {str(dustsizes[file_i-1])}cm grains at t = {time}Myr = {planet_orbits} orbits")
             plt.savefig(f'./images/dust{file_i}_{simdir}_{outputnumber}.png', dpi=150)
 
         # show()
