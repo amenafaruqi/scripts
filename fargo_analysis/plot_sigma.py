@@ -260,7 +260,7 @@ if __name__ == "__main__":
     plot_window = args.plot_window
     plots_savedir = args.savedir
     p_orbits = args.porbits
-    style= args.style
+    style = args.style
 
     if plot_window:
         matplotlib.use('TkAgg')

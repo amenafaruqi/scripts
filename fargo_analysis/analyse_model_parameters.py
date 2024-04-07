@@ -66,7 +66,7 @@ def plot_Mp_regimes():
 
     # Plot radius where dust drift velocity = planet migration velocity
 
-    # St = 0.1                            # pebble Stokes number
+    St = 1                            # pebble Stokes number
     # u_drift = dlogPdlogR*(hr0**2)*2*np.pi/(St+(1/St))   # in AU/yr
     # print(u_drift)
     a_pebble = 1*6.68e-14                # 1 cm pebble size in AU
@@ -80,13 +80,8 @@ def plot_Mp_regimes():
     # print(M_drift_mig/3e-6)  # convert to Earth masses
     Sigmap = sigma0*(r_range**-sigmaslope)*np.exp(-r_range/Rc)
 
-    # hr = hr0*(r_range**f)                                   # aspect ratio
-    # cs = hr*(((2e30)*(6.67e-11))/(r_range*1.5e11))**0.5     # [m/s]
-    # p = (Sigmap*(cs**2)/((2*np.pi)**0.5))*(hr**-1)*((r_range*1.5e11)**-1)
-    # dPdR = (r_range/p)*np.abs(np.append(np.diff(p)/np.diff(r_range), 0))
-    # print(dPdR)
-
-    M_drift_mig = (np.pi*(rhodust*1.683e6)*gamma*a_pebble/(4*A))*((hr0*(r_range**f))**4)*dlogPdlogR/((Sigmap*r_range)**2)
+    M_drift_mig = (gamma*St/(2*A))*((hr0*(r_range**f))**4)*dlogPdlogR/(Sigmap*(r_range**2))
+    # M_drift_mig = (np.pi*(rhodust*1.683e6)*gamma*a_pebble/(4*A))*((hr0*(r_range**f))**4)*dlogPdlogR/((Sigmap*r_range)**2)
     M_drift_mig = np.abs(M_drift_mig)/3e-6    # convert to Earth masses
     print(M_drift_mig)  
     ax0.plot(r_range,  M_drift_mig, 'b')
