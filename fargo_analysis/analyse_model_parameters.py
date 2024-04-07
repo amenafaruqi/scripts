@@ -66,7 +66,7 @@ def plot_Mp_regimes():
 
     # Plot radius where dust drift velocity = planet migration velocity
 
-    St = 1                            # pebble Stokes number
+    St = 0.01                            # pebble Stokes number
     # u_drift = dlogPdlogR*(hr0**2)*2*np.pi/(St+(1/St))   # in AU/yr
     # print(u_drift)
     a_pebble = 1*6.68e-14                # 1 cm pebble size in AU
@@ -83,7 +83,6 @@ def plot_Mp_regimes():
     M_drift_mig = (gamma*St/(2*A))*((hr0*(r_range**f))**4)*dlogPdlogR/(Sigmap*(r_range**2))
     # M_drift_mig = (np.pi*(rhodust*1.683e6)*gamma*a_pebble/(4*A))*((hr0*(r_range**f))**4)*dlogPdlogR/((Sigmap*r_range)**2)
     M_drift_mig = np.abs(M_drift_mig)/3e-6    # convert to Earth masses
-    print(M_drift_mig)  
     ax0.plot(r_range,  M_drift_mig, 'b')
 
     # Calculate location of inner damping zone

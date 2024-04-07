@@ -329,7 +329,7 @@ if __name__ == "__main__":
         delta_r = radii[1]-radii[0]
     else:     # Log grid
         radii = np.array([np.exp((np.log(r_cells[n])+np.log(r_cells[n+1]))/2) for n in range(len(r_cells)-1)])
-        delta_log_r = np.log10(radii[1]) - np.log10(radii[0])
+        delta_log_r = np.log(radii[1]) - np.log(radii[0])
         delta_r = radii*delta_log_r
     phis = np.array([(phi_cells[n]+phi_cells[n+1])/2 for n in range(len(phi_cells)-1)])
 
@@ -393,7 +393,7 @@ if __name__ == "__main__":
         plot_dust_contours()
         # plot_dust_sigma()
         plot_dustgasratio()
-        plot_dust_size_distribution()
+        # plot_dust_size_distribution()
         # plot_dust_mass()
         # plot_sigma_at_r([rps[0]+5])
 
