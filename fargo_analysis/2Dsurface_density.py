@@ -17,7 +17,6 @@ plt.style.use('default')
 def plot_surf_dens(wd,simdir,dustnums,outputnumber,lin_scaling,cbmin,cbmax,plot_gas,beam,plot_planet,zoom):
 # Plots a 2D graph of the dust surface density                
     filepaths = []
-    print(wd)
 
     params_file = f'{wd}/{simdir}/variables.par'
     params_dict = {}
@@ -34,6 +33,10 @@ def plot_surf_dens(wd,simdir,dustnums,outputnumber,lin_scaling,cbmin,cbmax,plot_
     maxgsize = float(params_dict['MAX_GRAIN_SIZE'])
     sigma0 = float(params_dict['SIGMA0'])
     Rc = float(params_dict['SIGMACUTOFF'])
+    dt_orbits = int(float(params_dict['DT'])/(2*np.pi))   # 2pi = 1 orbit = 1 yr
+    ninterm = float(params_dict['NINTERM'])               # number of dts between outputs
+    dt_outputs = dt_orbits*ninterm                        # time between outputs
+    time = round(outputnumber*dt_outputs*1e-6,2)                   # time in Myrs
 
     phi = np.linspace(0,2*np.pi,nphi+1)
     r_cells = np.loadtxt(f'{wd}/{simdir}/domain_y.dat')[3:-3]             # ignore ghost cells
@@ -94,12 +97,18 @@ def plot_surf_dens(wd,simdir,dustnums,outputnumber,lin_scaling,cbmin,cbmax,plot_
             for n in range(num_planets):
                 planet_data = np.unique(np.loadtxt(f"{wd}/{simdir}/planet{n}.dat"), axis=0)
                 xp, yp = planet_data[outputnumber][1], planet_data[outputnumber][2]
+                if n == 0:
+                    rp = (xp**2 + yp**2)**0.5
+                    planet0_period = rp**1.5                     # orbital period of first planet in yrs
                 plt.scatter([-xp], [-yp], color='g', marker='.')
         
+        planet_orbits = int(round(time*1e6/planet0_period,0))
+
         if zoom:
             plt.xlim(-zoom,zoom)
             plt.ylim(-zoom,zoom)
 
+        plt.title(f"Mass-averaged dust density at t = {time}Myr = {planet_orbits} orbits")
         plt.tight_layout()
         plt.savefig(f'./images/dustavg_{simdir}_{outputnumber}.png', dpi=150)
 
@@ -150,16 +159,21 @@ def plot_surf_dens(wd,simdir,dustnums,outputnumber,lin_scaling,cbmin,cbmax,plot_
             for n in range(num_planets):
                 planet_data = np.unique(np.loadtxt(f"{wd}/{simdir}/planet{n}.dat"), axis=0)
                 xp, yp = planet_data[outputnumber][1], planet_data[outputnumber][2]
+                if n == 0:
+                    rp = (xp**2 + yp**2)**0.5
+                    planet0_period = rp**1.5                     # orbital period of first planet in yrs
                 plt.scatter([-xp], [-yp], color='g', marker='.')
         
+        planet_orbits = int(round(time*1e6/planet0_period,0))
+
         if zoom:
             plt.xlim(-zoom,zoom)
             plt.ylim(-zoom,zoom)
 
         plt.tight_layout()
 
-        r_celledge = [None]*nrad
-        ncelledge = nrad+1
+        # r_celledge = [None]*nrad
+        # ncelledge = nrad+1
 
         rcell = [None] * (len(radii)-1)
         for i in range(len(radii)-1):
@@ -197,8 +211,10 @@ def plot_surf_dens(wd,simdir,dustnums,outputnumber,lin_scaling,cbmin,cbmax,plot_
             cbar.set_label(cbar_label,color='black')
 
         if plot_gas in ["yes", "y"] and file_i == 0:
+            plt.title(f"Gas density at t = {time}Myr = {planet_orbits} orbits")
             plt.savefig(f'./images/gas_{simdir}_{outputnumber}.png', dpi=150)
         else:
+            plt.title(f"Dust density of cm grains at t = {time}Myr = {planet_orbits} orbits")
             plt.savefig(f'./images/dust{file_i}_{simdir}_{outputnumber}.png', dpi=150)
 
         # show()
@@ -225,7 +241,7 @@ if __name__ == "__main__":
     DUSTNUMS = args.d
     print("dust bins = ", DUSTNUMS)
 
-    Out = args.o[0]
+    o = args.o[0]
 
     cbmin = args.cb[0]
     cbmax = args.cb[1]
@@ -265,7 +281,7 @@ if __name__ == "__main__":
         for s in style:
             plt.style.use([f"../styles/{s}.mplstyle"])
 
-    plot_surf_dens(wd,simdir,DUSTNUMS,Out,lin_scale,cbmin,cbmax,gasdens,convolve,plot_planet,zoom)
+    plot_surf_dens(wd,simdir,DUSTNUMS,o,lin_scale,cbmin,cbmax,gasdens,convolve,plot_planet,zoom)
 
     if plot_window:
         plt.show()
