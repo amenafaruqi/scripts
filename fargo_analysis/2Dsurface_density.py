@@ -1,10 +1,8 @@
 import numpy as np
 import matplotlib.pyplot as plt
-import matplotlib.ticker as ticker
+import matplotlib
 from pylab import*
 import argparse
-import sys
-import math as mt
 import glob
 from scipy.interpolate import RectBivariateSpline
 import scipy.ndimage
@@ -12,7 +10,6 @@ from matplotlib import rcParams
 import matplotlib.ticker as mtick
 
 plt.style.use('default')
-plt.style.use(['../styles/darkbg.mplstyle', '../styles/presentation.mplstyle'])
 
 #____________________________________PLOTTING FUNCTIONS ____________________________________#
                                                                                                       
@@ -217,9 +214,11 @@ if __name__ == "__main__":
     parser.add_argument('-gas', metavar='gas density', type=str, nargs=1, default="no", help="plot gas density")
     parser.add_argument('-con', metavar='convolved', type=str, nargs=1, default="no", help="convolved with a gaussian beam")
     parser.add_argument('-wd', metavar='wd', type=str, nargs=1, default=["/home/astro/phrkvg/simulations/planet_growth/lowres_models"],help="working directory containing simulations")
-    parser.add_argument('-dir', metavar='dir', type=str, nargs=1, default=["planettest"] ,help="simulation directory containing output files")
+    parser.add_argument('-sim', metavar='sim', type=str, nargs=1, default=["planettest"] ,help="simulation directory containing output files")
     parser.add_argument('-planet', metavar='plot planet', type=str, nargs=1, default="no", help="plot planet")
     parser.add_argument('-zoom', metavar='zoomed plot', type=float, nargs=1, default=[0], help="set lims to zoom to")
+    parser.add_argument('-plot_window', action="store_true")
+    parser.add_argument('-style', metavar='style', type=str, nargs=1, default=["publication"] ,help="style sheet to apply to plots")
 
     args = parser.parse_args()
 
@@ -251,11 +250,22 @@ if __name__ == "__main__":
         convolve = args.con[0]
 
     wd = args.wd[0]
-    simdir = args.dir[0]
+    simdir = args.sim[0]
     plot_planet = args.planet[0]
-
     zoom = args.zoom[0]
+    plot_window = args.plot_window
+    style = args.style
+
+    if plot_window:
+        matplotlib.use('TkAgg')
 
         #________________________________END COMMAND LINE ARGS__________________________________#      
 
+    if not plot_window:
+        for s in style:
+            plt.style.use([f"../styles/{s}.mplstyle"])
+
     plot_surf_dens(wd,simdir,DUSTNUMS,Out,lin_scale,cbmin,cbmax,gasdens,convolve,plot_planet,zoom)
+
+    if plot_window:
+        plt.show()
