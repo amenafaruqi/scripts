@@ -161,6 +161,14 @@ def plot_Dipierro_Mp_regimes():  #figure 2 from dipierro 2017 i.e. as function o
     fig0.savefig(f"{plots_savedir}/{sim}_Mpregimes.png")
 
 
+def plot_eta():
+    r_range = np.linspace(0,150,151)
+    dlogPdlogR = f - sigmaslope - 2
+    hr = hr0*(r_range**0.25)
+    eta =  -0.5*(hr**2)*dlogPdlogR
+
+
+
 # ======================= Plot Drift Timescale ============================
 
 def plot_tdrift(): #as function of R and a

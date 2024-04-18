@@ -233,6 +233,33 @@ def plot_dust_size_distribution():
     fig.savefig(f"{plots_savedir}/{sim}_dustsizes.png")
 
 
+# ============== Plot Particle Trajectories ==================
+
+def plot_pebble_trajectories():
+    fig, ax = plt.subplots(1, dpi=150)
+    print("Plotting trajectories of pebbles....")
+    St = np.logspace(-3, 0, 8)    # range of St for pebbles, from Bitsch+2018
+    print(St)
+    # a_arr = St*sigma_gas_1D[-1,150]*2/(rhodust*np.pi)
+    a_arr = np.array([0.01, 0.05, 0.1, 0.5, 1, 5, 10])
+    print(a_arr)
+    n_size_decades = np.log10(maxgsize) - np.log10(mingsize)
+
+    for a in a_arr:
+        d = int(np.log10(a/mingsize)*ndust/n_size_decades)   # convert physical size to size index
+        sigma_dust_d = sigma_dust_1D[:,d,:]     # noutputs, nrad
+        dens_peak_loc = np.zeros((len(timesteps),1))
+        rp = rps[0,0]
+        for i, t in enumerate(timesteps):
+            peak_dens = np.max(sigma_dust_d[i,:][radii > rp])      # peak density (exterior to planet) for chosen grain size
+            peak_dens_i = np.where(sigma_dust_d[i,:]==peak_dens)[0][0]
+            dens_peak_loc[i] = radii[peak_dens_i]
+        ax.plot(timesteps, dens_peak_loc, label=f"{a} cm")
+
+    ax.set_ylabel("R (AU)")
+    ax.set_xlabel("Time (Myr)")
+    ax.legend()
+
 
 # ==========================================================
 
@@ -387,12 +414,13 @@ if __name__ == "__main__":
 
     print(f"Plotting outputs {outputs} for {sim}\n =============")
 
-    plot_gas_sigma()
+    # plot_gas_sigma()
 
     if grog:
-        plot_dust_contours()
+        # plot_dust_contours()
         # plot_dust_sigma()
-        plot_dustgasratio()
+        # plot_dustgasratio()
+        plot_pebble_trajectories()
         # plot_dust_size_distribution()
         # plot_dust_mass()
         # plot_sigma_at_r([rps[0]+5])
