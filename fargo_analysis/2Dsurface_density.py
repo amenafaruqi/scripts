@@ -61,10 +61,15 @@ def plot_surf_dens(wd,simdir,dustnums,outputnumber,lin_scaling,cbmin,cbmax,plot_
     if plot_gas in ["yes", "y"]:
         filepaths.append(f'{wd}/{simdir}/gasdens{outputnumber}.dat')
 
-    if dustnums[0] == -1:
-        all_dust_files = glob.glob(f"{wd}/{simdir}/dustdens*_{outputnumber}.dat")
-        weighted_sum_dens = np.zeros((nrad, nphi))
-        for i,file in enumerate(all_dust_files):
+    if dustnums[0] == -1:    # use -1 to plot mass-weighted sum of multiple grain sizes
+        if len(dustnums)==1:
+            dust_files = glob.glob(f"{wd}/{simdir}/dustdens*_{outputnumber}.dat")
+        else:
+            dustnum_range = np.arange(dustnums[1], dustnums[-1])
+            dust_files = [f"{wd}/{simdir}/dustdens{d}_{outputnumber}.dat" for d in dustnum_range]
+            
+        weighted_sum_dens = np.zeros((nrad, nphi)) 
+        for i,file in enumerate(dust_files):
             surfdens = np.fromfile(file).reshape(nrad,nphi)/(1.125e-7)
             weighted_sum_dens = weighted_sum_dens + surfdens*(a[i]**3)
         avgdustdens = weighted_sum_dens/sum_dustvol
@@ -73,7 +78,7 @@ def plot_surf_dens(wd,simdir,dustnums,outputnumber,lin_scaling,cbmin,cbmax,plot_
         
         if  np.isnan(cbmin):
             vmin = np.percentile(avgdustdens, 10)
-        else: 
+        else:
             vmin = cbmin
 
         if  np.isnan(cbmax):
@@ -114,10 +119,14 @@ def plot_surf_dens(wd,simdir,dustnums,outputnumber,lin_scaling,cbmin,cbmax,plot_
             plt.xlim(-zoom,zoom)
             plt.ylim(-zoom,zoom)
 
-        plt.title(f"Mass-averaged dust density at t = {time}Myr = {planet_orbits} orbits")
+        if len(dustnums)==1:
+            plot_title = f"Mass-averaged dust density at t = {time}Myr = {planet_orbits} orbits"
+        else:
+            plot_title = f"Mass-averaged dust density ({dustnum_range[0]}-{dustnum_range[-1]}cm) at t = {time}Myr = {planet_orbits} orbits"
+
+        plt.title(plot_title)
         plt.tight_layout()
         plt.savefig(f'./images/dustavg_{simdir}_{outputnumber}.png', dpi=150)
-
 
     else:
         for dustnum in dustnums:
