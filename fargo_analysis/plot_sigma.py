@@ -14,6 +14,20 @@ def sigma_at_r(r=10, t_index=-1):
     sigma_at_r0 = np.median(sigma_in_r_range, axis=1)                # avg sigma at chosen radius for all grain sizes
     return sigma_at_r0, mini, maxi
 
+def calculate_e():
+    # TODO Get position vector and V vector from .dat files
+    mu = 4*np.pi**2   # or =1 in code units?
+    h = np.cross(r, v)
+    hmag = np.norm(h)
+    e = np.cross(v, h)/mu - r/np.norm(r)   # vector e
+    return e
+    
+    # a = np.norm(h)/(mu*(1-(np.norm(e)**2)))   # scalar
+    # cos_E = (1 - np.norm(r)/a)/np.norm(e)    # scalar
+    # sin_E = np.dot(r, v)/(np.norm(e)*np.norm(r))   # scalar
+    # E = np.arctan2(sin_E, cos_E)
+
+
 # ======================= Dust Contour Plots ==============================
 
 def plot_dust_contours():
@@ -394,7 +408,7 @@ if __name__ == "__main__":
         # plot_dust_sigma()
         plot_dustgasratio()
         # plot_dust_size_distribution()
-        # plot_dust_mass()
+        plot_dust_mass()
         # plot_sigma_at_r([rps[0]+5])
 
     if plot_window:
