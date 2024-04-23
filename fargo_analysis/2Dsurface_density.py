@@ -122,7 +122,7 @@ def plot_surf_dens(wd,simdir,dustnums,outputnumber,lin_scaling,cbmin,cbmax,plot_
         if len(dustnums)==1:
             plot_title = f"Mass-averaged dust density at t = {time}Myr = {planet_orbits} orbits"
         else:
-            plot_title = f"Mass-averaged dust density ({dustnum_range[0]}-{dustnum_range[-1]}cm) at t = {time}Myr = {planet_orbits} orbits"
+            plot_title = f"Mass-averaged dust density ({dustsizes[1]}-{dustsizes[-1]}cm) at t = {time}Myr = {planet_orbits} orbits"
 
         plt.title(plot_title)
         plt.tight_layout()
