@@ -220,6 +220,57 @@ def plot_dust_mass():
     fig.tight_layout()
     fig.savefig(f"{plots_savedir}/{sim}_Mdust.png")
 
+
+def plot_dust_mass_by_grain():
+    fig = plt.figure(figsize=(16,12))
+    print("Plotting dust distribution by grain size....")
+
+    n_size_decades = int(np.log10(maxgsize) - np.log10(mingsize))
+    size_decades = np.split(np.arange(ndust), n_size_decades)
+    dust_mass_tot_binned = np.zeros((len(outputs), n_size_decades, nrad))
+    psizex = 3
+    psizey = int(n_size_decades/psizex)+1
+
+    for n, size_decade in enumerate(size_decades):
+        ax = fig.add_subplot(psizey, psizex, n+1)
+        ax.set_prop_cycle(color=[cm(1.*s/8) for s in range(0,len(timesteps)+1)])
+
+        for i, t in enumerate(timesteps):
+            dust_mass_tot_binned = np.sum(dust_mass[i,size_decade[0]:size_decade[-1],:], axis=0)
+            color = next(ax._get_lines.prop_cycler)['color']
+
+            if not p_orbits:
+                tlabel = f"{round(t, 3)} Myr"
+            elif planets:
+                tlabel = f"{int(round(planet_orbits[i], 0))} orbits"
+            
+            ax.plot(radii, dust_mass_tot_binned, label=tlabel, color=color)
+
+        if planets:
+            for rp in rps[:,i]:
+                ax.axvline(rp, linestyle='dashed', color=color)
+
+        if not n%psizex:
+            ax.set_ylabel(f"Total $M_{{dust}} (g/cm^{{2}})$")
+        else:
+            ax.set_yticks([])
+        if n < psizex and n_size_decades > psizex:
+            ax.set_xticks([])
+        else:
+            ax.set_xlabel("R (AU)")
+
+        dustsizes = mingsize*10**((np.array((size_decade[0],size_decade[-1]))/ndust)*(n_size_decades))
+        dustsizes = [np.format_float_positional(d,3,fractional=False,unique=True) for d in dustsizes]
+        ax.set_title(f"{dustsizes[0]}-{dustsizes[1]}cm")
+        ax.set_xscale("log")
+        ax.set_yscale("log")
+        ax.legend()
+        ax.set_xlim(min(radii), max(radii))
+
+    fig.tight_layout()
+    fig.savefig(f"{plots_savedir}/{sim}_graindist.png")
+
+
 def plot_dust_size_distribution():
     fig, ax = plt.subplots(1, dpi=150)
     ax.set_prop_cycle(color=[cm(1.*i/8) for i in range(0,len(timesteps)+1)])
@@ -249,7 +300,6 @@ def plot_dust_size_distribution():
 
 
 # ==========================================================
-
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description='Generate 1D plots', prefix_chars='-')
@@ -401,14 +451,15 @@ if __name__ == "__main__":
 
     print(f"Plotting outputs {outputs} for {sim}\n =============")
 
-    plot_gas_sigma()
+    # plot_gas_sigma()
 
     if grog:
-        plot_dust_contours()
+        # plot_dust_contours()
         # plot_dust_sigma()
-        plot_dustgasratio()
+        # plot_dustgasratio()
         # plot_dust_size_distribution()
-        plot_dust_mass()
+        # plot_dust_mass()
+        plot_dust_mass_by_grain()
         # plot_sigma_at_r([rps[0]+5])
 
     if plot_window:

@@ -83,7 +83,7 @@ def plot_Mp_regimes():
     M_drift_mig = (gamma*St/(2*A))*((hr0*(r_range**f))**4)*dlogPdlogR/(Sigmap*(r_range**2))
     # M_drift_mig = (np.pi*(rhodust*1.683e6)*gamma*a_pebble/(4*A))*((hr0*(r_range**f))**4)*dlogPdlogR/((Sigmap*r_range)**2)
     M_drift_mig = np.abs(M_drift_mig)/3e-6    # convert to Earth masses
-    ax0.plot(r_range,  M_drift_mig, 'b')
+    ax0.plot(r_range,  M_drift_mig, c='mediumblue')
 
     # Calculate location of inner damping zone
     Rid = (2*(rmin**-1.5)/3)**(-2/3)
