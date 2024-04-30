@@ -246,9 +246,9 @@ def plot_dust_mass_by_grain():
             
             ax.plot(radii, dust_mass_tot_binned, label=tlabel, color=color)
 
-        if planets:
-            for rp in rps[:,i]:
-                ax.axvline(rp, linestyle='dashed', color=color)
+            if planets:
+                for rp in rps[:,i]:
+                    ax.axvline(rp, linestyle='dashed', color=color)
 
         if not n%psizex:
             ax.set_ylabel(f"Total $M_{{dust}} (g/cm^{{2}})$")
@@ -259,7 +259,7 @@ def plot_dust_mass_by_grain():
         else:
             ax.set_xlabel("R (AU)")
 
-        dustsizes = mingsize*10**((np.array((size_decade[0],size_decade[-1]))/ndust)*(n_size_decades))
+        dustsizes = [(10**n) * mingsize, (10**(n+1)) * mingsize]
         dustsizes = [np.format_float_positional(d,3,fractional=False,unique=True) for d in dustsizes]
         ax.set_title(f"{dustsizes[0]}-{dustsizes[1]}cm")
         ax.set_xscale("log")
@@ -286,7 +286,6 @@ def plot_dust_size_distribution():
         dust_mass_in_bin = np.sum(dust_mass[i], axis=1)
         ax.scatter(a, dust_mass_in_bin, label=tlabel, color=color)
         ax.plot(a, dust_mass_in_bin, label=tlabel, color=color)
-
 
     ax.set_xlabel("a (cm)")
     ax.set_ylabel("$M_{{dust}} (g/cm^{{2}})$")
@@ -451,7 +450,7 @@ if __name__ == "__main__":
 
     print(f"Plotting outputs {outputs} for {sim}\n =============")
 
-    # plot_gas_sigma()
+    plot_gas_sigma()
 
     if grog:
         # plot_dust_contours()
