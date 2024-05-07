@@ -35,9 +35,9 @@ def calc_t_migration(mass, radius):
 
 
 def plot_Mp_regimes():
-    mps = np.array([12, 25, 35, 120, 160]) 
+    mps = np.array([12, 25, 40, 120, 160]) 
     # mps = np.array([12,60,120])
-    fig0,ax0 = plt.subplots(figsize=(9,6))
+    fig0,ax0 = plt.subplots(figsize=(10,7))
     m_range = np.linspace(0,200,50)
     r_range = np.linspace(0,200,201)
 
@@ -50,15 +50,15 @@ def plot_Mp_regimes():
     Pi_crit = alpha_St/2
     Lambda = 0.00476/f_fit
     M_iso += Pi_crit/Lambda                  # PIM considering diffusion
-    ax0.fill_between(r_range, M_iso, 200, color='yellow', alpha=0.4)
-    ax0.fill_between(r_range, M_iso, 0, color='coral', alpha=0.8)
+    ax0.fill_between(r_range, M_iso, 200, color='yellow', alpha=0.55)
+    ax0.fill_between(r_range, M_iso, 0, color='orangered', alpha=0.73)
 
     # Plot gap-opening criterion region (Crida et al. 2006)
     Ms, Rs = np.meshgrid(m_range, r_range)
     hr = hr0*(Rs**f)
     R_h = Rs*((Ms*1e-6)**(1/3))
     p_crida = 0.75*(hr*Rs)/R_h + 50*alpha*(hr**2)/(Ms*3e-6)
-    ax0.contourf(Rs, Ms, p_crida, levels=[0,1])
+    ax0.contourf(Rs, Ms, p_crida, levels=[0,1], cmap="summer")
 
     # Plot planet migration tracks
     Rp0 = 40     # remove this afterwards, for testing only
@@ -109,8 +109,8 @@ def plot_Mp_regimes():
         # ax0.vlines(x=R_21, ymin=0, ymax = 200, linewidth=2, color='r', linestyle=':')
         ax0.scatter(Rp0, mp, marker='x', color='k')
     
-    ax0.set_xlim(1,100)
-    ax0.set_ylim(0,200)
+    ax0.set_xlim(1,70)
+    ax0.set_ylim(0,180)
     ax0.set_xlabel("R (AU)")
     ax0.set_ylabel("$M_{{p}} (M_\oplus)$")
     fig0.savefig(f"{plots_savedir}/Mp_regimes.png", dpi=200)
@@ -297,7 +297,7 @@ if __name__ == "__main__":
     parser.add_argument('-savedir', metavar='savedir', type=str, nargs=1, default="./images" ,help="directory to save plots to")
     parser.add_argument('-plot_window', action="store_true")
     parser.add_argument('-porbits', action="store_true")
-    parser.add_argument('-style', metavar='style', type=str, nargs=1, default=["publication"] ,help="style sheet to apply to plots")
+    parser.add_argument('-style', metavar='style', type=str, nargs="*", default=["publication"] ,help="style sheet to apply to plots")
     parser.add_argument('-o', metavar='output',default=[1], type=int, nargs=1 ,help="output to plot")
 
     args = parser.parse_args()

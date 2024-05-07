@@ -4,6 +4,8 @@ import matplotlib
 import argparse
 plt.style.use('default')
 
+import warnings
+warnings.filterwarnings("ignore")
 
 # ======================= Misc functions ==============================
 def sigma_at_r(r=10, t_index=-1):
@@ -31,7 +33,7 @@ def calculate_e():
 # ======================= Dust Contour Plots ==============================
 
 def plot_dust_contours():
-    fig0 = plt.figure(figsize=(16,12))
+    fig0 = plt.figure(figsize=(17,12))
     R, A = np.meshgrid(radii, a)
     # levels = np.linspace(-11,1,7)                    # Brauer 2008 levels
     # levels = np.linspace(-7, 2, 10)                  # Birnstiel 2012 levels 
@@ -109,7 +111,7 @@ def plot_dustgasratio():
 # ================== Gas Sigma Profile ===================
 
 def plot_gas_sigma():
-    fig, ax = plt.subplots(figsize=(7,6))
+    fig, ax = plt.subplots(figsize=(6,5))
     ax.set_prop_cycle(color=[cm(1.*i/8) for i in range(0,len(timesteps)+1)])
     print("Plotting gas surface density....")
 
@@ -130,7 +132,8 @@ def plot_gas_sigma():
     ax.set_ylabel("$\Sigma_{gas} (g/cm^{2})$")
     ax.set_xscale("log")
     ax.set_yscale("log")
-    ax.legend()
+    # ax.legend()
+    ax.set_xticks([])
     ax.set_xlim(np.min(radii), np.max(radii))
 
     fig.tight_layout()
@@ -212,7 +215,7 @@ def plot_dust_mass():
                 ax.axvline(rp, linestyle='dashed', color=color)
 
     ax.set_xlabel("R (AU)")
-    ax.set_ylabel("Total $M_{{dust}} (g/cm^{{2}})$")
+    ax.set_ylabel("$M_{{dust}} (M_\oplus)$")
     ax.set_xscale("log")
     ax.set_yscale("log")
     ax.legend()
@@ -222,7 +225,7 @@ def plot_dust_mass():
 
 
 def plot_dust_mass_by_grain():
-    fig = plt.figure(figsize=(16,12))
+    fig = plt.figure(figsize=(17,16))
     print("Plotting dust distribution by grain size....")
 
     n_size_decades = int(np.log10(maxgsize) - np.log10(mingsize))
@@ -244,14 +247,14 @@ def plot_dust_mass_by_grain():
             elif planets:
                 tlabel = f"{int(round(planet_orbits[i], 0))} orbits"
             
-            ax.plot(radii, dust_mass_tot_binned, label=tlabel, color=color)
+            ax.plot(radii, np.log10(dust_mass_tot_binned), label=tlabel, color=color)
 
             if planets:
                 for rp in rps[:,i]:
                     ax.axvline(rp, linestyle='dashed', color=color)
 
         if not n%psizex:
-            ax.set_ylabel(f"Total $M_{{dust}} (g/cm^{{2}})$")
+            ax.set_ylabel(f"log[$M_{{dust}} (M_\oplus)$]")
         else:
             ax.set_yticks([])
         if n < psizex and n_size_decades > psizex:
@@ -263,7 +266,7 @@ def plot_dust_mass_by_grain():
         dustsizes = [np.format_float_positional(d,3,fractional=False,unique=True) for d in dustsizes]
         ax.set_title(f"{dustsizes[0]}-{dustsizes[1]}cm")
         ax.set_xscale("log")
-        ax.set_yscale("log")
+        # ax.set_yscale("log")
         ax.legend()
         ax.set_xlim(min(radii), max(radii))
 
@@ -311,7 +314,7 @@ if __name__ == "__main__":
     parser.add_argument('-nogrog', action="store_false")
     parser.add_argument('-plot_window', action="store_true")
     parser.add_argument('-porbits', action="store_true")
-    parser.add_argument('-style', metavar='style', type=str, nargs=1, default=["publication"] ,help="style sheet to apply to plots")
+    parser.add_argument('-style', metavar='style', type=str, nargs="*", default=["publication"] ,help="style sheet to apply to plots")
 
     args = parser.parse_args()
     outputs = args.o
@@ -418,8 +421,8 @@ if __name__ == "__main__":
     
     for i,t in enumerate(outputs):
         # dust mass for dust of size a as a function of r
-        dust_mass[i,:,:] = [2*np.pi*radii*sigma_dust_1D[i,n,:]*delta_r for n in range(ndust)]
-        gas_mass[i,:] = 2*np.pi*radii*sigma_gas_1D[i,:]*delta_r
+        dust_mass[i,:,:] = [2*np.pi*radii*sigma_dust_1D[i,n,:]*delta_r*333030 for n in range(ndust)]
+        gas_mass[i,:] = 2*np.pi*radii*sigma_gas_1D[i,:]*delta_r*333030      # convert from Msun to Mearth
 
     dust_mass_tot = np.sum(dust_mass, axis=1)
 
@@ -451,9 +454,8 @@ if __name__ == "__main__":
     print(f"Plotting outputs {outputs} for {sim}\n =============")
 
     plot_gas_sigma()
-
     if grog:
-        # plot_dust_contours()
+        plot_dust_contours()
         # plot_dust_sigma()
         # plot_dustgasratio()
         # plot_dust_size_distribution()

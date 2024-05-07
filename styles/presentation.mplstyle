@@ -1,10 +1,10 @@
 font.size :  14
-axes.titlesize : 22
-axes.labelsize : 22
+axes.titlesize : 28
+axes.labelsize : 26
 lines.linewidth : 2
 lines.markersize : 10
-xtick.labelsize :18
-ytick.labelsize : 18
+xtick.labelsize :22
+ytick.labelsize : 22
 figure.dpi: 300
 legend.fontsize: large
 figure.constrained_layout.hspace: 0.08

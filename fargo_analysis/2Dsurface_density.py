@@ -87,6 +87,8 @@ def plot_surf_dens(wd,simdir,dustnums,outputnumber,lin_scaling,cbmin,cbmax,plot_
             vmax = cbmax
 
         fig = plt.figure()
+        plt.rcParams['axes.facecolor']='k'
+
         if (lin_scaling not in ["no", "n"]):
             plt.pcolormesh(x,y,dens_additional.T,cmap=cm.Oranges_r,shading="auto",vmin=vmin, vmax=vmax)
             cbar_label = '$\Sigma$ [$g/cm^{2}$] '
@@ -113,17 +115,20 @@ def plot_surf_dens(wd,simdir,dustnums,outputnumber,lin_scaling,cbmin,cbmax,plot_
                     planet0_period = rp**1.5                     # orbital period of first planet in yrs
                 plt.scatter([-xp], [-yp], color='g', marker='.')
         
-        planet_orbits = int(round(time*1e6/planet0_period,0))
+            planet_orbits = int(round(time*1e6/planet0_period,0))
 
         if zoom:
             plt.xlim(-zoom,zoom)
             plt.ylim(-zoom,zoom)
 
         if len(dustnums)==1:
-            plot_title = f"Mass-averaged dust density at t = {time}Myr = {planet_orbits} orbits"
+            plot_title = f"Mass-averaged dust density at t = {time}Myr"
         else:
-            plot_title = f"Mass-averaged dust density ({dustsizes[1]}-{dustsizes[-1]}cm) at t = {time}Myr = {planet_orbits} orbits"
+            plot_title = f"Mass-averaged dust density ({dustsizes[1]}-{dustsizes[-1]}cm) at t = {time}Myr"
 
+        if  plot_planet not in ["no", "n"]:
+            plot_title = plot_title + f" = {planet_orbits} orbits"
+    
         plt.title(plot_title)
         plt.tight_layout()
         plt.savefig(f'./images/dustavg_{simdir}_{outputnumber}.png', dpi=150)
@@ -149,6 +154,7 @@ def plot_surf_dens(wd,simdir,dustnums,outputnumber,lin_scaling,cbmin,cbmax,plot_
         dens_additional = np.concatenate((surfdens[:,:],dens_first_wedge),axis=1)
 
         fig = plt.figure()
+        plt.rcParams['axes.facecolor']='k'
 
         if (lin_scaling not in ["no", "n"]):
             plt.pcolormesh(x,y,dens_additional.T,cmap=cm.Oranges_r,shading="auto",vmin=vmin, vmax=vmax)
@@ -178,7 +184,7 @@ def plot_surf_dens(wd,simdir,dustnums,outputnumber,lin_scaling,cbmin,cbmax,plot_
                     planet0_period = rp**1.5                     # orbital period of first planet in yrs
                 plt.scatter([-xp], [-yp], color='g', marker='.')
         
-        planet_orbits = int(round(time*1e6/planet0_period,0))
+            planet_orbits = int(round(time*1e6/planet0_period,0))
 
         if zoom:
             plt.xlim(-zoom,zoom)
@@ -225,10 +231,16 @@ def plot_surf_dens(wd,simdir,dustnums,outputnumber,lin_scaling,cbmin,cbmax,plot_
             cbar.set_label(cbar_label,color='black')
 
         if plot_gas in ["yes", "y"] and file_i == 0:
-            plt.title(f"Gas density at t = {time}Myr = {planet_orbits} orbits")
+            plt.title(f"Gas density at t = {time}Myr")
+            if  plot_planet not in ["no", "n"]:
+                plt.title(f"Gas density at t = {time}Myr = {planet_orbits} orbits")
+            plt.tight_layout()
             plt.savefig(f'./images/gas_{simdir}_{outputnumber}.png', dpi=150)
         else:
-            plt.title(f"Dust density of {str(dustsizes[file_i-1])}cm grains at t = {time}Myr = {planet_orbits} orbits")
+            plt.title(f"Dust density of {str(dustsizes[file_i-1])}cm grains at t = {time}Myr")
+            if  plot_planet not in ["no", "n"]:
+                plt.title(f"Dust density of {str(dustsizes[file_i-1])}cm grains at t = {time}Myr = {planet_orbits} orbits")
+            plt.tight_layout()
             plt.savefig(f'./images/dust{file_i}_{simdir}_{outputnumber}.png', dpi=150)
 
         # show()
@@ -248,7 +260,7 @@ if __name__ == "__main__":
     parser.add_argument('-planet', metavar='plot planet', type=str, nargs=1, default="no", help="plot planet")
     parser.add_argument('-zoom', metavar='zoomed plot', type=float, nargs=1, default=[0], help="set lims to zoom to")
     parser.add_argument('-plot_window', action="store_true")
-    parser.add_argument('-style', metavar='style', type=str, nargs=1, default=["publication"] ,help="style sheet to apply to plots")
+    parser.add_argument('-style', metavar='style', type=str, nargs="*", default=["publication"] ,help="style sheet to apply to plots")
 
     args = parser.parse_args()
 
