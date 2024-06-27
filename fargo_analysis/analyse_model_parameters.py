@@ -35,7 +35,7 @@ def calc_t_migration(mass, radius):
 
 
 def plot_Mp_regimes():
-    mps = np.array([12, 25, 40, 120, 160]) 
+    mps = np.array([12, 25, 60, 120, 160]) 
     # mps = np.array([12,60,120])
     fig0,ax0 = plt.subplots(figsize=(10,7))
     m_range = np.linspace(0,200,50)
@@ -83,7 +83,7 @@ def plot_Mp_regimes():
     M_drift_mig = (gamma*St/(2*A))*((hr0*(r_range**f))**4)*dlogPdlogR/(Sigmap*(r_range**2))
     # M_drift_mig = (np.pi*(rhodust*1.683e6)*gamma*a_pebble/(4*A))*((hr0*(r_range**f))**4)*dlogPdlogR/((Sigmap*r_range)**2)
     M_drift_mig = np.abs(M_drift_mig)/3e-6    # convert to Earth masses
-    ax0.plot(r_range,  M_drift_mig, c='mediumblue')
+    # ax0.plot(r_range,  M_drift_mig, c='mediumblue')
 
     # Calculate location of inner damping zone
     Rid = (2*(rmin**-1.5)/3)**(-2/3)
@@ -103,16 +103,17 @@ def plot_Mp_regimes():
             tau = calc_t_migration(mp, Rp_t)
             # print(mp, " ---- \n")
             # print(Rp_t, R_21)
-            ax0.scatter(Rp_t, mp, marker='|', color='k')
+        ax0.scatter(Rp_t, mp, marker='<', color='k')
 
         ax0.hlines(y=mp, xmin=Rp_t, xmax=Rp0, linewidth=2, color='k', linestyle='--')
         # ax0.vlines(x=R_21, ymin=0, ymax = 200, linewidth=2, color='r', linestyle=':')
-        ax0.scatter(Rp0, mp, marker='x', color='k')
+        ax0.scatter(Rp0, mp, marker='o', color='k')
     
     ax0.set_xlim(1,70)
     ax0.set_ylim(0,180)
-    ax0.set_xlabel("R (AU)")
+    ax0.set_xlabel("$R_{{p}}$ (AU)")
     ax0.set_ylabel("$M_{{p}} (M_\oplus)$")
+    fig0.tight_layout()
     fig0.savefig(f"{plots_savedir}/Mp_regimes.png", dpi=200)
 
 

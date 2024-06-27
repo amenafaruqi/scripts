@@ -16,12 +16,11 @@ def sigma_at_r(r=10, t_index=-1):
     sigma_at_r0 = np.median(sigma_in_r_range, axis=1)                # avg sigma at chosen radius for all grain sizes
     return sigma_at_r0, mini, maxi
 
-def calculate_e():
-    # TODO Get position vector and V vector from .dat files
-    mu = 4*np.pi**2   # or =1 in code units?
+def calculate_e(r, v):
+    mu = 4*(np.pi**2)              # in code units, otherwise mu=4pi**2 
     h = np.cross(r, v)
-    hmag = np.norm(h)
-    e = np.cross(v, h)/mu - r/np.norm(r)   # vector e
+    e_vec = (np.cross(v, h)/mu) - (r/np.linalg.norm(r))   # vector e
+    e = np.linalg.norm(e_vec)
     return e
     
     # a = np.norm(h)/(mu*(1-(np.norm(e)**2)))   # scalar
@@ -33,7 +32,7 @@ def calculate_e():
 # ======================= Dust Contour Plots ==============================
 
 def plot_dust_contours():
-    fig0 = plt.figure(figsize=(17,12))
+    fig0 = plt.figure(figsize=(17,14))
     R, A = np.meshgrid(radii, a)
     # levels = np.linspace(-11,1,7)                    # Brauer 2008 levels
     # levels = np.linspace(-7, 2, 10)                  # Birnstiel 2012 levels 
@@ -80,7 +79,7 @@ def plot_dust_contours():
 
 def plot_dustgasratio():
     fig, ax = plt.subplots(figsize=(7,5))
-    ax.set_prop_cycle(color=[cm(1.*i/8) for i in range(0,len(timesteps)+1)])
+    ax.set_prop_cycle(color=colour_cycler)
     print("Plotting dust-gas ratio....")
 
     for i,t in enumerate(timesteps):
@@ -112,7 +111,7 @@ def plot_dustgasratio():
 
 def plot_gas_sigma():
     fig, ax = plt.subplots(figsize=(6,5))
-    ax.set_prop_cycle(color=[cm(1.*i/8) for i in range(0,len(timesteps)+1)])
+    ax.set_prop_cycle(color=colour_cycler)
     print("Plotting gas surface density....")
 
     for i, t in enumerate(timesteps):
@@ -132,8 +131,7 @@ def plot_gas_sigma():
     ax.set_ylabel("$\Sigma_{gas} (g/cm^{2})$")
     ax.set_xscale("log")
     ax.set_yscale("log")
-    # ax.legend()
-    ax.set_xticks([])
+    ax.legend()
     ax.set_xlim(np.min(radii), np.max(radii))
 
     fig.tight_layout()
@@ -143,7 +141,7 @@ def plot_gas_sigma():
 
 def plot_dust_sigma():
     fig, ax = plt.subplots(figsize=(7,6))
-    ax.set_prop_cycle(color=[cm(1.*i/8) for i in range(0,len(timesteps)+1)])
+    ax.set_prop_cycle(color=colour_cycler)
     print("Plotting dust surface density....")
 
     for i, t in enumerate(timesteps):
@@ -174,7 +172,7 @@ def plot_dust_sigma():
 def plot_sigma_at_r(rs=[25]):
     for r in rs:
         fig, ax = plt.subplots(1, dpi=150)
-        ax.set_prop_cycle(color=[cm(1.*i/8) for i in range(len(timesteps)+1)])
+        ax.set_prop_cycle(color=colour_cycler)
         print(f"Plotting dust surface density at R={r}AU....")
 
         for i,t in enumerate(timesteps):
@@ -198,7 +196,7 @@ def plot_sigma_at_r(rs=[25]):
 
 def plot_dust_mass():
     fig, ax = plt.subplots(1, dpi=150)
-    ax.set_prop_cycle(color=[cm(1.*i/8) for i in range(0,len(timesteps)+1)])
+    ax.set_prop_cycle(color=colour_cycler)
     print("Plotting total dust mass....")
 
     for i, t in enumerate(timesteps):
@@ -236,7 +234,7 @@ def plot_dust_mass_by_grain():
 
     for n, size_decade in enumerate(size_decades):
         ax = fig.add_subplot(psizey, psizex, n+1)
-        ax.set_prop_cycle(color=[cm(1.*s/8) for s in range(0,len(timesteps)+1)])
+        ax.set_prop_cycle(color=colour_cycler)
 
         for i, t in enumerate(timesteps):
             dust_mass_tot_binned = np.sum(dust_mass[i,size_decade[0]:size_decade[-1],:], axis=0)
@@ -276,7 +274,7 @@ def plot_dust_mass_by_grain():
 
 def plot_dust_size_distribution():
     fig, ax = plt.subplots(1, dpi=150)
-    ax.set_prop_cycle(color=[cm(1.*i/8) for i in range(0,len(timesteps)+1)])
+    ax.set_prop_cycle(color=colour_cycler)
     print("Plotting dust mass distribution....")
 
     for i, t in enumerate(timesteps):
@@ -299,6 +297,43 @@ def plot_dust_size_distribution():
     fig.tight_layout()
     fig.savefig(f"{plots_savedir}/{sim}_dustsizes.png")
 
+# ============== Plot dust eccentricities ==================
+def plot_dust_e():
+    fig = plt.figure(figsize=(17,12))
+    R, PHI = np.meshgrid(radii, phis, indexing="ij")   # dimensions: (nrad, nphi)
+    X = R*np.cos(PHI)
+    Y = R*np.sin(PHI)
+    Z = np.zeros((nrad, nphi))
+    pos = np.array((X, Y, Z))    # dimensions: (2, nrad, nphi)
+    e = np.zeros((len(outputs),nrad,nphi))
+    n = 30
+    # for n in np.arange(ndust):
+    for i, o in enumerate(outputs):
+        ax = fig.add_subplot(plotsizey, plotsizex, i+1)
+        v_phi = v_dust[i,n,0,:,:]  # dimensions: (nrad, nphi)
+        v_r = v_dust[i,n,1,:,:]
+        # print(np.min(v_r), np.max(v_r))
+        # print(np.min(v_phi), np.max(v_phi))
+        # print(v_r,v_phi)
+        v_x = v_r*np.cos(PHI) - v_phi*np.sin(PHI)    # dimensions: (nrad, nphi)
+        v_y = v_r*np.sin(PHI) + v_phi*np.cos(PHI)
+        # print(np.min(v_x), np.max(v_x))
+        # print(np.min(v_y), np.max(v_y))
+        v_z = np.zeros((nrad, nphi))
+        vel = np.array((v_x,v_y,v_z))/(2*np.pi)     #*0.00021  # dimensions: (3, nrad, nphi)  convert from m/s to AU/yr ???
+        # print(vel, "\n =================")
+        for nr in np.arange(nrad):
+            for nph in np.arange(nphi):
+                v_t = vel[:,nr,nph]    # 3 x 1 velocity vector for 1 grain size at 1 timestep in 1 cell
+                r_t = pos[:,nr,nph]
+                e[i,nr,nph] = abs(calculate_e(r_t,v_t))
+        print("ecc: ", np.min(e), np.max(e))
+        con = ax.contourf(X, Y, e[i,:,:])
+    fig.subplots_adjust(right=0.89, hspace=0.3)
+    cbar_ax = fig.add_axes([0.91, 0.53, 0.02, 0.4])
+    fig.colorbar(con, cax=cbar_ax, orientation="vertical", label="e")
+    ax.legend(loc="upper right")
+    fig.savefig(f"{plots_savedir}/{sim}_ecc.png")
 
 
 # ==========================================================
@@ -339,8 +374,6 @@ if __name__ == "__main__":
     plotsizex = 3
     plotsizey = int(len(outputs)/plotsizex)+1
 
-    cm = plt.get_cmap('gist_rainbow')
-
     param_lines = open(params_file).readlines()
     for line in param_lines:
         if line.split():
@@ -366,6 +399,9 @@ if __name__ == "__main__":
     dt_outputs = dt_orbits*ninterm                        # time between outputs
     timesteps = np.array(outputs)*dt_outputs*1e-6         # time in Myr
 
+    cm = plt.get_cmap('gist_rainbow')
+    colour_cycler = [cm(1.*i/5) for i in range(0,len(timesteps)+1)]
+
     if planets:
         with open(f"{simdir}/planet.cfg", 'r') as pfile:
             num_planets = len(pfile.readlines()) - 5        # ignore 5 lines of headers
@@ -389,7 +425,7 @@ if __name__ == "__main__":
         a = (0.5*(a[1:] + a[:-1]))                                   # grain sizes in middles of bins (in cm)
 
     r_cells = np.loadtxt(f'{simdir}/domain_y.dat')[3:-3]             # ignore ghost cells
-    phi_cells = np.loadtxt(f'{simdir}/domain_x.dat')[3:-3]
+    phi_cells = np.loadtxt(f'{simdir}/domain_x.dat')
     if spacing == "Linear":
         radii = np.array([(r_cells[n]+r_cells[n+1])/2 for n in range(len(r_cells)-1)])
         delta_r = radii[1]-radii[0]
@@ -399,6 +435,7 @@ if __name__ == "__main__":
         delta_r = radii*delta_log_r
     phis = np.array([(phi_cells[n]+phi_cells[n+1])/2 for n in range(len(phi_cells)-1)])
 
+    # Get gas and dust sigma
     sigma_gas = np.zeros((len(outputs), nrad, nphi))
     sigma_dust = np.zeros((len(outputs), ndust, nrad, nphi))
     dust_mass = np.zeros((len(outputs), ndust, nrad))
@@ -426,6 +463,17 @@ if __name__ == "__main__":
 
     dust_mass_tot = np.sum(dust_mass, axis=1)
 
+    # Get dust velocities
+    if grog:
+        v_dust = np.zeros((len(outputs), ndust, 2, nrad, nphi))   # additional dimension of 2 for x and y velocity
+        for i,t in enumerate(outputs):
+            # for n in np.arange(ndust):
+            n=30
+            dust_file_x = f"dustvx{n}_{int(t)}.dat"
+            dust_file_y = f"dustvy{n}_{int(t)}.dat"
+            v_dust[i,n,0] = np.fromfile(simdir+dust_file_x).reshape(nrad,nphi)   # vx
+            v_dust[i,n,1] = np.fromfile(simdir+dust_file_y).reshape(nrad,nphi)   # vy
+
     if grog:
         uf = 10                                               # fragmentation velocity
         hr = hr0*(radii**f)                                   # aspect ratio
@@ -440,6 +488,7 @@ if __name__ == "__main__":
         # size of largest grains in a fragmentation-dominated distribution
         # a_frag = 100*(2/(3*np.pi))*((uf**2)/(rhodust*1000*alpha))*(hr**-2)*(sigma_gas_1D*10/((2e30)*(6.67e-11)))*(radii*1.5e11)  # from Birnstiel+2012
         a_frag = (sigma_gas_1D/rhodust)*(3-(9-4*(b**2))**0.5)/(np.pi*b)
+        # print(np.min(np.sqrt(9-4*(b**2))),np.max(9-4*(b**2)))
 
         # size of largest grains in a drift-dominated distribution
         # a_drift = 100*(2/(rhodust*1000*np.pi))*(hr**-2)*np.sum(sigma_dust_1D, axis=1)*10*(2/3)   # from Birnstiel+2012 (assume gamma=3/2)
@@ -451,11 +500,12 @@ if __name__ == "__main__":
         for s in style:
             plt.style.use([f"../styles/{s}.mplstyle"])
 
-    print(f"Plotting outputs {outputs} for {sim}\n =============")
+    print(f"-------------------\nPlotting outputs {outputs} for {sim}\n=============")
 
     plot_gas_sigma()
     if grog:
         plot_dust_contours()
+        # plot_dust_e()
         # plot_dust_sigma()
         # plot_dustgasratio()
         # plot_dust_size_distribution()
