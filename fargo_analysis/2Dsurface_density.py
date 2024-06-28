@@ -41,8 +41,7 @@ def plot_surf_dens(wd,simdir,dustnums,outputnumber,lin_scaling,cbmin,cbmax,plot_
     dt_outputs = dt_orbits*ninterm                        # time between outputs
     time = round(outputnumber*dt_outputs*1e-6,2)          # time in Myrs
     n_size_decades = np.log10(maxgsize) - np.log10(mingsize)
-    dustsizes = mingsize*10**((np.array(dustnums)/ndust)*(n_size_decades))
-    dustsizes = [np.format_float_positional(d,3,fractional=False,unique=True) for d in dustsizes]
+    # dustsizes = mingsize*10**((np.array(dustnums)/ndust)*(n_size_decades))
 
     phi = np.linspace(0,2*np.pi,nphi+1)
     r_cells = np.loadtxt(f'{wd}/{simdir}/domain_y.dat')[3:-3]             # ignore ghost cells
@@ -67,6 +66,10 @@ def plot_surf_dens(wd,simdir,dustnums,outputnumber,lin_scaling,cbmin,cbmax,plot_
         else:
             dustnum_range = np.arange(dustnums[1], dustnums[-1])
             dust_files = [f"{wd}/{simdir}/dustdens{d}_{outputnumber}.dat" for d in dustnum_range]
+            dustsizes = [(10**(((dustnum+1)/ndust)*n_size_decades)) * mingsize for dustnum in dustnums[1:]]
+            print(dustsizes)
+            dustsizes = [np.format_float_positional(d,3,fractional=False,unique=True) for d in dustsizes]
+
             
         weighted_sum_dens = np.zeros((nrad, nphi)) 
         for i,file in enumerate(dust_files):
@@ -136,6 +139,8 @@ def plot_surf_dens(wd,simdir,dustnums,outputnumber,lin_scaling,cbmin,cbmax,plot_
     else:
         for dustnum in dustnums:
             filepaths.append(f'{wd}/{simdir}/dustdens{dustnum}_{outputnumber}.dat')
+            dustsizes = [(10**dustnum) * mingsize for dustnum in dustnums]
+            dustsizes = [np.format_float_positional(d,3,fractional=False,unique=True) for d in dustsizes]
 
     for file_i, filepath in enumerate(filepaths):
         print(f"Plotting {filepath.split('/')[-1]}...")
