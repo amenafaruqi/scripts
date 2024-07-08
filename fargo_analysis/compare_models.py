@@ -5,15 +5,14 @@ from matplotlib.lines import Line2D
 import argparse
 plt.style.use('default')
 
-# inputs: model names +dirs (2+), timesteps (same for both) (1+) 
-def overlay_gas_sigmas(fig, ax, radii, sigma_gas_1D, ls, model_num=0):
+def overlay_gas_sigmas(fig, ax, radii, sigma_gas_1D, model_num=0):
     ax.set_prop_cycle(color=colour_cycler)
     print("Plotting gas surface density....")
 
     legend_elements = []
     for i, t in enumerate(timesteps):
         color = next(ax._get_lines.prop_cycler)['color']
-        ax.plot(radii, sigma_gas_1D[i], label=f"{round(t, 3)} Myr", color=color, linestyle=ls)
+        ax.plot(radii, sigma_gas_1D[i], label=f"{round(t, 3)} Myr", color=color, linestyle=linestyles[model_num])
         legend_elements.append(Line2D([0], [0], color=color, lw=2, label=f"{round(t, 3)} Myr"))
 
         if planets:
@@ -35,46 +34,46 @@ def overlay_gas_sigmas(fig, ax, radii, sigma_gas_1D, ls, model_num=0):
 def overlay_dustgasratio():
     pass
 
-def overlay_dust_mass(fig, radii, dust_mass):
+def overlay_dust_mass(fig, ax, radii, dust_mass, model_num=0):
     print("Plotting dust distribution by grain size....")
 
-    n_size_decades = int(np.log10(maxgsize) - np.log10(mingsize))
+    n_size_decades = int(np.log10(maxgsize) - np.log10(mingsize))   # assumes these are the same for both models!
     size_decades = np.split(np.arange(ndust), n_size_decades)
     dust_mass_tot_binned = np.zeros((len(outputs), n_size_decades, nrad))
-    psizex = 3
-    psizey = int(n_size_decades/psizex)+1
+    nrow = 0
 
     for n, size_decade in enumerate(size_decades):
-        ax = fig.add_subplot(psizey, psizex, n+1)
-        ax.set_prop_cycle(color=colour_cycler)
-
         for i, t in enumerate(timesteps):
             dust_mass_tot_binned = np.sum(dust_mass[i,size_decade[0]:size_decade[-1],:], axis=0)
-            color = next(ax._get_lines.prop_cycler)['color']
+            ncol = n%3
+            ax[nrow,ncol].set_prop_cycle(color=colour_cycler)
+            color = next(ax[nrow,ncol]._get_lines.prop_cycler)['color']
             
-            ax.plot(radii, np.log10(dust_mass_tot_binned), label=f"{round(t, 3)} Myr", color=color)
+            ax[nrow,ncol].plot(radii, np.log10(dust_mass_tot_binned), label=f"{round(t, 3)} Myr", color=color)
 
             if planets:
                 for rp in rps[:,i]:
-                    ax.axvline(rp, linestyle='dashed', color=color)
+                    ax[nrow,ncol].axvline(rp, linestyle='dashed', color=color)
 
-        if not n%psizex:
-            ax.set_ylabel(f"log[$M_{{dust}} (M_\oplus)$]")
+        if not n%3:
+            ax[nrow,ncol].set_ylabel(f"log[$M_{{dust}} (M_\oplus)$]")
         else:
-            ax.set_yticks([])
-        if n < psizex and n_size_decades > psizex:
-            ax.set_xticks([])
+            ax[nrow,ncol].set_yticks([])
+        if n < 3 and n_size_decades > 3:
+            ax[nrow,ncol].set_xticks([])
         else:
-            ax.set_xlabel("R (AU)")
+            ax[nrow,ncol].set_xlabel("R (AU)")
 
         dustsizes = [(10**n) * mingsize, (10**(n+1)) * mingsize]
         dustsizes = [np.format_float_positional(d,3,fractional=False,unique=True) for d in dustsizes]
-        ax.set_title(f"{dustsizes[0]}-{dustsizes[1]}cm")
-        ax.set_xscale("log")
+        ax[nrow,ncol].set_title(f"{dustsizes[0]}-{dustsizes[1]}cm")
+        ax[nrow,ncol].set_xscale("log")
         # ax.set_yscale("log")
-        ax.legend()
-        ax.set_xlim(min(radii), max(radii))
-
+        ax[nrow,ncol].set_xlim(min(radii), max(radii))
+        if (n+1)%3 == 0:
+            nrow += 1
+    
+    ax[0,0].legend()
     fig.tight_layout()
 
 
@@ -111,8 +110,7 @@ if __name__ == "__main__":
 
     # =================== Define figures ========================
     fig_gas_sigma, ax_gas_sigma = plt.subplots(figsize=(6,5))
-
-    # fig_dust_mass = plt.figure(figsize=(17,16))
+    fig_dust_mass, ax_dust_mass = plt.subplots(3,3,figsize=(17,16))
     
     # ================== Read in data at timesteps =======================
 
@@ -242,8 +240,8 @@ if __name__ == "__main__":
         #     # a_drift = 100*(2/(rhodust*1000*np.pi))*(hr**-2)*np.sum(sigma_dust_1D, axis=1)*10*(2/3)   # from Birnstiel+2012 (assume gamma=3/2)
         #     a_drift = (2/np.pi)*(np.sum(sigma_dust_1D, axis=1)/(rhodust*gamma*hr**2))    
     
-        # overlay_dust_mass(fig_dust_mass, radii, dust_mass)
-        overlay_gas_sigmas(fig_gas_sigma, ax_gas_sigma, radii, sigma_gas_1D, linestyles[s], s)
+        overlay_dust_mass(fig_dust_mass, ax_dust_mass, radii, dust_mass, s)
+        overlay_gas_sigmas(fig_gas_sigma, ax_gas_sigma, radii, sigma_gas_1D, s)
 
     # ======================== Generate Plots ==========================
     print(f"-------------------\nPlotting comparison plots for {simdirs}\n=============")
