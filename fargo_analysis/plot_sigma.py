@@ -363,6 +363,9 @@ if __name__ == "__main__":
     p_orbits = args.porbits
     style = args.style
 
+    cm = plt.get_cmap('gist_rainbow')
+    colour_cycler = [cm(1.*i/5) for i in range(0,len(outputs)+1)]
+
     if plot_window:
         matplotlib.use('TkAgg')
 
@@ -374,6 +377,7 @@ if __name__ == "__main__":
     plotsizex = 3
     plotsizey = int(len(outputs)/plotsizex)+1
 
+    # Load model params into dict
     param_lines = open(params_file).readlines()
     for line in param_lines:
         if line.split():
@@ -398,9 +402,6 @@ if __name__ == "__main__":
     ninterm = float(params_dict['NINTERM'])               # number of dts between outputs
     dt_outputs = dt_orbits*ninterm                        # time between outputs
     timesteps = np.array(outputs)*dt_outputs*1e-6         # time in Myr
-
-    cm = plt.get_cmap('gist_rainbow')
-    colour_cycler = [cm(1.*i/5) for i in range(0,len(timesteps)+1)]
 
     if planets:
         with open(f"{simdir}/planet.cfg", 'r') as pfile:
