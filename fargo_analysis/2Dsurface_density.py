@@ -1,6 +1,7 @@
 import numpy as np
 import matplotlib.pyplot as plt
 import matplotlib
+from mpl_toolkits.axes_grid1.anchored_artists import AnchoredSizeBar
 from pylab import*
 import argparse
 import glob
@@ -57,9 +58,11 @@ def plot_surf_dens(wd,simdir,dustnums,outputnumber,lin_scaling,cbmin,cbmax,plot_
     a = (0.5*(a[1:] + a[:-1]))                                   # grain sizes in middles of bins (in cm)
     sum_dustvol = np.sum(a**3)
 
+    # Include gas file if plotting gas
     if plot_gas in ["yes", "y"]:
         filepaths.append(f'{wd}/{simdir}/gasdens{outputnumber}.dat')
 
+    # Check if plotting mass-weighted sum of dust sizes
     if dustnums[0] == -1:    # use -1 to plot mass-weighted sum of multiple grain sizes
         if len(dustnums)==1:
             dust_files = glob.glob(f"{wd}/{simdir}/dustdens*_{outputnumber}.dat")
@@ -67,7 +70,6 @@ def plot_surf_dens(wd,simdir,dustnums,outputnumber,lin_scaling,cbmin,cbmax,plot_
             dustnum_range = np.arange(dustnums[1], dustnums[-1])
             dust_files = [f"{wd}/{simdir}/dustdens{d}_{outputnumber}.dat" for d in dustnum_range]
             dustsizes = [(10**(((dustnum+1)/ndust)*n_size_decades)) * mingsize for dustnum in dustnums[1:]]
-            print(dustsizes)
             dustsizes = [np.format_float_positional(d,3,fractional=False,unique=True) for d in dustsizes]
 
             
@@ -101,10 +103,25 @@ def plot_surf_dens(wd,simdir,dustnums,outputnumber,lin_scaling,cbmin,cbmax,plot_
             im.set_rasterized(True)
             cbar_label = 'log $\Sigma$ [$g/cm^{2}$]'
 
+        ax = plt.gca()
+        ax.set_aspect('equal')
         cbar = plt.colorbar()
         cbar.set_label(cbar_label)
-        plt.xlabel('x [AU]')
-        plt.ylabel('y [AU]')
+        if scalebar:
+            sb = AnchoredSizeBar(ax.transData,
+                                50, '50 AU', 'lower center', 
+                                pad=0.2,
+                                color='white',
+                                frameon=False,
+                                size_vertical=1)
+
+            ax.add_artist(sb)
+            ax.set_xticks([])
+            ax.set_yticks([])
+        else:
+            plt.xlabel('x [AU]')
+            plt.ylabel('y [AU]')
+
 
         if plot_planet not in ["no", "n"]:
             with open(f"{wd}/{simdir}/planet.cfg", 'r') as f:
@@ -131,12 +148,13 @@ def plot_surf_dens(wd,simdir,dustnums,outputnumber,lin_scaling,cbmin,cbmax,plot_
 
         if  plot_planet not in ["no", "n"]:
             plot_title = plot_title + f" = {planet_orbits} orbits"
-    
-        plt.title(plot_title)
+
+        if not no_title:
+            plt.title(plot_title)
         plt.tight_layout()
         plt.savefig(f'./images/dustavg_{simdir}_{outputnumber}.png', dpi=150)
 
-    else:
+    else:    # Plotting individual grain sizes, not sum
         for dustnum in dustnums:
             filepaths.append(f'{wd}/{simdir}/dustdens{dustnum}_{outputnumber}.dat')
             dustsizes = [(10**dustnum) * mingsize for dustnum in dustnums]
@@ -174,8 +192,21 @@ def plot_surf_dens(wd,simdir,dustnums,outputnumber,lin_scaling,cbmin,cbmax,plot_
         # cbar = colorbar(format=ticker.FuncFormatter(fmt))
         cbar = plt.colorbar()
         cbar.set_label(cbar_label)
-        plt.xlabel('x [AU]')
-        plt.ylabel('y [AU]')
+        ax = plt.gca()
+        if scalebar:
+            sb = AnchoredSizeBar(ax.transData,
+                                50, '50 AU', 'lower center', 
+                                pad=0.9,
+                                color='white',
+                                frameon=False,
+                                size_vertical=0.9)
+
+            ax.add_artist(sb)
+            ax.set_xticks([])
+            ax.set_yticks([])
+        else:
+            plt.xlabel('x [AU]')
+            plt.ylabel('y [AU]')
 
         if plot_planet not in ["no", "n"]:
             with open(f"{wd}/{simdir}/planet.cfg", 'r') as f:
@@ -200,51 +231,56 @@ def plot_surf_dens(wd,simdir,dustnums,outputnumber,lin_scaling,cbmin,cbmax,plot_
         # r_celledge = [None]*nrad
         # ncelledge = nrad+1
 
-        rcell = [None] * (len(radii)-1)
-        for i in range(len(radii)-1):
-            rcell[i] = (radii[i]+radii[i+1])/2.
+        # rcell = [None] * (len(radii)-1)
+        # for i in range(len(radii)-1):
+        #     rcell[i] = (radii[i]+radii[i+1])/2.
 
-        for i in range(4):
-            j = int(nphi/4.*i)
-            surfdensi = [None]*nrad
-            for k in range(nrad):
-                surfdensi[k] = surfdens[k,j]
+        # for i in range(4):
+        #     j = int(nphi/4.*i)
+        #     surfdensi = [None]*nrad
+        #     for k in range(nrad):
+        #         surfdensi[k] = surfdens[k,j]
 
-        if (beam in ["yes", "y"]):
-            # Put the image in cartesian co-ordinates
-            interp = RectBivariateSpline(np.linspace(0,2*np.pi,nphi+1),rcell,dens_additional.T,kx=1,ky=1)
-            npix=2048
-            x_im=np.linspace(-3,3,npix)
-            y_im=np.linspace(-3,3,npix)
-            X_im,Y_im=np.meshgrid(x_im,y_im)
-            R_im=np.sqrt(X_im**2+Y_im**2)
-            Theta_im=np.arctan2(Y_im,X_im)+np.pi
-            image=interp(Theta_im,R_im,grid=False)
+#         if (beam in ["yes", "y"]):
+#             # Put the image in cartesian co-ordinates
+#             interp = RectBivariateSpline(np.linspace(0,2*np.pi,nphi+1),rcell,dens_additional.T,kx=1,ky=1)
+#             npix=2048
+#             x_im=np.linspace(-3,3,npix)
+#             y_im=np.linspace(-3,3,npix)
+#             X_im,Y_im=np.meshgrid(x_im,y_im)
+#             R_im=np.sqrt(X_im**2+Y_im**2)
+#             Theta_im=np.arctan2(Y_im,X_im)+np.pi
+#             image=interp(Theta_im,R_im,grid=False)
 
-            # Convolve with a gaussian and plot
-            sigma = 50.0
-            convolved=scipy.ndimage.filters.gaussian_filter(image,sigma)
-            fig3 = plt.figure()
-            ax3 = fig3.add_subplot(111) 
-#            plt.pcolormesh(x,y,log10(dens_additional.T),cmap=cm.Oranges_r,vmin=cbmin,vmax=cbmax)
-            plt.pcolormesh(-x_im,-y_im,np.log10(convolved),cmap=cm.Oranges_r,vmin=vmin,vmax=vmax)
-#            plt.contourf(image, levels=10)
-            ax3.set_xlim([-2.5,2.5])
-            ax3.set_ylim([-2.5,2.5])
-            cbar_label = 'log surface density [code units] (convolved)'
-            cbar = plt.colorbar()
-            cbar.set_label(cbar_label,color='black')
+#             # Convolve with a gaussian and plot
+#             sigma = 50.0
+#             convolved=scipy.ndimage.filters.gaussian_filter(image,sigma)
+#             fig3 = plt.figure()
+#             ax3 = fig3.add_subplot(111) 
+# #            plt.pcolormesh(x,y,log10(dens_additional.T),cmap=cm.Oranges_r,vmin=cbmin,vmax=cbmax)
+#             plt.pcolormesh(-x_im,-y_im,np.log10(convolved),cmap=cm.Oranges_r,vmin=vmin,vmax=vmax)
+# #            plt.contourf(image, levels=10)
+#             ax3.set_xlim([-2.5,2.5])
+#             ax3.set_ylim([-2.5,2.5])
+#             cbar_label = 'log surface density [code units] (convolved)'
+#             cbar = plt.colorbar()
+#             cbar.set_label(cbar_label,color='black')
+
 
         if plot_gas in ["yes", "y"] and file_i == 0:
-            plt.title(f"Gas density at t = {time}Myr")
+            plot_title = f"Gas density at t = {time}Myr"
             if  plot_planet not in ["no", "n"]:
-                plt.title(f"Gas density at t = {time}Myr = {planet_orbits} orbits")
+                plot_title = f"Gas density at t = {time}Myr = {planet_orbits} orbits"
+            if not no_title:
+                plt.title(plot_title)
             plt.tight_layout()
             plt.savefig(f'./images/gas_{simdir}_{outputnumber}.png', dpi=150)
         else:
-            plt.title(f"Dust density of {str(dustsizes[file_i-1])}cm grains at t = {time}Myr")
+            plot_title = f"Dust density of {str(dustsizes[file_i-1])}cm grains at t = {time}Myr"
             if  plot_planet not in ["no", "n"]:
-                plt.title(f"Dust density of {str(dustsizes[file_i-1])}cm grains at t = {time}Myr = {planet_orbits} orbits")
+                plot_title = f"Dust density of {str(dustsizes[file_i-1])}cm grains at t = {time}Myr = {planet_orbits} orbits"
+            if not no_title:
+                plt.title(plot_title)
             plt.tight_layout()
             plt.savefig(f'./images/dust{file_i}_{simdir}_{outputnumber}.png', dpi=150)
 
@@ -265,6 +301,8 @@ if __name__ == "__main__":
     parser.add_argument('-planet', metavar='plot planet', type=str, nargs=1, default="no", help="plot planet")
     parser.add_argument('-zoom', metavar='zoomed plot', type=float, nargs=1, default=[0], help="set lims to zoom to")
     parser.add_argument('-plot_window', action="store_true")
+    parser.add_argument('-notitle', action="store_true")
+    parser.add_argument('-scalebar', action="store_true")
     parser.add_argument('-style', metavar='style', type=str, nargs="*", default=["publication"] ,help="style sheet to apply to plots")
 
     args = parser.parse_args()
@@ -301,6 +339,8 @@ if __name__ == "__main__":
     plot_planet = args.planet[0]
     zoom = args.zoom[0]
     plot_window = args.plot_window
+    no_title = args.notitle
+    scalebar = args.scalebar
     style = args.style
 
     if plot_window:
