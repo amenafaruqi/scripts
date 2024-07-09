@@ -18,6 +18,7 @@ def overlay_gas_sigmas(fig, ax, radii, sigma_gas_1D, model_num=0):
         if planets:
             for rp in rps[:,i]:
                 ax.axvline(rp, linestyle='dashed', color=color)
+    
     for m in range(model_num+1):
         sim = simdirs[m].split('models/')[-1]    # ignore full file path
         legend_elements.append(Line2D([0], [0], color='k', linestyle=linestyles[m], label=f"{sim}"))
@@ -40,40 +41,43 @@ def overlay_dust_mass(fig, ax, radii, dust_mass, model_num=0):
     n_size_decades = int(np.log10(maxgsize) - np.log10(mingsize))   # assumes these are the same for both models!
     size_decades = np.split(np.arange(ndust), n_size_decades)
     dust_mass_tot_binned = np.zeros((len(outputs), n_size_decades, nrad))
-    nrow = 0
-
+    subps = "ABCDEFG"
+    legend_elements = []
     for n, size_decade in enumerate(size_decades):
+        ax[subps[n]].set_prop_cycle(color=colour_cycler)
         for i, t in enumerate(timesteps):
             dust_mass_tot_binned = np.sum(dust_mass[i,size_decade[0]:size_decade[-1],:], axis=0)
-            ncol = n%3
-            ax[nrow,ncol].set_prop_cycle(color=colour_cycler)
-            color = next(ax[nrow,ncol]._get_lines.prop_cycler)['color']
+            color = next(ax[subps[n]]._get_lines.prop_cycler)['color']
             
-            ax[nrow,ncol].plot(radii, np.log10(dust_mass_tot_binned), label=f"{round(t, 3)} Myr", color=color)
+            ax[subps[n]].plot(radii, np.log10(dust_mass_tot_binned), label=f"{round(t, 3)} Myr", color=color, linestyle=linestyles[model_num])
+            if n == len(size_decades)-1:
+                legend_elements.append(Line2D([0], [0], color=color, lw=2, label=f"{round(t, 3)} Myr"))
 
             if planets:
                 for rp in rps[:,i]:
-                    ax[nrow,ncol].axvline(rp, linestyle='dashed', color=color)
-
-        if not n%3:
-            ax[nrow,ncol].set_ylabel(f"log[$M_{{dust}} (M_\oplus)$]")
-        else:
-            ax[nrow,ncol].set_yticks([])
-        if n < 3 and n_size_decades > 3:
-            ax[nrow,ncol].set_xticks([])
-        else:
-            ax[nrow,ncol].set_xlabel("R (AU)")
+                    ax[subps[n]].axvline(rp, linestyle='dashed', color=color)
 
         dustsizes = [(10**n) * mingsize, (10**(n+1)) * mingsize]
         dustsizes = [np.format_float_positional(d,3,fractional=False,unique=True) for d in dustsizes]
-        ax[nrow,ncol].set_title(f"{dustsizes[0]}-{dustsizes[1]}cm")
-        ax[nrow,ncol].set_xscale("log")
-        # ax.set_yscale("log")
-        ax[nrow,ncol].set_xlim(min(radii), max(radii))
-        if (n+1)%3 == 0:
-            nrow += 1
+        ax[subps[n]].set_title(f"{dustsizes[0]}-{dustsizes[1]}cm")
+        ax[subps[n]].set_xscale("log")
+        ax[subps[n]].set_xlim(20, 100)
     
-    ax[0,0].legend()
+    for m in range(model_num+1):
+        sim = simdirs[m].split('models/')[-1]    # ignore full file path
+        legend_elements.append(Line2D([0], [0], color='k', linestyle=linestyles[m], label=f"{sim}"))
+
+    ax["A"].set_ylabel(f"log[$M_{{dust}}/M_\oplus$]")
+    ax["D"].set_ylabel(f"log[$M_{{dust}}/M_\oplus$]")
+    ax["F"].set_ylabel(f"log[$M_{{dust}}/M_\oplus$]")
+    ax["A"].set_xlabel("R (AU)")
+    ax["B"].set_xlabel("R (AU)")
+    ax["C"].set_xlabel("R (AU)")
+    ax["F"].set_xlabel("R (AU)")
+    ax["G"].set_xlabel("R (AU)")
+    ax["D"].set_xticks([])
+    ax["E"].set_xticks([])
+    ax["A"].legend(handles=legend_elements)
     fig.tight_layout()
 
 
@@ -110,7 +114,7 @@ if __name__ == "__main__":
 
     # =================== Define figures ========================
     fig_gas_sigma, ax_gas_sigma = plt.subplots(figsize=(6,5))
-    fig_dust_mass, ax_dust_mass = plt.subplots(3,3,figsize=(17,16))
+    fig_dust_mass, ax_dust_mass = plt.subplot_mosaic("AABBCC;DDDEEE;FFFGGG", figsize=(17,16))
     
     # ================== Read in data at timesteps =======================
 
@@ -246,8 +250,9 @@ if __name__ == "__main__":
     # ======================== Generate Plots ==========================
     print(f"-------------------\nPlotting comparison plots for {simdirs}\n=============")
 
-    # fig_dust_mass.savefig(f"{plots_savedir}/comparison_graindist.png")
-    fig_gas_sigma.savefig(f"{plots_savedir}/comparison_gassigma.png")
+    sim = simdirs[0].split("models/")[-1].split("_")[0]    # ignore full file path
+    fig_dust_mass.savefig(f"{plots_savedir}/{sim}_comparison_graindist.png")
+    fig_gas_sigma.savefig(f"{plots_savedir}/{sim}_comparison_gassigma.png")
 
     if plot_window:
         plt.show()
