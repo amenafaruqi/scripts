@@ -39,7 +39,9 @@ def overlay_dust_mass(fig, ax, radii, dust_mass, model_num=0):
     print("Plotting dust distribution by grain size....")
 
     n_size_decades = int(np.log10(maxgsize) - np.log10(mingsize))   # assumes these are the same for both models!
+    print(n_size_decades)
     size_decades = np.split(np.arange(ndust), n_size_decades)
+    print(size_decades)
     dust_mass_tot_binned = np.zeros((len(outputs), n_size_decades, nrad))
     subps = "ABCDEFG"
     legend_elements = []
@@ -113,6 +115,7 @@ if __name__ == "__main__":
     parser.add_argument('-simdirs', metavar='simdirs', type=str, nargs="*", default=[] ,help="simulation directories containing output files")
     parser.add_argument('-savedir', metavar='savedir', type=str, nargs=1, default="./images" ,help="directory to save plots to")
     parser.add_argument('-o', metavar='outputs',default=[], type=int, nargs="*" ,help="outputs to plot")
+    parser.add_argument('-plots', metavar='plots',default=[], type=int, nargs="*" ,help="plots to produce")
     parser.add_argument('-noplanet', action="store_false")
     parser.add_argument('-nogrog', action="store_false")
     parser.add_argument('-plot_window', action="store_true")
@@ -120,6 +123,7 @@ if __name__ == "__main__":
 
     args = parser.parse_args()
     outputs = args.o
+    plots = args.plots
     simdirs = [f"/home/astro/phrkvg/simulations/{sim}/" for sim in args.simdirs]
     planets = args.noplanet
     grog = args.nogrog
@@ -138,10 +142,14 @@ if __name__ == "__main__":
         for s in style:
             plt.style.use([f"../styles/{s}.mplstyle"])
 
-    # =================== Define figures ========================
-    fig_gas_sigma, ax_gas_sigma = plt.subplots(figsize=(6,5))
-    fig_dust_mass, ax_dust_mass = plt.subplot_mosaic("AABBCC;DDDEEE;FFFGGG", figsize=(17,16))
-    fig_dm_tot, ax_dm_tot = plt.subplots(figsize=(6,5))
+    # =================== Define figures and axes ========================
+
+    if "gs" in plots:
+        fig_gas_sigma, ax_gas_sigma = plt.subplots(figsize=(6,5))
+    if "dm" in plots:
+        fig_dust_mass, ax_dust_mass = plt.subplot_mosaic("AABBCC;DDDEEE;FFFGGG", figsize=(17,16))
+    if "dmt" in plots:
+        fig_dm_tot, ax_dm_tot = plt.subplots(figsize=(6,5))
 
     # ================== Read in data at timesteps =======================
 
@@ -271,16 +279,23 @@ if __name__ == "__main__":
         #     # a_drift = 100*(2/(rhodust*1000*np.pi))*(hr**-2)*np.sum(sigma_dust_1D, axis=1)*10*(2/3)   # from Birnstiel+2012 (assume gamma=3/2)
         #     a_drift = (2/np.pi)*(np.sum(sigma_dust_1D, axis=1)/(rhodust*gamma*hr**2))    
     
-        overlay_dust_mass(fig_dust_mass, ax_dust_mass, radii, dust_mass, s)
-        overlay_gas_sigmas(fig_gas_sigma, ax_gas_sigma, radii, sigma_gas_1D, s)
-        overlay_total_dust_mass(fig_dm_tot, ax_dm_tot, radii, dust_mass_tot, s)
+        if "gs" in plots:
+            overlay_gas_sigmas(fig_gas_sigma, ax_gas_sigma, radii, sigma_gas_1D, s)
+        if "dm" in plots:
+            overlay_dust_mass(fig_dust_mass, ax_dust_mass, radii, dust_mass, s)
+        if "dmt" in plots:
+            overlay_total_dust_mass(fig_dm_tot, ax_dm_tot, radii, dust_mass_tot, s)
+    
     # ======================== Generate Plots ==========================
     print(f"-------------------\nPlotting comparison plots for {simdirs}\n=============")
 
     sim = simdirs[0].split("models/")[-1].split("_")[0]    # ignore full file path
-    fig_dust_mass.savefig(f"{plots_savedir}/{sim}_comparison_graindist.png")
-    fig_gas_sigma.savefig(f"{plots_savedir}/{sim}_comparison_gassigma.png")
-    fig_dm_tot.savefig(f"{plots_savedir}/{sim}_comparison_Mdust.png")
+    if "gs" in plots:
+        fig_gas_sigma.savefig(f"{plots_savedir}/{sim}_comparison_gassigma.png")
+    if "dm" in plots:
+        fig_dust_mass.savefig(f"{plots_savedir}/{sim}_comparison_graindist.png")
+    if "dmt" in plots:
+        fig_dm_tot.savefig(f"{plots_savedir}/{sim}_comparison_Mdust.png")
 
     if plot_window:
         plt.show()
