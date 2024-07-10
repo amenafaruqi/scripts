@@ -80,6 +80,32 @@ def overlay_dust_mass(fig, ax, radii, dust_mass, model_num=0):
     ax["A"].legend(handles=legend_elements)
     fig.tight_layout()
 
+def overlay_total_dust_mass(fig, ax, radii, dust_mass_tot, model_num=0):
+    ax.set_prop_cycle(color=colour_cycler)
+    print("Plotting total dust mass....")
+
+    legend_elements=[]
+    for i, t in enumerate(timesteps):
+        color = next(ax._get_lines.prop_cycler)['color']
+        ax.plot(radii, dust_mass_tot[i], label=f"{round(t, 3)} Myr", color=color, linestyle=linestyles[model_num])
+        legend_elements.append(Line2D([0], [0], color=color, lw=2, label=f"{round(t, 3)} Myr"))
+
+        if planets:
+            for rp in rps[:,i]:
+                ax.axvline(rp, linestyle='dashed', color=color)
+
+    for m in range(model_num+1):
+        sim = simdirs[m].split('models/')[-1]    # ignore full file path
+        legend_elements.append(Line2D([0], [0], color='k', linestyle=linestyles[m], label=f"{sim}"))
+
+    ax.set_xlabel("R (AU)")
+    ax.set_ylabel("$M_{{dust}}/M_\oplus$")
+    ax.set_xscale("log")
+    ax.set_yscale("log")
+    ax.legend(handles=legend_elements)
+    ax.set_xlim(min(radii), max(radii))
+    fig.tight_layout()
+
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description='Generate 1D plots', prefix_chars='-')
@@ -115,7 +141,8 @@ if __name__ == "__main__":
     # =================== Define figures ========================
     fig_gas_sigma, ax_gas_sigma = plt.subplots(figsize=(6,5))
     fig_dust_mass, ax_dust_mass = plt.subplot_mosaic("AABBCC;DDDEEE;FFFGGG", figsize=(17,16))
-    
+    fig_dm_tot, ax_dm_tot = plt.subplots(figsize=(6,5))
+
     # ================== Read in data at timesteps =======================
 
     for s, simdir in enumerate(simdirs):
@@ -246,13 +273,14 @@ if __name__ == "__main__":
     
         overlay_dust_mass(fig_dust_mass, ax_dust_mass, radii, dust_mass, s)
         overlay_gas_sigmas(fig_gas_sigma, ax_gas_sigma, radii, sigma_gas_1D, s)
-
+        overlay_total_dust_mass(fig_dm_tot, ax_dm_tot, radii, dust_mass_tot, s)
     # ======================== Generate Plots ==========================
     print(f"-------------------\nPlotting comparison plots for {simdirs}\n=============")
 
     sim = simdirs[0].split("models/")[-1].split("_")[0]    # ignore full file path
     fig_dust_mass.savefig(f"{plots_savedir}/{sim}_comparison_graindist.png")
     fig_gas_sigma.savefig(f"{plots_savedir}/{sim}_comparison_gassigma.png")
+    fig_dm_tot.savefig(f"{plots_savedir}/{sim}_comparison_Mdust.png")
 
     if plot_window:
         plt.show()

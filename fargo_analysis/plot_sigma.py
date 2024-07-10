@@ -213,7 +213,7 @@ def plot_dust_mass():
                 ax.axvline(rp, linestyle='dashed', color=color)
 
     ax.set_xlabel("R (AU)")
-    ax.set_ylabel("$M_{{dust}} (M_\oplus)$")
+    ax.set_ylabel("$M_{{dust}}/M_\oplus$")
     ax.set_xscale("log")
     ax.set_yscale("log")
     ax.legend()
@@ -252,7 +252,7 @@ def plot_dust_mass_by_grain():
                     ax.axvline(rp, linestyle='dashed', color=color)
 
         if not n%psizex:
-            ax.set_ylabel(f"log[$M_{{dust}} (M_\oplus)$]")
+            ax.set_ylabel(f"log[$M_{{dust}}/M_\oplus$]")
         else:
             ax.set_yticks([])
         if n < psizex and n_size_decades > psizex:
@@ -503,15 +503,15 @@ if __name__ == "__main__":
 
     print(f"-------------------\nPlotting outputs {outputs} for {sim}\n=============")
 
-    plot_gas_sigma()
+    # plot_gas_sigma()
     if grog:
-        plot_dust_contours()
+        # plot_dust_contours()
         # plot_dust_e()
         # plot_dust_sigma()
         # plot_dustgasratio()
         # plot_dust_size_distribution()
-        # plot_dust_mass()
-        plot_dust_mass_by_grain()
+        plot_dust_mass()
+        # plot_dust_mass_by_grain()
         # plot_sigma_at_r([rps[0]+5])
 
     if plot_window:
