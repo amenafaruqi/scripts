@@ -37,21 +37,41 @@ def overlay_dustgasratio():
 
 def overlay_dust_mass(fig, ax, radii, dust_mass, model_num=0):
     print("Plotting dust distribution by grain size....")
+    print(np.sum(dust_mass[0,:,:]))
 
-    n_size_decades = int(np.log10(maxgsize) - np.log10(mingsize))   # assumes these are the same for both models!
-    print(n_size_decades)
+    n_size_decades = int(np.log10(maxgsize) - np.log10(mingsize))   # assumes min and max g size are the same for both models!
+    # print(n_size_decades)
     size_decades = np.split(np.arange(ndust), n_size_decades)
-    print(size_decades)
+    #print(size_decades)
+    # size_decades = np.zeros((n_size_decades,11))
+    # for n in np.arange(n_size_decades):
+    #     size_decades[n] = np.arange(n*10,((n+1)*10)+1,dtype=int)
+    # size_decades = np.split(size_decades, n_size_decades)
+
+    # print(size_decades)
     dust_mass_tot_binned = np.zeros((len(outputs), n_size_decades, nrad))
     subps = "ABCDEFG"
     legend_elements = []
+    # print(dust_mass[0,size_decades[-1][0]:size_decades[-1][-1],:])   # identical between 70 and 140 bins
+    # print(size_decades[-1][0][-1])
+    # print(dust_mass[-1,int(size_decades[-1][0][0]):int(size_decades[-1][0][-1]),0])
+    # print(len(dust_mass[0,size_decades[-1][0]:size_decades[-1][-1],:]))
+    sav_tot = 0.
     for n, size_decade in enumerate(size_decades):
         ax[subps[n]].set_prop_cycle(color=colour_cycler)
         for i, t in enumerate(timesteps):
-            dust_mass_tot_binned = np.sum(dust_mass[i,size_decade[0]:size_decade[-1],:], axis=0)
+            # print("================", t)
+            #print(f'Dust mass step {i} is {np.sum(dust_mass[i,:,:])}')
+            #print(np.sum(dust_mass[i,size_decade,:], axis=0).shape)
+            dust_mass_tot_binned = np.sum(dust_mass[i,size_decade,:], axis=0)
+            if i==0:
+                print(np.sum(dust_mass_tot_binned))
+                sav_tot += np.sum(dust_mass_tot_binned)
+            # print(dust_mass_tot_binned)
+            #print(np.min(dust_mass_tot_binned), np.max(dust_mass_tot_binned))
             color = next(ax[subps[n]]._get_lines.prop_cycler)['color']
             
-            ax[subps[n]].plot(radii, np.log10(dust_mass_tot_binned), label=f"{round(t, 3)} Myr", color=color, linestyle=linestyles[model_num])
+            ax[subps[n]].plot(radii, (dust_mass_tot_binned), label=f"{round(t, 3)} Myr", color=color, linestyle=linestyles[model_num])
             if n == len(size_decades)-1:
                 legend_elements.append(Line2D([0], [0], color=color, lw=2, label=f"{round(t, 3)} Myr"))
 
@@ -64,6 +84,8 @@ def overlay_dust_mass(fig, ax, radii, dust_mass, model_num=0):
         ax[subps[n]].set_title(f"{dustsizes[0]}-{dustsizes[1]}cm")
         ax[subps[n]].set_xscale("log")
         ax[subps[n]].set_xlim(20, 100)
+
+    print(sav_tot)
     
     for m in range(model_num+1):
         sim = simdirs[m].split('models/')[-1]    # ignore full file path
@@ -115,7 +137,7 @@ if __name__ == "__main__":
     parser.add_argument('-simdirs', metavar='simdirs', type=str, nargs="*", default=[] ,help="simulation directories containing output files")
     parser.add_argument('-savedir', metavar='savedir', type=str, nargs=1, default="./images" ,help="directory to save plots to")
     parser.add_argument('-o', metavar='outputs',default=[], type=int, nargs="*" ,help="outputs to plot")
-    parser.add_argument('-plots', metavar='plots',default=[], type=int, nargs="*" ,help="plots to produce")
+    parser.add_argument('-plots', metavar='plots',default=[], type=str, nargs="*" ,help="plots to produce")
     parser.add_argument('-noplanet', action="store_false")
     parser.add_argument('-nogrog', action="store_false")
     parser.add_argument('-plot_window', action="store_true")
@@ -143,7 +165,6 @@ if __name__ == "__main__":
             plt.style.use([f"../styles/{s}.mplstyle"])
 
     # =================== Define figures and axes ========================
-
     if "gs" in plots:
         fig_gas_sigma, ax_gas_sigma = plt.subplots(figsize=(6,5))
     if "dm" in plots:
@@ -218,6 +239,7 @@ if __name__ == "__main__":
             radii = np.array([np.exp((np.log(r_cells[n])+np.log(r_cells[n+1]))/2) for n in range(len(r_cells)-1)])
             delta_log_r = np.log(radii[1]) - np.log(radii[0])
             delta_r = radii*delta_log_r
+            
         phis = np.array([(phi_cells[n]+phi_cells[n+1])/2 for n in range(len(phi_cells)-1)])
 
         # Get gas and dust sigma
@@ -234,11 +256,18 @@ if __name__ == "__main__":
                 for n in np.arange(ndust):
                     dust_file = f"dustdens{n}_{int(t)}.dat"
                     sigma_dust[i,n] = np.fromfile(simdir+dust_file).reshape(nrad,nphi)/(1.125e-7)
+            if s == 1:
+                for g in range(len(sav_sigma[0,:])):
+                    print(sav_sigma[:,g], sigma_dust[:,g])
+            import copy
+            sav_sigma = copy.copy(sigma_dust)
         sigma_dust_azimsum = np.sum(sigma_dust, axis=3)                  # sum over all phi 
         sigma_gas_azimsum = np.sum(sigma_gas, axis=2)                    # sum over all phi   
 
+        #print(nphi, ndust, nrad)
         sigma_gas_1D = sigma_gas_azimsum/nphi                           # dimensions: (noutputs, nrad) 
-        sigma_dust_1D = sigma_dust_azimsum/nphi                         # dimensions: (noutputs, ndust, nrad)   
+        sigma_dust_1D = sigma_dust_azimsum/nphi                         # dimensions: (noutputs, ndust, nrad)  
+        # print(np.min(sigma_dust_1D[0,-1*int(ndust/7):-1,:]),np.max(sigma_dust_1D[0,-1*int(ndust/7):-1,:])) 
         # sigma_dust_sum_1D = avgdustdens_azimsum/nphi                  # dimensions: (noutputs, nrad)
         
         for i,t in enumerate(outputs):
@@ -246,7 +275,10 @@ if __name__ == "__main__":
             dust_mass[i,:,:] = [2*np.pi*radii*sigma_dust_1D[i,n,:]*delta_r*333030 for n in range(ndust)]
             gas_mass[i,:] = 2*np.pi*radii*sigma_gas_1D[i,:]*delta_r*333030      # convert from Msun to Mearth
 
+        # print(np.min(sigma_dust_1D[-1,-1*int(ndust/7):-1,:]),np.max(sigma_dust_1D[-1,-1*int(ndust/7):-1,:]))
+        # print(np.sum(sigma_dust_1D[-1,-1*int(ndust/7):-1,:]))
         dust_mass_tot = np.sum(dust_mass, axis=1)
+        print(np.sum(sigma_dust_1D[0,:,:]), np.sum(dust_mass[0,:,:]), np.sum(dust_mass_tot[0,:]))
 
         # Get dust velocities
         # if grog:
@@ -290,10 +322,11 @@ if __name__ == "__main__":
     print(f"-------------------\nPlotting comparison plots for {simdirs}\n=============")
 
     sim = simdirs[0].split("models/")[-1].split("_")[0]    # ignore full file path
+    print(sim)
     if "gs" in plots:
         fig_gas_sigma.savefig(f"{plots_savedir}/{sim}_comparison_gassigma.png")
     if "dm" in plots:
-        fig_dust_mass.savefig(f"{plots_savedir}/{sim}_comparison_graindist.png")
+        fig_dust_mass.savefig(f"{plots_savedir}/{sim}_comparison_graindist_v4.png")
     if "dmt" in plots:
         fig_dm_tot.savefig(f"{plots_savedir}/{sim}_comparison_Mdust.png")
 
