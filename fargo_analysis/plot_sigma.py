@@ -194,7 +194,7 @@ def plot_sigma_at_r(rs=[25]):
 
 # ================= Total dust mass evolution over time  ===============
 
-def plot_dust_mass():
+def plot_total_dust_mass():
     fig, ax = plt.subplots(1, dpi=150)
     ax.set_prop_cycle(color=colour_cycler)
     print("Plotting total dust mass....")
@@ -222,7 +222,7 @@ def plot_dust_mass():
     fig.savefig(f"{plots_savedir}/{sim}_Mdust.png")
 
 
-def plot_dust_mass_by_grain():
+def plot_dust_mass():
     fig = plt.figure(figsize=(17,16))
     print("Plotting dust distribution by grain size....")
 
@@ -345,6 +345,7 @@ if __name__ == "__main__":
     parser.add_argument('-sim', metavar='sim', type=str, nargs=1, default=["planettest"] ,help="simulation directory containing output files")
     parser.add_argument('-savedir', metavar='savedir', type=str, nargs=1, default="./images" ,help="directory to save plots to")
     parser.add_argument('-o', metavar='outputs',default=[], type=int, nargs="*" ,help="outputs to plot")
+    parser.add_argument('-plots', metavar='plots',default=["gsig", "dcon", "dmass"], type=str, nargs="*" ,help="plots to produce")
     parser.add_argument('-noplanet', action="store_false")
     parser.add_argument('-nogrog', action="store_false")
     parser.add_argument('-plot_window', action="store_true")
@@ -353,6 +354,7 @@ if __name__ == "__main__":
 
     args = parser.parse_args()
     outputs = args.o
+    plots = args.plots
     wd = args.wd[0]
     sim = args.sim[0]
     simdir = f"{wd}/{sim}/"
@@ -465,7 +467,7 @@ if __name__ == "__main__":
     dust_mass_tot = np.sum(dust_mass, axis=1)
 
     # Get dust velocities
-    if grog:
+    if ("decc" in plots) and grog:
         v_dust = np.zeros((len(outputs), ndust, 2, nrad, nphi))   # additional dimension of 2 for x and y velocity
         for i,t in enumerate(outputs):
             # for n in np.arange(ndust):
@@ -503,15 +505,23 @@ if __name__ == "__main__":
 
     print(f"-------------------\nPlotting outputs {outputs} for {sim}\n=============")
 
-    # plot_gas_sigma()
+    if "gsig" in plots:
+        plot_gas_sigma()
     if grog:
-        # plot_dust_contours()
-        # plot_dust_e()
-        # plot_dust_sigma()
-        # plot_dustgasratio()
-        # plot_dust_size_distribution()
-        plot_dust_mass()
-        # plot_dust_mass_by_grain()
+        if "dcon" in plots:
+            plot_dust_contours()
+        if "decc" in plots:
+            plot_dust_e()
+        if "dsig" in plots:
+            plot_dust_sigma()
+        if "dgr" in plots:
+            plot_dustgasratio()
+        if "dsizes" in plots:
+            plot_dust_size_distribution()
+        if "dmasstot" in plots:
+            plot_total_dust_mass()
+        if "dmass" in plots:
+            plot_dust_mass()
         # plot_sigma_at_r([rps[0]+5])
 
     if plot_window:
