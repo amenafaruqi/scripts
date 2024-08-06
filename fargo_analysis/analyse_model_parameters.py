@@ -172,7 +172,7 @@ def plot_tdrift(): #as function of R and a
     tau_drift = ((2/(np.pi*rhodust))*(np.dot((radii*sigma_gas_azimsum/(gamma*hr*cs)).reshape(nrad,1), a.reshape(1,ndust))*1.5e11))*3.17e-14    # drift timescale in Myr
 
     fig,ax = plt.subplots(figsize=(9,6))
-    levels = np.linspace(-6, 4, 11)                   
+    levels = np.linspace(-6, 6, 13)                   
     print("Plotting drift timescale....")
     A,R = np.meshgrid(a,radii)
     con = ax.contourf(R, A, np.log10(tau_drift), cmap="YlGnBu", levels=levels)
@@ -185,7 +185,8 @@ def plot_tdrift(): #as function of R and a
     fig.subplots_adjust(right=0.89, hspace=0.3)
     cbar_ax = fig.add_axes([0.91, 0.53, 0.02, 0.4])
     fig.colorbar(con, cax=cbar_ax, orientation="vertical", label="log$[\\tau_{drift} (Myr)]$")
-    ax.axvline(Rp, linestyle='dashed', color='black')
+    for rp in rps:
+        ax.axvline(rp, linestyle='dashed', color="k")
 
     fig.savefig(f"{plots_savedir}/{sim}_tdrift.png")
 
@@ -340,10 +341,20 @@ if __name__ == "__main__":
     rhodust = float(params_dict['RHO_DUST'])
     dgr = float(params_dict['DUST_TO_GAS'])
 
-    planets_data = np.genfromtxt(f"{simdir}/planet.cfg").reshape(1,6)
-    Rp = planets_data[:,1][0]
-    Mp = planets_data[:,2][0]
-    planet_period = (Rp**3)**0.5                 # orbital period of planet in yrs
+    # planets_data = np.genfromtxt(f"{simdir}/planet.cfg").reshape(1,6)
+    # Rp = planets_data[:,1][0]
+    # Mp = planets_data[:,2][0]
+    # planet_period = (Rp**3)**0.5                 # orbital period of planet in yrs
+
+    with open(f"{simdir}/planet.cfg", 'r') as pfile:
+        num_planets = len(pfile.readlines()) - 5        # ignore 5 lines of headers
+    
+    rps = np.zeros((num_planets))
+    for n in range(num_planets):
+        planet_data = np.unique(np.loadtxt(f"{simdir}/planet{n}.dat"), axis=0)
+        xp, yp = planet_data[output][1], planet_data[output][2]
+        # print(xp,yp)
+        rps[n] = ((xp**2) + (yp**2))**0.5
 
     a = np.logspace(np.log10(mingsize),    
                     np.log10(maxgsize),
@@ -380,7 +391,7 @@ if __name__ == "__main__":
         for s in style:
             plt.style.use([f"../styles/{s}.mplstyle"])
 
-    # plot_tdrift()
+    plot_tdrift()
     # plot_tgrowth()
     # plot_tmigration()
     plot_Mp_regimes()
