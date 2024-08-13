@@ -226,8 +226,8 @@ def plot_dust_mass():
     fig = plt.figure(figsize=(17,16))
     print("Plotting dust distribution by grain size....")
 
-    n_size_decades = int(np.log10(maxgsize) - np.log10(mingsize))
-    size_decades = np.split(np.arange(ndust), n_size_decades)
+    n_size_decades = int(np.log10(maxgsize) - np.log10(mingsize))  # e.g. 7
+    size_decades = np.split(np.arange(ndust), n_size_decades)  # e.g. 70/7 = 10
     dust_mass_tot_binned = np.zeros((len(outputs), n_size_decades, nrad))
     psizex = 3
     psizey = int(n_size_decades/psizex)+1
@@ -237,7 +237,11 @@ def plot_dust_mass():
         ax.set_prop_cycle(color=colour_cycler)
 
         for i, t in enumerate(timesteps):
-            dust_mass_tot_binned = np.sum(dust_mass[i,size_decade[0]:size_decade[-1],:], axis=0)
+            dust_mass_tot_binned = np.sum(dust_mass[i,size_decade,:], axis=0)
+            if t == 0:
+                dust_mass_tot_binned0 = dust_mass_tot_binned.copy()
+
+            # dust_mass_tot_binned = np.sum(dust_mass[i,size_decade[0]:size_decade[-1],:], axis=0)
             color = next(ax._get_lines.prop_cycler)['color']
 
             if not p_orbits:
@@ -245,14 +249,14 @@ def plot_dust_mass():
             elif planets:
                 tlabel = f"{int(round(planet_orbits[i], 0))} orbits"
             
-            ax.plot(radii, np.log10(dust_mass_tot_binned), label=tlabel, color=color)
+            ax.plot(radii, np.log10(dust_mass_tot_binned/dust_mass_tot_binned0), label=tlabel, color=color)
 
             if planets:
                 for rp in rps[:,i]:
                     ax.axvline(rp, linestyle='dashed', color=color)
-
+            
         if not n%psizex:
-            ax.set_ylabel(f"log[$M_{{dust}}/M_\oplus$]")
+            ax.set_ylabel(f"log[$M_{{dust}}/M_{{dust,0}}$]")
         else:
             ax.set_yticks([])
         if n < psizex and n_size_decades > psizex:
@@ -269,8 +273,45 @@ def plot_dust_mass():
         ax.set_xlim(min(radii), max(radii))
 
     fig.tight_layout()
-    fig.savefig(f"{plots_savedir}/{sim}_graindist.png")
+    fig.savefig(f"{plots_savedir}/{sim}_dustmass.png")
 
+def plot_dust_mass_per_bin(bin0=-12,bin1=-1):
+    fig, ax = plt.subplots(nrows=3, ncols=4, figsize=(17,16))
+    size_bins = np.arange(bin0,bin1+1)
+
+    for s,size_bin in enumerate(size_bins):
+        ax = ax.flatten()
+        ax[s].set_prop_cycle(color=colour_cycler)
+        a_bin = a[size_bin]   # physical size of grain in chosen bin
+
+        for i, t in enumerate(timesteps):
+            dust_mass_bin = dust_mass[i,size_bin,:]
+            if t == 0:
+                dust_mass_bin0 = dust_mass_bin.copy()
+
+            color = next(ax[s]._get_lines.prop_cycler)['color']
+            tlabel = f"{round(t, 3)} Myr"
+            ax[s].plot(radii, np.log10(dust_mass_bin/dust_mass_bin0), label=tlabel, color=color)
+
+            if planets:
+                for rp in rps[:,i]:
+                    ax[s].axvline(rp, linestyle='dashed', color=color)
+
+        if not s%4:
+            ax[s].set_ylabel(f"")
+    
+        if s < 4:
+            ax[s].set_xticks([])
+        else:
+            ax[s].set_xlabel("R (AU)")
+
+        ax[s].set_title(f"{round(a_bin,2)} cm")
+        ax[s].set_xscale("log")
+        ax[s].legend()
+        ax[s].set_xlim(min(radii), max(radii))
+
+    fig.tight_layout()
+    fig.savefig(f"{plots_savedir}/{sim}_dustmassperbin.png")
 
 def plot_dust_size_distribution():
     fig, ax = plt.subplots(1, dpi=150)
@@ -296,6 +337,7 @@ def plot_dust_size_distribution():
     ax.set_xlim(min(a), max(a))
     fig.tight_layout()
     fig.savefig(f"{plots_savedir}/{sim}_dustsizes.png")
+
 
 # ============== Plot dust eccentricities ==================
 def plot_dust_e():
@@ -522,6 +564,8 @@ if __name__ == "__main__":
             plot_total_dust_mass()
         if "dmass" in plots:
             plot_dust_mass()
+        if "dmassbin" in plots:
+            plot_dust_mass_per_bin()
         # plot_sigma_at_r([rps[0]+5])
 
     if plot_window:
