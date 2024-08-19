@@ -5,6 +5,7 @@ from matplotlib.lines import Line2D
 import argparse
 plt.style.use('default')
 
+# ====================== Gas Sigma ========================
 def overlay_gas_sigmas(fig, ax, radii, sigma_gas_1D, model_num=0):
     ax.set_prop_cycle(color=colour_cycler)
     print("Plotting gas surface density....")
@@ -32,46 +33,26 @@ def overlay_gas_sigmas(fig, ax, radii, sigma_gas_1D, model_num=0):
     fig.tight_layout()
 
 
-def overlay_dustgasratio():
-    pass
-
+# ================= Dust Mass by Grain Size ===================
 def overlay_dust_mass(fig, ax, radii, dust_mass, model_num=0):
     print("Plotting dust distribution by grain size....")
-    print(np.sum(dust_mass[0,:,:]))
 
     n_size_decades = int(np.log10(maxgsize) - np.log10(mingsize))   # assumes min and max g size are the same for both models!
-    # print(n_size_decades)
     size_decades = np.split(np.arange(ndust), n_size_decades)
-    #print(size_decades)
-    # size_decades = np.zeros((n_size_decades,11))
-    # for n in np.arange(n_size_decades):
-    #     size_decades[n] = np.arange(n*10,((n+1)*10)+1,dtype=int)
-    # size_decades = np.split(size_decades, n_size_decades)
 
-    # print(size_decades)
     dust_mass_tot_binned = np.zeros((len(outputs), n_size_decades, nrad))
     subps = "ABCDEFG"
     legend_elements = []
-    # print(dust_mass[0,size_decades[-1][0]:size_decades[-1][-1],:])   # identical between 70 and 140 bins
-    # print(size_decades[-1][0][-1])
-    # print(dust_mass[-1,int(size_decades[-1][0][0]):int(size_decades[-1][0][-1]),0])
-    # print(len(dust_mass[0,size_decades[-1][0]:size_decades[-1][-1],:]))
-    sav_tot = 0.
     for n, size_decade in enumerate(size_decades):
         ax[subps[n]].set_prop_cycle(color=colour_cycler)
         for i, t in enumerate(timesteps):
-            # print("================", t)
-            #print(f'Dust mass step {i} is {np.sum(dust_mass[i,:,:])}')
-            #print(np.sum(dust_mass[i,size_decade,:], axis=0).shape)
             dust_mass_tot_binned = np.sum(dust_mass[i,size_decade,:], axis=0)
-            if i==0:
-                print(np.sum(dust_mass_tot_binned))
-                sav_tot += np.sum(dust_mass_tot_binned)
-            # print(dust_mass_tot_binned)
-            #print(np.min(dust_mass_tot_binned), np.max(dust_mass_tot_binned))
+            if t == 0:
+                dust_mass_tot_binned0 = dust_mass_tot_binned.copy()
+
             color = next(ax[subps[n]]._get_lines.prop_cycler)['color']
             
-            ax[subps[n]].plot(radii, (dust_mass_tot_binned), label=f"{round(t, 3)} Myr", color=color, linestyle=linestyles[model_num])
+            ax[subps[n]].plot(radii, (dust_mass_tot_binned/dust_mass_tot_binned0), label=f"{round(t, 3)} Myr", color=color, linestyle=linestyles[model_num])
             if n == len(size_decades)-1:
                 legend_elements.append(Line2D([0], [0], color=color, lw=2, label=f"{round(t, 3)} Myr"))
 
@@ -83,17 +64,20 @@ def overlay_dust_mass(fig, ax, radii, dust_mass, model_num=0):
         dustsizes = [np.format_float_positional(d,3,fractional=False,unique=True) for d in dustsizes]
         ax[subps[n]].set_title(f"{dustsizes[0]}-{dustsizes[1]}cm")
         ax[subps[n]].set_xscale("log")
-        ax[subps[n]].set_xlim(20, 100)
+        ax[subps[n]].set_xlim(10, 100)
 
-    print(sav_tot)
     
     for m in range(model_num+1):
         sim = simdirs[m].split('models/')[-1]    # ignore full file path
-        legend_elements.append(Line2D([0], [0], color='k', linestyle=linestyles[m], label=f"{sim}"))
+        if "stat" in sim:
+            mlabel = "stationary"
+        else:
+            mlabel = "migrating"
+        legend_elements.append(Line2D([0], [0], color='k', linestyle=linestyles[m], label=f"{mlabel}"))
 
-    ax["A"].set_ylabel(f"log[$M_{{dust}}/M_\oplus$]")
-    ax["D"].set_ylabel(f"log[$M_{{dust}}/M_\oplus$]")
-    ax["F"].set_ylabel(f"log[$M_{{dust}}/M_\oplus$]")
+    ax["A"].set_ylabel(f"log[$M_{{dust}}/M_{{dust,0}}$]")
+    ax["D"].set_ylabel(f"log[$M_{{dust}}/M_{{dust,0}}$]")
+    ax["F"].set_ylabel(f"log[$M_{{dust}}/M_{{dust,0}}$]")
     ax["A"].set_xlabel("R (AU)")
     ax["B"].set_xlabel("R (AU)")
     ax["C"].set_xlabel("R (AU)")
@@ -101,9 +85,11 @@ def overlay_dust_mass(fig, ax, radii, dust_mass, model_num=0):
     ax["G"].set_xlabel("R (AU)")
     ax["D"].set_xticks([])
     ax["E"].set_xticks([])
-    ax["A"].legend(handles=legend_elements)
+    ax["G"].legend(loc="upper right", handles=legend_elements)
     fig.tight_layout()
 
+
+# =================== Total Dust Mass =====================
 def overlay_total_dust_mass(fig, ax, radii, dust_mass_tot, model_num=0):
     ax.set_prop_cycle(color=colour_cycler)
     print("Plotting total dust mass....")
@@ -130,6 +116,56 @@ def overlay_total_dust_mass(fig, ax, radii, dust_mass_tot, model_num=0):
     ax.set_xlim(min(radii), max(radii))
     fig.tight_layout()
 
+
+# ================= Plot dust mass by St =====================
+def plot_st(fig, ax, radii, a, model_num=0):
+    print("Plotting St of select grain sizes....")
+    n_stokes = 12
+    size_bins = np.arange(ndust-n_stokes,ndust)
+
+    for s,size_bin in enumerate(size_bins):
+        ax = ax.flatten()
+        ax[s].set_prop_cycle(color=colour_cycler)
+        a_bin = a[size_bin]   # physical size of grain at chosen St
+
+        legend_elements=[]
+        for i, t in enumerate(timesteps):
+            color = next(ax[s]._get_lines.prop_cycler)['color']
+            print("---------------------")
+            print(np.min(sigma_gas_1D[i]), np.max(sigma_gas_1D[i]))
+            print(a_bin, rhodust)
+            St_bin = np.pi*a_bin*rhodust/(2*sigma_gas_1D[i])
+            print(min(St_bin), max(St_bin))
+            tlabel = f"{round(t, 3)} Myr"
+            ax[s].plot(radii, St_bin, label=tlabel, color=color)
+            legend_elements.append(Line2D([0], [0], color=color, lw=2, label=f"{round(t, 3)} Myr"))
+
+            if planets:
+                for rp in rps[:,i]:
+                    ax[s].axvline(rp, linestyle='dashed', color=color)
+
+        for m in range(model_num+1):
+            sim = simdirs[m].split('models/')[-1]    # ignore full file path
+            legend_elements.append(Line2D([0], [0], color='k', linestyle=linestyles[m], label=f"{sim}"))
+
+
+        if not s%4:
+            ax[s].set_ylabel(f"St")
+    
+        if s < 4:
+            ax[s].set_xticks([])
+        else:
+            ax[s].set_xlabel("R (AU)")
+
+        ax[s].set_title(f"{round(a_bin,2)} cm")
+        ax[s].set_xscale("log")
+        ax[s].legend(handles=legend_elements)
+        ax[s].set_xlim(min(radii), 60)
+        ax[s].set_ylim(0, 10)
+
+    fig.tight_layout()
+
+# =================================================================
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description='Generate 1D plots', prefix_chars='-')
@@ -171,6 +207,8 @@ if __name__ == "__main__":
         fig_dust_mass, ax_dust_mass = plt.subplot_mosaic("AABBCC;DDDEEE;FFFGGG", figsize=(17,16))
     if "dmt" in plots:
         fig_dm_tot, ax_dm_tot = plt.subplots(figsize=(6,5))
+    if "st" in plots:
+        fig_st, ax_st = plt.subplots(nrows=3, ncols=4, figsize=(17,16))
 
     # ================== Read in data at timesteps =======================
 
@@ -256,18 +294,13 @@ if __name__ == "__main__":
                 for n in np.arange(ndust):
                     dust_file = f"dustdens{n}_{int(t)}.dat"
                     sigma_dust[i,n] = np.fromfile(simdir+dust_file).reshape(nrad,nphi)/(1.125e-7)
-            if s == 1:
-                for g in range(len(sav_sigma[0,:])):
-                    print(sav_sigma[:,g], sigma_dust[:,g])
-            import copy
-            sav_sigma = copy.copy(sigma_dust)
+            # if s == 1:
+            #     for g in range(len(sav_sigma[0,:])):
         sigma_dust_azimsum = np.sum(sigma_dust, axis=3)                  # sum over all phi 
         sigma_gas_azimsum = np.sum(sigma_gas, axis=2)                    # sum over all phi   
 
-        #print(nphi, ndust, nrad)
         sigma_gas_1D = sigma_gas_azimsum/nphi                           # dimensions: (noutputs, nrad) 
         sigma_dust_1D = sigma_dust_azimsum/nphi                         # dimensions: (noutputs, ndust, nrad)  
-        # print(np.min(sigma_dust_1D[0,-1*int(ndust/7):-1,:]),np.max(sigma_dust_1D[0,-1*int(ndust/7):-1,:])) 
         # sigma_dust_sum_1D = avgdustdens_azimsum/nphi                  # dimensions: (noutputs, nrad)
         
         for i,t in enumerate(outputs):
@@ -275,10 +308,7 @@ if __name__ == "__main__":
             dust_mass[i,:,:] = [2*np.pi*radii*sigma_dust_1D[i,n,:]*delta_r*333030 for n in range(ndust)]
             gas_mass[i,:] = 2*np.pi*radii*sigma_gas_1D[i,:]*delta_r*333030      # convert from Msun to Mearth
 
-        # print(np.min(sigma_dust_1D[-1,-1*int(ndust/7):-1,:]),np.max(sigma_dust_1D[-1,-1*int(ndust/7):-1,:]))
-        # print(np.sum(sigma_dust_1D[-1,-1*int(ndust/7):-1,:]))
         dust_mass_tot = np.sum(dust_mass, axis=1)
-        print(np.sum(sigma_dust_1D[0,:,:]), np.sum(dust_mass[0,:,:]), np.sum(dust_mass_tot[0,:]))
 
         # Get dust velocities
         # if grog:
@@ -317,6 +347,8 @@ if __name__ == "__main__":
             overlay_dust_mass(fig_dust_mass, ax_dust_mass, radii, dust_mass, s)
         if "dmt" in plots:
             overlay_total_dust_mass(fig_dm_tot, ax_dm_tot, radii, dust_mass_tot, s)
+        if "st" in plots:
+            plot_st(fig_st, ax_st, radii, a, s)
     
     # ======================== Generate Plots ==========================
     print(f"-------------------\nPlotting comparison plots for {simdirs}\n=============")
@@ -326,9 +358,11 @@ if __name__ == "__main__":
     if "gs" in plots:
         fig_gas_sigma.savefig(f"{plots_savedir}/{sim}_comparison_gassigma.png")
     if "dm" in plots:
-        fig_dust_mass.savefig(f"{plots_savedir}/{sim}_comparison_graindist_v4.png")
+        fig_dust_mass.savefig(f"{plots_savedir}/{sim}_comparison_graindist.png")
     if "dmt" in plots:
         fig_dm_tot.savefig(f"{plots_savedir}/{sim}_comparison_Mdust.png")
+    if "st" in plots:
+        fig_st.savefig(f"{plots_savedir}/{sim}_comparison_St.png")
 
     if plot_window:
         plt.show()
