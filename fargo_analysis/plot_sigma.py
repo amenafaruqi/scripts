@@ -224,7 +224,7 @@ def plot_total_dust_mass():
 
 def plot_dust_mass():
     fig = plt.figure(figsize=(17,16))
-    print("Plotting dust distribution by grain size....")
+    print("Plotting dust mass by grain size....")
 
     n_size_decades = int(np.log10(maxgsize) - np.log10(mingsize))  # e.g. 7
     size_decades = np.split(np.arange(ndust), n_size_decades)  # e.g. 70/7 = 10
@@ -276,6 +276,7 @@ def plot_dust_mass():
     fig.savefig(f"{plots_savedir}/{sim}_dustmass.png")
 
 def plot_dust_mass_per_bin(bin0=-12,bin1=-1):
+    print("Plotting dust mass by size bin....")
     fig, ax = plt.subplots(nrows=3, ncols=4, figsize=(17,16))
     size_bins = np.arange(bin0,bin1+1)
 

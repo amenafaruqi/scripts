@@ -71,7 +71,6 @@ def plot_surf_dens(wd,simdir,dustnums,outputnumber,lin_scaling,cbmin,cbmax,plot_
             dust_files = [f"{wd}/{simdir}/dustdens{d}_{outputnumber}.dat" for d in dustnum_range]
             dustsizes = [(10**(((dustnum+1)/ndust)*n_size_decades)) * mingsize for dustnum in dustnums[1:]]
             dustsizes = [np.format_float_positional(d,3,fractional=False,unique=True) for d in dustsizes]
-
             
         weighted_sum_dens = np.zeros((nrad, nphi)) 
         for i,file in enumerate(dust_files):
@@ -269,6 +268,7 @@ def plot_surf_dens(wd,simdir,dustnums,outputnumber,lin_scaling,cbmin,cbmax,plot_
 
         if plot_gas in ["yes", "y"] and file_i == 0:
             plot_title = f"Gas density at t = {time}Myr"
+
             if  plot_planet not in ["no", "n"]:
                 plot_title = f"Gas density at t = {time}Myr = {planet_orbits} orbits"
             if not no_title:

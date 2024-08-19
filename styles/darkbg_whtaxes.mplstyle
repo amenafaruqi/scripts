@@ -1,6 +1,6 @@
 text.color: black
 #text.color: white
-axes.facecolor: white
+axes.facecolor: (1.0, 1.0, 1.0, 1.0)
 #axes.facecolor: black
 axes.edgecolor: lightgrey
 axes.labelcolor: white
