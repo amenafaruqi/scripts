@@ -37,22 +37,32 @@ def calc_t_migration(mass, radius):
 def plot_Mp_regimes():
     mps = np.array([12, 25, 60, 120, 160]) 
     # mps = np.array([12,60,120])
-    fig0,ax0 = plt.subplots(figsize=(10,7))
+    fig0,ax0 = plt.subplots(figsize=(10,8))
     m_range = np.linspace(0,200,50)
     r_range = np.linspace(0,200,201)
 
-    # Plot pebble isolation criterion (Lambrechts et al. 2014)
+    # Plot pebble isolation criterion (eq 11 from Bitsch+2018)
     hr1d = hr0*(r_range**f)
     dlogPdlogR = f - sigmaslope - 2     # taken from eq. 9 from Bitsch et al. 2018, accounting for their s being -ve. 
     f_fit = ((hr1d/0.05)**3)*(0.34*(np.log10(0.001)/np.log10(alpha))**4 + 0.66)*(1-((dlogPdlogR+2.5)/6))
-    M_iso = 25*f_fit
     alpha_St = 0.01
+    M_iso = 25*f_fit
     Pi_crit = alpha_St/2
     Lambda = 0.00476/f_fit
     M_iso += Pi_crit/Lambda                  # PIM considering diffusion
     ax0.fill_between(r_range, M_iso, 200, color='yellow', alpha=0.55)
     ax0.fill_between(r_range, M_iso, 0, color='orangered', alpha=0.73)
+    
+    alpha_St = np.array([0.001, 0.1])
+    clrs = ["dotted", "dashdot"]
+    for ai,a in enumerate(alpha_St):
+        M_iso = 25*f_fit
+        Pi_crit = a/2
+        Lambda = 0.00476/f_fit
+        M_iso += Pi_crit/Lambda                  # PIM considering diffusion
+        ax0.plot(r_range, M_iso, linestyle=clrs[ai], label=f"St = {0.001/a}", color="dodgerblue")
 
+    ax0.legend(facecolor='grey', framealpha=0.1)
     # Plot gap-opening criterion region (Crida et al. 2006)
     Ms, Rs = np.meshgrid(m_range, r_range)
     hr = hr0*(Rs**f)
@@ -165,18 +175,21 @@ def plot_Dipierro_Mp_regimes():  #figure 2 from dipierro 2017 i.e. as function o
 # ======================= Plot Drift Timescale ============================
 
 def plot_tdrift(): #as function of R and a
-    hr = hr0*(radii**f)                                   # aspect ratio
-    cs = hr*(((2e30)*(6.67e-11))/(radii*1.5e11))**0.5     # [m/s]
-    p = (sigma_gas_1D*(cs**2)/((2*np.pi)**0.5))*(hr**-1)*((radii*1.5e11)**-1)
-    gamma = (radii/p)*np.abs(np.append(np.diff(p)/np.diff(radii), 0))
-    tau_drift = ((2/(np.pi*rhodust))*(np.dot((radii*sigma_gas_azimsum/(gamma*hr*cs)).reshape(nrad,1), a.reshape(1,ndust))*1.5e11))*3.17e-14    # drift timescale in Myr
-
-    fig,ax = plt.subplots(figsize=(9,6))
+    A,R = np.meshgrid(a,radii)
+    hr = hr0*(R**f)                                   # aspect ratio
+    cs = hr*(((2e30)*(6.67e-11))/(R*1.5e11))**0.5     # [m/s]
+    # p = (sigma_gas_1D*(cs**2)/((2*np.pi)**0.5))*(hr**-1)*((radii*1.5e11)**-1)
+    # gamma = (radii/p)*np.abs(np.append(np.diff(p)/np.diff(radii), 0))
+    gamma = np.abs(f - sigmaslope - 2)     # taken from eq. 9 from Bitsch et al. 2018, accounting for their s being -ve. 
+    # tau_drift = ((2/(np.pi*rhodust))*(np.dot((radii*sigma_gas_azimsum/(gamma*hr*cs)).reshape(nrad,1), a.reshape(1,ndust))*1.5e11))*3.17e-14    # drift timescale in Myr
+    fig,ax = plt.subplots(figsize=(11,6))
     levels = np.linspace(-6, 6, 13)                   
     print("Plotting drift timescale....")
-    A,R = np.meshgrid(a,radii)
-    con = ax.contourf(R, A, np.log10(tau_drift), cmap="YlGnBu", levels=levels)
-    
+    sigma_gas_1D_rep = np.tile(sigma_gas_1D, ndust).reshape(nrad,ndust)
+
+    tau_drift = (3.1688e-14)*(2/np.pi)*(sigma_gas_1D_rep/(rhodust*A))*(R*1.5e11/cs)/gamma
+    print(tau_drift)
+    con = ax.contourf(R, A, np.log10(tau_drift), cmap="YlGnBu")#, levels=levels)
     ax.set_xscale("log")
     ax.set_yscale("log")
     ax.set_ylabel("a (cm)")
@@ -184,10 +197,10 @@ def plot_tdrift(): #as function of R and a
 
     fig.subplots_adjust(right=0.89, hspace=0.3)
     cbar_ax = fig.add_axes([0.91, 0.53, 0.02, 0.4])
-    fig.colorbar(con, cax=cbar_ax, orientation="vertical", label="log$[\\tau_{drift} (Myr)]$")
+    fig.colorbar(con, cax=cbar_ax, orientation="vertical", label="log$(\\tau_{drift}/1Myr)$")
     for rp in rps:
-        ax.axvline(rp, linestyle='dashed', color="k")
-
+        ax.axvline(rp, linestyle='dashed', color="k")    
+    
     fig.savefig(f"{plots_savedir}/{sim}_tdrift.png")
 
 
@@ -294,8 +307,8 @@ def plot_tgrowth():  #as function of R and a
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description='Generate 1D plots', prefix_chars='-')
 
-    parser.add_argument('-wd', metavar='wd', type=str, nargs=1, default=["/home/astro/phrkvg/simulations/planet_growth/convergence_tests"],help="working directory containing simulations")
-    parser.add_argument('-sim', metavar='sim', type=str, nargs=1, default=["Mp120_420x750_log"] ,help="simulation directory containing output files")
+    parser.add_argument('-wd', metavar='wd', type=str, nargs=1, default=["/home/astro/phrkvg/simulations/lowres_models"],help="working directory containing simulations")
+    parser.add_argument('-sim', metavar='sim', type=str, nargs=1, default=["Mp60_stat"] ,help="simulation directory containing output files")
     parser.add_argument('-savedir', metavar='savedir', type=str, nargs=1, default="./images" ,help="directory to save plots to")
     parser.add_argument('-plot_window', action="store_true")
     parser.add_argument('-porbits', action="store_true")
@@ -394,7 +407,7 @@ if __name__ == "__main__":
     plot_tdrift()
     # plot_tgrowth()
     # plot_tmigration()
-    plot_Mp_regimes()
+    # plot_Mp_regimes()
 
     if plot_window:
         plt.show()
