@@ -134,35 +134,6 @@ def plot_gas_sigma():
     fig.tight_layout()
     fig.savefig(f"{plots_savedir}/{sim}_sigmagas.png")
 
-# ================== Dust Sigma Profile ===================
-
-def plot_dust_sigma():
-    fig, ax = plt.subplots(figsize=(7,6))
-    ax.set_prop_cycle(color=colour_cycler)
-    print("Plotting dust surface density....")
-
-    for i, t in enumerate(timesteps):
-        if not p_orbits:
-            tlabel = f"{round(t, 3)} Myr"
-        elif planets:
-            tlabel = f"{int(round(planet_orbits[i], 0))} orbits"
-
-        color = next(ax._get_lines.prop_cycler)['color']
-        ax.plot(radii, sigma_dust_sum_1D[i], label=tlabel, color=color)
-
-    if planets:
-        for rp in rps[:,i]:
-            ax.axvline(rp, linestyle='dashed', color=color)
-
-    ax.set_xlabel("R (AU)")
-    ax.set_ylabel("$ \Sigma_{dust} (g/cm^{2})$")
-    ax.set_xscale("log")
-    ax.set_yscale("log")
-    ax.legend()
-    ax.set_xlim(np.min(radii), np.max(radii))
-
-    fig.tight_layout()
-    fig.savefig(f"{plots_savedir}/{sim}_sigmadust.png")
 
 # ================== Dust sigma evolution over time (for different a) ===================
 
@@ -273,6 +244,7 @@ def plot_dust_mass():
     fig.tight_layout()
     fig.savefig(f"{plots_savedir}/{sim}_dustmass.png")
 
+
 def plot_dust_mass_per_bin(bin0=-12,bin1=-1):
     print("Plotting dust mass by size bin....")
     fig, ax = plt.subplots(nrows=3, ncols=4, figsize=(17,16))
@@ -312,6 +284,7 @@ def plot_dust_mass_per_bin(bin0=-12,bin1=-1):
     fig.tight_layout()
     fig.savefig(f"{plots_savedir}/{sim}_dustmassperbin.png")
 
+
 def plot_dust_size_distribution():
     fig, ax = plt.subplots(1, dpi=150)
     ax.set_prop_cycle(color=colour_cycler)
@@ -339,24 +312,61 @@ def plot_dust_size_distribution():
 
 
 # ============== Plot dust eccentricities ==================
-def plot_dust_e():
-    print("Plotting dust eccentricities....")
-    fig = plt.figure(figsize=(17,12))
+def plot_ecc():
+    print("Plotting dust and gas eccentricities....")
+    # Initialise figures for eccentrities
+    fig = plt.figure(figsize=(26,10))
+    fig_hist = plt.figure(figsize=(20,10))
+
     R, PHI = np.meshgrid(radii, phis, indexing="ij")   # dimensions: (nrad, nphi)
     X = R*np.cos(PHI)
     Y = R*np.sin(PHI)
-    # Z = np.zeros((nrad, nphi))
-    pos = np.array((X, Y))    # dimensions: (2, nrad, nphi)
-    e = np.zeros((len(outputs),nrad,nphi))
-    # n = 1   # FOR TESTING ONLY, TO BE CHANGED LATER
-    n_range = np.arange(3)
-    fig_hist = plt.figure(figsize=(17,12))
+    n_range = np.arange(ndust)
+    e_dust = np.zeros((len(outputs),len(n_range), nrad,nphi))
+    e_gas = np.zeros((len(outputs),nrad,nphi))
 
     for i, o in enumerate(outputs):
+        ax = fig.add_subplot(len(outputs),1+ndust, ((1+ndust)*(i+1))-ndust)   # 1 row per output, 1 column for gas + 1 column per dust size
+        ax_hist = fig_hist.add_subplot(len(outputs),1+ndust, ((1+ndust)*(i+1))-ndust)
+        # Apply correction to v_phi when in the guiding-centre ref frame
+        # Explained here: https://fargo3d.bitbucket.io/def_setups.html
+        v_phi = v_gas[i,0,:,:]+(omegaframe*R)  # dimensions: (nrad, nphi)
+        v_r = v_gas[i,1,:,:]    # dimensions: (nrad, nphi)
+        
+        # All scalars below have dimensions of (nrad, nphi)
+        r_scalar = R
+        v_scalar = ((v_r**2)+(v_phi**2))**0.5
+        h_scalar = R*v_phi
+
+        # Iterate through cells to calculate gas ecc in each cell
+        for nr in np.arange(nrad):
+            for nph in np.arange(nphi):
+                r = np.abs(r_scalar[nr,nph])
+                v = np.abs(v_scalar[nr,nph])
+                h = np.abs(h_scalar[nr,nph])
+                e_scalar = (1+(h**2*((v**2) - (2/r))))**0.5
+                e_gas[i,nr,nph] = e_scalar
+        
+        # Plot histogram of eccentricities across entire grid
+        ax_hist.hist(
+            e_gas[i].flatten(),
+            edgecolor="black",)
+        ax_hist.set_title("Gas")
+        ax_hist.set_ylabel("Frequency")
+        ax_hist.set_xlabel("e")
+
+        # Plot contour of gas eccentricities
+        con_g = ax.contourf(X, Y, e_gas[i,:,:])    
+        # cbar_ax = fig.add_axes([0.91, 0.53, 0.02, 0.4])
+        fig.colorbar(con_g, orientation="vertical", label="e")
+        ax.set_title("Gas")
+
+        # Eccentricities for all dust species
         for ni,n in enumerate(n_range):
-            ax = fig.add_subplot(len(outputs), len(n_range), (ni+1)+(i*ndust))
-            ax_hist = fig_hist.add_subplot(len(outputs), len(n_range), (ni+1)+(i*ndust))
-            v_phi = v_dust[i,n,0,:,:]  # dimensions: (nrad, nphi)
+            # Iterate through dust species
+            ax = fig.add_subplot(len(outputs),1+ndust, ((1+ndust)*(i+1))-ndust+ni+1)
+            ax_hist = fig_hist.add_subplot(len(outputs),1+ndust, ((1+ndust)*(i+1))-ndust+ni+1)
+            v_phi = v_dust[i,n,0,:,:]+(omegaframe*R)   # dimensions: (nrad, nphi)
             v_r = v_dust[i,n,1,:,:]    # dimensions: (nrad, nphi)
 
             # all scalars below have dimensions of (nrad, nphi)
@@ -364,41 +374,32 @@ def plot_dust_e():
             v_scalar = ((v_r**2)+(v_phi**2))**0.5
             h_scalar = R*v_phi
 
-            # ======================================================
-            # Get v components for dust species n at timestep o
-            # v_phi = v_dust[i,n,0,:,:]  # dimensions: (nrad, nphi)
-            # v_r = v_dust[i,n,1,:,:]    # dimensions: (nrad, nphi)
-            
-            # # Convert to cartesian coords
-            # v_x = v_r*np.cos(PHI) - v_phi*np.sin(PHI)    # dimensions: (nrad, nphi)
-            # v_y = v_r*np.sin(PHI) + v_phi*np.cos(PHI)    # dimensions: (nrad, nphi)
-            # v_z = np.zeros((nrad, nphi))
-            # vel = np.array((v_x,v_y,v_z))#/(2*np.pi)     #*0.00021  # dimensions: (3, nrad, nphi)  convert from m/s to AU/yr ???
-            # ------------------------------------------------------
-
+            # Dust eccentricity calculation
             for nr in np.arange(nrad):
                 for nph in np.arange(nphi):
-                    # v_t = vel[:,nr,nph]    # 3 x 1 velocity vector (vx,vy,vz) for 1 grain size at 1 timestep in 1 cell
-                    # r_t = pos[:,nr,nph]
-                    # e[i,nr,nph] = abs(calculate_e(r_t,v_t))   # e in chosen cell for chosen grain size and timestep
                     r = np.abs(r_scalar[nr,nph])
                     v = np.abs(v_scalar[nr,nph])
                     h = np.abs(h_scalar[nr,nph])
-                    # print(r,v,h)
-                    # print("------")
-                    # e_scalar = (1+(h**2*((v**2) - (2/r))))**0.5
-                    a = r/(2-r*(v**2))
-                    e_scalar = (1-((h**2)/a))**0.5
-                    e[i,nr,nph] = e_scalar
-            # print("ecc min/max: ", np.argmin(e), np.argmax(e))
-            ax_hist.hist(e.flatten(),edgecolor="black", bins=np.arange(np.min(e.flatten()), np.max(e.flatten()) + 0.5, 0.5))  #bins=[0,0.5,1,int(np.max(e.flatten()))+1],
-            con = ax.contourf(X, Y, e[i,:,:])
-    fig.subplots_adjust(right=0.89, hspace=0.3)
-    cbar_ax = fig.add_axes([0.91, 0.53, 0.02, 0.4])
-    fig.colorbar(con, cax=cbar_ax, orientation="vertical", label="e")
-    # ax.legend(loc="upper right")
+                    e_scalar = (1+(h**2*((v**2) - (2/r))))**0.5
+                    e_dust[i,ni,nr,nph] = e_scalar
+            
+            ax_hist.hist(
+                e_dust[i,ni].flatten(),
+                edgecolor="black")
+            con_d = ax.contourf(X, Y, e_dust[i,ni,:,:])    
+            
+            st = st_max/(10**ni)
+            ax.set_title(f"St={st}")
+            ax_hist.set_title(f"St={st}")
+        
+            # cbar_ax = fig.add_axes([0.91, 0.53, 0.02, 0.4])
+            fig.colorbar(con_d, orientation="vertical", label="e")
+
+    # fig.subplots_adjust(right=0.89, hspace=0.3)
+    fig.tight_layout()
+    fig_hist.tight_layout()
     fig.savefig(f"{plots_savedir}/{sim}_ecc.png")
-    fig_hist.savefig(f"{plots_savedir}/{sim}_histecc.png")
+    fig_hist.savefig(f"{plots_savedir}/{sim}_ecchist.png")
 
 
 # ==========================================================
@@ -406,7 +407,7 @@ def plot_dust_e():
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description='Generate 1D plots', prefix_chars='-')
 
-    parser.add_argument('-wd', metavar='wd', type=str, nargs=1, default=["/home/astro/phrkvg/simulations/planet_growth/test_models"],help="working directory containing simulations")
+    parser.add_argument('-wd', metavar='wd', type=str, nargs=1, default=["/home/astro/phrkvg/simulations"],help="working directory containing simulations")
     parser.add_argument('-sim', metavar='sim', type=str, nargs=1, default=["planettest"] ,help="simulation directory containing output files")
     parser.add_argument('-savedir', metavar='savedir', type=str, nargs=1, default="./images" ,help="directory to save plots to")
     parser.add_argument('-o', metavar='outputs',default=[], type=int, nargs="*" ,help="outputs to plot")
@@ -458,11 +459,14 @@ if __name__ == "__main__":
     ndust = int(params_dict['NDUST'])
     alpha = float(params_dict['ALPHA'])
     spacing = str(params_dict['SPACING'])
+    omegaframe = float(params_dict['OMEGAFRAME'])
     if grog:
         mingsize = float(params_dict['MIN_GRAIN_SIZE'])
         maxgsize = float(params_dict['MAX_GRAIN_SIZE'])
         nss_coag = int(params_dict['NUMSUBSTEPS_COAG'])
         rhodust = float(params_dict['RHO_DUST'])
+    else:
+        st_max = float(params_dict['STOKES'])
 
     densfloor = float(params_dict['DENSITY_FLOOR'])
     dt_orbits = int(float(params_dict['DT'])/(2*np.pi))   # 2pi = 1 orbit = 1 yr
@@ -494,13 +498,14 @@ if __name__ == "__main__":
 
     r_cells = np.loadtxt(f'{simdir}/domain_y.dat')[3:-3]             # ignore ghost cells
     phi_cells = np.loadtxt(f'{simdir}/domain_x.dat')
-    if spacing == "Linear":
-        radii = np.array([(r_cells[n]+r_cells[n+1])/2 for n in range(len(r_cells)-1)])
-        delta_r = radii[1]-radii[0]
-    else:     # Log grid
+    if spacing == "Log":        
         radii = np.array([np.exp((np.log(r_cells[n])+np.log(r_cells[n+1]))/2) for n in range(len(r_cells)-1)])
         delta_log_r = np.log(radii[1]) - np.log(radii[0])
         delta_r = radii*delta_log_r
+    else:     # Lin or default grid
+        radii = np.array([(r_cells[n]+r_cells[n+1])/2 for n in range(len(r_cells)-1)])
+        delta_r = radii[1]-radii[0]
+
     phis = np.array([(phi_cells[n]+phi_cells[n+1])/2 for n in range(len(phi_cells)-1)])
 
     # Get gas and dust sigma
@@ -531,16 +536,20 @@ if __name__ == "__main__":
 
     dust_mass_tot = np.sum(dust_mass, axis=1)
 
-    # Get dust velocities
+    # Get dust and gas velocities
     if "ecc" in plots:
-        print(ndust)
         v_dust = np.zeros((len(outputs), ndust, 2, nrad, nphi))   # additional dimension of 2 for x and y velocity
+        v_gas = np.zeros((len(outputs), 2, nrad, nphi))           # additional dimension of 2 for x and y velocity
         for i,t in enumerate(outputs):
             for n in np.arange(ndust):
                 dust_file_x = f"dustvx{n}_{int(t)}.dat"
                 dust_file_y = f"dustvy{n}_{int(t)}.dat"
-                v_dust[i,n,0] = np.fromfile(simdir+dust_file_x).reshape(nrad,nphi)   # vx
-                v_dust[i,n,1] = np.fromfile(simdir+dust_file_y).reshape(nrad,nphi)   # vy
+                gas_file_x = f"gasvx{int(t)}.dat"
+                gas_file_y = f"gasvy{int(t)}.dat"
+                v_dust[i,n,0] = np.fromfile(simdir+dust_file_x).reshape(nrad,nphi)   # vx (azimuthal v)
+                v_dust[i,n,1] = np.fromfile(simdir+dust_file_y).reshape(nrad,nphi)   # vy (radial v)
+                v_gas[i,0] = np.fromfile(simdir+gas_file_x).reshape(nrad,nphi)       # vx
+                v_gas[i,1] = np.fromfile(simdir+gas_file_y).reshape(nrad,nphi)       # vy
 
     if grog:
         uf = 10                                               # fragmentation velocity
@@ -573,13 +582,11 @@ if __name__ == "__main__":
     if "gsig" in plots:
         plot_gas_sigma()
     if "ecc" in plots:
-        plot_dust_e()
+        plot_ecc()
 
     if grog:
         if "dcon" in plots:
             plot_dust_contours()
-        if "dsig" in plots:
-            plot_dust_sigma()
         if "dgr" in plots:
             plot_dustgasratio()
         if "dsizes" in plots:
