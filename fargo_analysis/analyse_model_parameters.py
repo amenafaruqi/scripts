@@ -37,7 +37,7 @@ def calc_t_migration(mass, radius):
 def plot_Mp_regimes():
     mps = np.array([12, 25, 60, 120, 160]) 
     # mps = np.array([12,60,120])
-    fig0,ax0 = plt.subplots(figsize=(10,8))
+    fig0,ax0 = plt.subplots(figsize=(12,8))
     m_range = np.linspace(0,200,50)
     r_range = np.linspace(0,200,201)
 
@@ -53,14 +53,14 @@ def plot_Mp_regimes():
     ax0.fill_between(r_range, M_iso, 200, color='yellow', alpha=0.55)
     ax0.fill_between(r_range, M_iso, 0, color='orangered', alpha=0.73)
     
-    alpha_St = np.array([0.001, 0.1])
-    clrs = ["dotted", "dashdot"]
-    for ai,a in enumerate(alpha_St):
-        M_iso = 25*f_fit
-        Pi_crit = a/2
-        Lambda = 0.00476/f_fit
-        M_iso += Pi_crit/Lambda                  # PIM considering diffusion
-        ax0.plot(r_range, M_iso, linestyle=clrs[ai], label=f"St = {0.001/a}", color="dodgerblue")
+    # alpha_St = np.array([0.001, 0.1])
+    # clrs = ["dotted", "dashdot"]
+    # for ai,a in enumerate(alpha_St):
+    #     M_iso = 25*f_fit
+    #     Pi_crit = a/2
+    #     Lambda = 0.00476/f_fit
+    #     M_iso += Pi_crit/Lambda                  # PIM considering diffusion
+    #     ax0.plot(r_range, M_iso, linestyle=clrs[ai], label=f"St = {0.001/a}", color="dodgerblue")
 
     ax0.legend(facecolor='grey', framealpha=0.1)
     # Plot gap-opening criterion region (Crida et al. 2006)
@@ -76,23 +76,23 @@ def plot_Mp_regimes():
 
     # Plot radius where dust drift velocity = planet migration velocity
 
-    St = 0.01                            # pebble Stokes number
-    # u_drift = dlogPdlogR*(hr0**2)*2*np.pi/(St+(1/St))   # in AU/yr
-    # print(u_drift)
-    a_pebble = 1*6.68e-14                # 1 cm pebble size in AU
-    q = -2*f
-    gamma = 5/3
-    zeta = q - (gamma-1)*-sigmaslope
-    Omega = np.sqrt(4*(np.pi**2)/(Rp0**3))
-    # Sigmap = sigma0*(float(Rp0)**-sigmaslope)*np.exp(-Rp0/Rc)
-    A = (-2.5-(1.7*q)+(-sigmaslope/10)+(1.1*(1.5+sigmaslope))+(7.9*zeta/gamma))
-    # M_drift_mig = u_drift*((hr0*(Rp0**f))**2)*gamma/(2*A*Sigmap*Omega*Rp0**3)
-    # print(M_drift_mig/3e-6)  # convert to Earth masses
-    Sigmap = sigma0*(r_range**-sigmaslope)*np.exp(-r_range/Rc)
+    # St = 0.01                            # pebble Stokes number
+    # # u_drift = dlogPdlogR*(hr0**2)*2*np.pi/(St+(1/St))   # in AU/yr
+    # # print(u_drift)
+    # a_pebble = 1*6.68e-14                # 1 cm pebble size in AU
+    # q = -2*f
+    # gamma = 5/3
+    # zeta = q - (gamma-1)*-sigmaslope
+    # Omega = np.sqrt(4*(np.pi**2)/(Rp0**3))
+    # # Sigmap = sigma0*(float(Rp0)**-sigmaslope)*np.exp(-Rp0/Rc)
+    # A = (-2.5-(1.7*q)+(-sigmaslope/10)+(1.1*(1.5+sigmaslope))+(7.9*zeta/gamma))
+    # # M_drift_mig = u_drift*((hr0*(Rp0**f))**2)*gamma/(2*A*Sigmap*Omega*Rp0**3)
+    # # print(M_drift_mig/3e-6)  # convert to Earth masses
+    # Sigmap = sigma0*(r_range**-sigmaslope)*np.exp(-r_range/Rc)
 
-    M_drift_mig = (gamma*St/(2*A))*((hr0*(r_range**f))**4)*dlogPdlogR/(Sigmap*(r_range**2))
+    # M_drift_mig = (gamma*St/(2*A))*((hr0*(r_range**f))**4)*dlogPdlogR/(Sigmap*(r_range**2))
     # M_drift_mig = (np.pi*(rhodust*1.683e6)*gamma*a_pebble/(4*A))*((hr0*(r_range**f))**4)*dlogPdlogR/((Sigmap*r_range)**2)
-    M_drift_mig = np.abs(M_drift_mig)/3e-6    # convert to Earth masses
+    # M_drift_mig = np.abs(M_drift_mig)/3e-6    # convert to Earth masses
     # ax0.plot(r_range,  M_drift_mig, c='mediumblue')
 
     # Calculate location of inner damping zone
@@ -120,7 +120,7 @@ def plot_Mp_regimes():
         ax0.scatter(Rp0, mp, marker='o', color='k')
     
     ax0.set_xlim(1,70)
-    ax0.set_ylim(0,180)
+    ax0.set_ylim(0,170)
     ax0.set_xlabel("$R_{{p}}$ (AU)")
     ax0.set_ylabel("$M_{{p}} (M_\oplus)$")
     fig0.tight_layout()
@@ -404,10 +404,10 @@ if __name__ == "__main__":
         for s in style:
             plt.style.use([f"../styles/{s}.mplstyle"])
 
-    plot_tdrift()
+    # plot_tdrift()
     # plot_tgrowth()
     # plot_tmigration()
-    # plot_Mp_regimes()
+    plot_Mp_regimes()
 
     if plot_window:
         plt.show()
