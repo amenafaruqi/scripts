@@ -7,24 +7,7 @@ plt.style.use('default')
 import warnings
 warnings.filterwarnings("ignore")
 
-# ======================= Misc functions ==============================
-def sigma_at_r(r=10, t_index=-1):
-    r_in_range = radii[(r*0.8<radii) & (radii<r*1.2)]                # values of r within % of chosen radius
-    mini = np.where(radii == np.min(r_in_range))[0][0]
-    maxi = np.where(radii == np.max(r_in_range))[0][0]
-    sigma_in_r_range = sigma_dust_1D[t_index, :, mini:maxi]         # for chosen timestep, all grain sizes
-    sigma_at_r0 = np.median(sigma_in_r_range, axis=1)                # avg sigma at chosen radius for all grain sizes
-    return sigma_at_r0, mini, maxi
-
-def calculate_e(r, v):
-    mu = 1                   # in code units, otherwise mu=4pi**2 
-    h = np.cross(r, v)
-    e_vec = (np.cross(v, h)/mu) - (r/np.linalg.norm(r))   # vector e
-    e = np.linalg.norm(e_vec)
-    return e
-
-
-
+# -------------- PLOTTING FUNCTIONS ----------------
 # ======================= Dust Contour Plots ==============================
 
 def plot_dust_contours():
@@ -135,31 +118,6 @@ def plot_gas_sigma():
     fig.savefig(f"{plots_savedir}/{sim}_sigmagas.png")
 
 
-# ================== Dust sigma evolution over time (for different a) ===================
-
-def plot_sigma_at_r(rs=[25]):
-    for r in rs:
-        fig, ax = plt.subplots(1, dpi=150)
-        ax.set_prop_cycle(color=colour_cycler)
-        print(f"Plotting dust surface density at R={r}AU....")
-
-        for i,t in enumerate(timesteps):
-            c = next(ax._get_lines.prop_cycler)['color']
-            sigma_at_rau, mini, maxi  = sigma_at_r(r, i)
-            ax.plot(a, sigma_at_rau, linestyle='solid', label=f"t={round(t,3)} Myr", color=c)
-            # a_frag_t = np.median(a_frag[i,mini:maxi])
-            # a_drift_t = np.median(a_drift[i,mini:maxi])
-            # a1 = np.min(a_frag_t, a_drift_t)
-            # ax.axvline(a1, linestyle='dashed', color=c)
-
-        ax.set_xlim(np.min(a), np.max(a))
-        ax.set_xlabel("a (cm)")
-        ax.set_ylabel(f"$\Sigma$ at {r}AU (g/cm$^{{2}}$)")
-        ax.set_xscale("log")
-        ax.set_yscale("log")
-        ax.legend()
-        fig.savefig(f"{plots_savedir}/{sim}_sigmaatr.png")
-
 # ================= Total dust mass evolution over time  ===============
 
 def plot_total_dust_mass():
@@ -190,6 +148,8 @@ def plot_total_dust_mass():
     fig.savefig(f"{plots_savedir}/{sim}_Mdust.png")
 
 
+# ============ Dust mass evolution in individual bins =============
+
 def plot_dust_mass():
     fig = plt.figure(figsize=(17,16))
     print("Plotting dust mass by grain size....")
@@ -217,16 +177,14 @@ def plot_dust_mass():
             elif planets:
                 tlabel = f"{int(round(planet_orbits[i], 0))} orbits"
             
-            ax.plot(radii, np.log10(dust_mass_tot_binned/dust_mass_tot_binned0), label=tlabel, color=color)
+            ax.plot(radii, np.log10(dust_mass_tot_binned), label=tlabel, color=color)
 
             if planets:
                 for rp in rps[:,i]:
                     ax.axvline(rp, linestyle='dashed', color=color)
             
         if not n%psizex:
-            ax.set_ylabel(f"log[$M_{{dust}}/M_{{dust,0}}$]")
-        else:
-            ax.set_yticks([])
+            ax.set_ylabel(f"log ($M_{{dust}}/M_\oplus$)")
         if n < psizex and n_size_decades > psizex:
             ax.set_xticks([])
         else:
@@ -245,6 +203,8 @@ def plot_dust_mass():
     fig.savefig(f"{plots_savedir}/{sim}_dustmass.png")
 
 
+# ============ Dust mass evolution over time per size decade =============
+
 def plot_dust_mass_per_bin(bin0=-12,bin1=-1):
     print("Plotting dust mass by size bin....")
     fig, ax = plt.subplots(nrows=3, ncols=4, figsize=(17,16))
@@ -262,14 +222,14 @@ def plot_dust_mass_per_bin(bin0=-12,bin1=-1):
 
             color = next(ax[s]._get_lines.prop_cycler)['color']
             tlabel = f"{round(t, 3)} Myr"
-            ax[s].plot(radii, np.log10(dust_mass_bin/dust_mass_bin0), label=tlabel, color=color)
+            ax[s].plot(radii, np.log10(dust_mass_bin), label=tlabel, color=color)
 
             if planets:
                 for rp in rps[:,i]:
                     ax[s].axvline(rp, linestyle='dashed', color=color)
 
         if not s%4:
-            ax[s].set_ylabel(f"")
+            ax[s].set_ylabel(f"log ($M_{{dust}}/M_\oplus$)")
     
         if s < 4:
             ax[s].set_xticks([])
@@ -285,10 +245,12 @@ def plot_dust_mass_per_bin(bin0=-12,bin1=-1):
     fig.savefig(f"{plots_savedir}/{sim}_dustmassperbin.png")
 
 
+# ============ n(a) vs a  at each timestep ===============
+
 def plot_dust_size_distribution():
     fig, ax = plt.subplots(1, dpi=150)
     ax.set_prop_cycle(color=colour_cycler)
-    print("Plotting dust mass distribution....")
+    print("Plotting dust size distribution....")
 
     for i, t in enumerate(timesteps):
         if not p_orbits:
@@ -297,12 +259,24 @@ def plot_dust_size_distribution():
             tlabel = f"{int(round(planet_orbits[i], 0))} orbits"
 
         color = next(ax._get_lines.prop_cycler)['color']
-        dust_mass_in_bin = np.sum(dust_mass[i], axis=1)
-        ax.scatter(a, dust_mass_in_bin, label=tlabel, color=color)
-        ax.plot(a, dust_mass_in_bin, label=tlabel, color=color)
+
+        # sum dust masses over all radii at a chosen timestep
+        m_total = np.sum(dust_mass[i], axis=1)   # dimensions: len(a)
+
+        # mass of a single dust grain of size a
+        m_a = (4*np.pi/3)*rhodust*(a**3)
+
+        # number of grains = total mass/mass of one grain
+        n_dust = m_total/m_a
+
+        ax.plot(a, n_dust, label=tlabel, color=color)
+
+    # Plot MRN size distribution (Mathis et al. 1977)
+    n_mrn = a**(-3.5)
+    ax.plot(a, n_mrn, color='k', label="MRN")
 
     ax.set_xlabel("a (cm)")
-    ax.set_ylabel("$M_{{dust}} (g/cm^{{2}})$")
+    ax.set_ylabel("n(a)")
     ax.set_xscale("log")
     ax.set_yscale("log")
     ax.legend()

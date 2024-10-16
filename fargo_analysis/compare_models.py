@@ -2,7 +2,9 @@ import numpy as np
 import matplotlib.pyplot as plt
 import matplotlib
 from matplotlib.lines import Line2D
+from matplotlib.ticker import ScalarFormatter, NullFormatter
 import argparse
+import re
 plt.style.use('default')
 
 # ====================== Gas Sigma ========================
@@ -64,7 +66,13 @@ def overlay_dust_mass(fig, ax, radii, dust_mass, model_num=0):
         dustsizes = [np.format_float_positional(d,3,fractional=False,unique=True) for d in dustsizes]
         ax[subps[n]].set_title(f"{dustsizes[0]}-{dustsizes[1]}cm")
         ax[subps[n]].set_xscale("log")
-        ax[subps[n]].set_xlim(10, 100)
+        ax[subps[n]].set_xticks([10,20,40,80])
+        ax[subps[n]].get_xaxis().set_major_formatter(matplotlib.ticker.ScalarFormatter())
+        ax[subps[n]].xaxis.set_minor_formatter(NullFormatter())
+        # ax[subps[n]].ticklabel_format(axis='x',style="plain")
+        # ax[subps[n]].set_yscale("log")
+        # ax[subps[n]].set_ylim(0, 250)
+        ax[subps[n]].set_xlim(10, 80)
 
     
     for m in range(model_num+1):
@@ -75,16 +83,16 @@ def overlay_dust_mass(fig, ax, radii, dust_mass, model_num=0):
             mlabel = "migrating"
         legend_elements.append(Line2D([0], [0], color='k', linestyle=linestyles[m], label=f"{mlabel}"))
 
-    ax["A"].set_ylabel(f"log[$M_{{dust}}/M_{{dust,0}}$]")
-    ax["D"].set_ylabel(f"log[$M_{{dust}}/M_{{dust,0}}$]")
-    ax["F"].set_ylabel(f"log[$M_{{dust}}/M_{{dust,0}}$]")
+    ax["A"].set_ylabel(f"$M_{{dust}}/M_{{dust,0}}$")
+    ax["D"].set_ylabel(f"$M_{{dust}}/M_{{dust,0}}$")
+    ax["F"].set_ylabel(f"$M_{{dust}}/M_{{dust,0}}$")
     ax["A"].set_xlabel("R (AU)")
     ax["B"].set_xlabel("R (AU)")
     ax["C"].set_xlabel("R (AU)")
     ax["F"].set_xlabel("R (AU)")
     ax["G"].set_xlabel("R (AU)")
-    ax["D"].set_xticks([])
-    ax["E"].set_xticks([])
+    # ax["D"].set_xticks([])
+    # ax["E"].set_xticks([])
     ax["G"].legend(loc="upper right", handles=legend_elements)
     fig.tight_layout()
 
@@ -117,53 +125,77 @@ def overlay_total_dust_mass(fig, ax, radii, dust_mass_tot, model_num=0):
     fig.tight_layout()
 
 
-# ================= Plot dust mass by St =====================
-def plot_st(fig, ax, radii, a, model_num=0):
-    print("Plotting St of select grain sizes....")
-    n_stokes = 12
-    size_bins = np.arange(ndust-n_stokes,ndust)
+# ================= Plot final dust mass in 10-100cm bin =====================
 
-    for s,size_bin in enumerate(size_bins):
-        ax = ax.flatten()
-        ax[s].set_prop_cycle(color=colour_cycler)
-        a_bin = a[size_bin]   # physical size of grain at chosen St
-
-        legend_elements=[]
-        for i, t in enumerate(timesteps):
-            color = next(ax[s]._get_lines.prop_cycler)['color']
-            print("---------------------")
-            print(np.min(sigma_gas_1D[i]), np.max(sigma_gas_1D[i]))
-            print(a_bin, rhodust)
-            St_bin = np.pi*a_bin*rhodust/(2*sigma_gas_1D[i])
-            print(min(St_bin), max(St_bin))
-            tlabel = f"{round(t, 3)} Myr"
-            ax[s].plot(radii, St_bin, label=tlabel, color=color)
-            legend_elements.append(Line2D([0], [0], color=color, lw=2, label=f"{round(t, 3)} Myr"))
-
-            if planets:
-                for rp in rps[:,i]:
-                    ax[s].axvline(rp, linestyle='dashed', color=color)
-
-        for m in range(model_num+1):
-            sim = simdirs[m].split('models/')[-1]    # ignore full file path
-            legend_elements.append(Line2D([0], [0], color='k', linestyle=linestyles[m], label=f"{sim}"))
-
-
-        if not s%4:
-            ax[s].set_ylabel(f"St")
+def final_large_dust(fig, ax, radii, dust_mass, model_num=0):
+    n_size_decades = int(np.log10(maxgsize) - np.log10(mingsize))   # assumes min and max g size are the same for both models!
+    size_decades = np.split(np.arange(ndust), n_size_decades)
+    dust_mass_largest_bin = np.sum(dust_mass[-1,size_decades[-1],:], axis=0) # sum within bin, dimensions: nrad
     
-        if s < 4:
-            ax[s].set_xticks([])
-        else:
-            ax[s].set_xlabel("R (AU)")
+    c = colours[model_num]
+    sim = simdirs[model_num]
+    mlabel = "migrating"
+    if "stat" in sim:
+        mlabel = "stationary"
 
-        ax[s].set_title(f"{round(a_bin,2)} cm")
-        ax[s].set_xscale("log")
-        ax[s].legend(handles=legend_elements)
-        ax[s].set_xlim(min(radii), 60)
-        ax[s].set_ylim(0, 10)
+    x =  re.search("Mp\d+",simdirs[model_num])
+    planet_mass =  x.group()[2:]
+    ax.plot(radii, dust_mass_largest_bin, color=c, label=f"{planet_mass}$M_\oplus$ {mlabel}")
+    for rp in rps[:,-1]:
+        print(simdir, rp)
+        ax.axvline(rp, linestyle='dashed', color='k')
+
+    if model_num == len(simdirs)-1:
+        ax.legend(loc="lower right")
+        ax.set_xlabel("R (AU)")
+        ax.set_ylabel("$M_{{dust}} (M_\oplus)$")
+        ax.set_xscale("log")
+        ax.set_yscale("log")
+        ax.set_xlim(min(radii), max(radii))
+        fig.tight_layout()
+
+# ================= Plot final dust contours =====================
+def plot_final_contours(fig, radii, sigma_dust_1D, model_num=0):
+    R, A = np.meshgrid(radii, a)
+    levels = np.linspace(-18, 6, 13) 
+    plotsizey = int(len(simdirs)/plotsizex)+1
+                  
+    print("Plotting dust size contour maps....")
+    if model_num == 0:
+        fig.suptitle(f"t={timesteps[-1]}Myr")
+    ax = fig.add_subplot(plotsizey, plotsizex, model_num+1)
+    sigmas = sigma_dust_1D[i]
+    con = ax.contourf(R, A, np.log10(sigmas), cmap="Greys", levels=levels)
+    ax.set_ylim(np.min(a), np.max(a))
+    ax.set_xscale("log")
+    ax.set_yscale("log")
+    ax.plot(radii, a_St1[i], c='black', alpha=0.7, label="St=1")
+    ax.plot(radii, a_drift[i], c='deepskyblue', alpha=0.7, label="$a_{{drift}}$")
+    ax.plot(radii, a_frag[i], c='red', alpha=0.7, label="$a_{{frag}}$")
+    if planets:
+        for rp in rps[:,i]:
+            ax.axvline(rp, linestyle='dashed', color='black')
+        
+    if not model_num%plotsizex:
+        ax.set_ylabel("a (cm)")
+    else:
+        ax.set_yticks([])
+    if model_num < plotsizex and len(simdirs) > plotsizex:
+        ax.set_xticks([])
+    else:
+        ax.set_xlabel("R (AU)")
+    sim = simdir.split("models/")[-1]
+    ax.set_title(sim)
 
     fig.tight_layout()
+    
+    if model_num == len(simdirs)-1:
+        fig.subplots_adjust(right=0.89, hspace=0.3)
+        # cbar_ax = fig0.add_axes([0.91, 0.53, 0.02, 0.4])
+        cax = fig.add_axes([ax.get_position().x1+0.01,ax.get_position().y0,0.02,ax.get_position().height])
+        fig.colorbar(con, cax=cax, orientation="vertical", label="log$[\Sigma (g/cm^{{2}})]$")
+        ax.legend(loc="upper right")
+
 
 # =================================================================
 
@@ -180,9 +212,9 @@ if __name__ == "__main__":
     parser.add_argument('-style', metavar='style', type=str, nargs="*", default=["publication"], help="style sheet to apply to plots")
 
     args = parser.parse_args()
-    outputs = args.o
+    o = args.o
     plots = args.plots
-    simdirs = [f"/home/astro/phrkvg/simulations/{sim}/" for sim in args.simdirs]
+    simdirs = args.simdirs
     planets = args.noplanet
     grog = args.nogrog
     plot_window = args.plot_window
@@ -190,7 +222,8 @@ if __name__ == "__main__":
     style = args.style
 
     cm = plt.get_cmap('gist_rainbow')
-    colour_cycler = [cm(1.*i/5) for i in range(0,len(outputs)+1)]
+    colour_cycler = [cm(1.*i/5) for i in range(0,len(o)+1)]
+    colours = plt.rcParams["axes.prop_cycle"].by_key()["color"]
     linestyles = ['solid', 'dashdot', 'dotted']
 
     if plot_window:
@@ -203,10 +236,14 @@ if __name__ == "__main__":
     # =================== Define figures and axes ========================
     if "gs" in plots:
         fig_gas_sigma, ax_gas_sigma = plt.subplots(figsize=(6,5))
+    if "dcon" in plots:
+        fig_con = plt.figure(figsize=(17,16))
     if "dm" in plots:
         fig_dust_mass, ax_dust_mass = plt.subplot_mosaic("AABBCC;DDDEEE;FFFGGG", figsize=(17,16))
     if "dmt" in plots:
         fig_dm_tot, ax_dm_tot = plt.subplots(figsize=(6,5))
+    if "dmf" in plots:
+        fig_dm_f, ax_dm_f = plt.subplots(figsize=(6,5))
     if "st" in plots:
         fig_st, ax_st = plt.subplots(nrows=3, ncols=4, figsize=(17,16))
 
@@ -218,7 +255,19 @@ if __name__ == "__main__":
         params_dict = {}
 
         plotsizex = 3
-        plotsizey = int(len(outputs)/plotsizex)+1
+        plotsizey = int(len(o)/plotsizex)+1
+
+        if (("Mp120" in simdir or "Mp160" in simdir) and "lowres" in simdir) or ("Mp25" in simdir and "test" in simdir):
+            outputs = np.array(o)/5
+            print("blah1")
+            print(outputs)
+        elif "Mp160" in simdir and "final" in simdir:
+            outputs = np.array(o)*2
+            print("blah2")
+        else:
+            outputs = np.array(o)
+        outputs = outputs.astype(int)
+        print(outputs)
 
         # Load model params into dict
         param_lines = open(params_file).readlines()
@@ -254,6 +303,7 @@ if __name__ == "__main__":
             for n in range(num_planets):
                 planet_data = np.unique(np.loadtxt(f"{simdir}/planet{n}.dat"), axis=0)
                 xp, yp = planet_data[outputs][:,1], planet_data[outputs][:,2]
+                # xp, yp = planet_data[np.array(outputs)*5][:,1], planet_data[np.array(outputs)*5][:,2]
                 # print(xp,yp)
                 rps[n] = ((xp**2) + (yp**2))**0.5
 
@@ -287,12 +337,12 @@ if __name__ == "__main__":
         gas_mass = np.zeros((len(outputs), nrad))
 
         for i,t in enumerate(outputs):
-            gasfile = f"gasdens{int(t)}.dat" 
+            gasfile = f"/gasdens{int(t)}.dat" 
             sigma_gas[i] = np.fromfile(simdir+gasfile).reshape(nrad,nphi)/(1.125e-7)         # convert back to g/cm2
             n_grains = np.zeros((ndust))
             if grog:
                 for n in np.arange(ndust):
-                    dust_file = f"dustdens{n}_{int(t)}.dat"
+                    dust_file = f"/dustdens{n}_{int(t)}.dat"
                     sigma_dust[i,n] = np.fromfile(simdir+dust_file).reshape(nrad,nphi)/(1.125e-7)
             # if s == 1:
             #     for g in range(len(sav_sigma[0,:])):
@@ -304,6 +354,8 @@ if __name__ == "__main__":
         # sigma_dust_sum_1D = avgdustdens_azimsum/nphi                  # dimensions: (noutputs, nrad)
         
         for i,t in enumerate(outputs):
+            if "Mp60" in simdir:
+                t = t*5
             # dust mass for dust of size a as a function of r
             dust_mass[i,:,:] = [2*np.pi*radii*sigma_dust_1D[i,n,:]*delta_r*333030 for n in range(ndust)]
             gas_mass[i,:] = 2*np.pi*radii*sigma_gas_1D[i,:]*delta_r*333030      # convert from Msun to Mearth
@@ -321,46 +373,54 @@ if __name__ == "__main__":
         #         v_dust[i,n,0] = np.fromfile(simdir+dust_file_x).reshape(nrad,nphi)   # vx
         #         v_dust[i,n,1] = np.fromfile(simdir+dust_file_y).reshape(nrad,nphi)   # vy
 
-        # if grog:
-        #     uf = 10                                               # fragmentation velocity
-        #     hr = hr0*(radii**f)                                   # aspect ratio
-        #     cs = hr*(((2e30)*(6.67e-11))/(radii*1.5e11))**0.5     # [m/s]
-        #     b = (uf**2/alpha)*(hr**-2)*(radii*1.5e11)/((2e30)*(6.67e-11)) # dimensionless
-        #     p = (sigma_gas_1D*(cs**2)/((2*np.pi)**0.5))*(hr**-1)*((radii*1.5e11)**-1)
-        #     pad = np.empty((len(timesteps), 1))*np.nan
-        #     gamma = (radii/p)*np.abs(np.append(np.diff(p)/np.diff(radii), pad, axis=1))
-        #     C = 2/(np.pi*hr)
-        #     a_St1 = (2/np.pi)*(sigma_gas_1D/rhodust)              # plot St=1 line
+        if grog:
+            uf = 10                                               # fragmentation velocity
+            hr = hr0*(radii**f)                                   # aspect ratio
+            cs = hr*(((2e30)*(6.67e-11))/(radii*1.5e11))**0.5     # [m/s]
+            b = (uf**2/alpha)*(hr**-2)*(radii*1.5e11)/((2e30)*(6.67e-11)) # dimensionless
+            p = (sigma_gas_1D*(cs**2)/((2*np.pi)**0.5))*(hr**-1)*((radii*1.5e11)**-1)
+            pad = np.empty((len(timesteps), 1))*np.nan
+            gamma = (radii/p)*np.abs(np.append(np.diff(p)/np.diff(radii), pad, axis=1))
+            C = 2/(np.pi*hr)
+            a_St1 = (2/np.pi)*(sigma_gas_1D/rhodust)              # plot St=1 line
 
-        #     # size of largest grains in a fragmentation-dominated distribution
-        #     # a_frag = 100*(2/(3*np.pi))*((uf**2)/(rhodust*1000*alpha))*(hr**-2)*(sigma_gas_1D*10/((2e30)*(6.67e-11)))*(radii*1.5e11)  # from Birnstiel+2012
-        #     a_frag = (sigma_gas_1D/rhodust)*(3-(9-4*(b**2))**0.5)/(np.pi*b)
-        #     # print(np.min(np.sqrt(9-4*(b**2))),np.max(9-4*(b**2)))
+            # size of largest grains in a fragmentation-dominated distribution
+            # a_frag = 100*(2/(3*np.pi))*((uf**2)/(rhodust*1000*alpha))*(hr**-2)*(sigma_gas_1D*10/((2e30)*(6.67e-11)))*(radii*1.5e11)  # from Birnstiel+2012
+            a_frag = (sigma_gas_1D/rhodust)*(3-(9-4*(b**2))**0.5)/(np.pi*b)
+            # print(np.min(np.sqrt(9-4*(b**2))),np.max(9-4*(b**2)))
 
-        #     # size of largest grains in a drift-dominated distribution
-        #     # a_drift = 100*(2/(rhodust*1000*np.pi))*(hr**-2)*np.sum(sigma_dust_1D, axis=1)*10*(2/3)   # from Birnstiel+2012 (assume gamma=3/2)
-        #     a_drift = (2/np.pi)*(np.sum(sigma_dust_1D, axis=1)/(rhodust*gamma*hr**2))    
+            # size of largest grains in a drift-dominated distribution
+            # a_drift = 100*(2/(rhodust*1000*np.pi))*(hr**-2)*np.sum(sigma_dust_1D, axis=1)*10*(2/3)   # from Birnstiel+2012 (assume gamma=3/2)
+            a_drift = (2/np.pi)*(np.sum(sigma_dust_1D, axis=1)/(rhodust*gamma*hr**2))    
     
         if "gs" in plots:
             overlay_gas_sigmas(fig_gas_sigma, ax_gas_sigma, radii, sigma_gas_1D, s)
+        if "dcon" in plots:
+            plot_final_contours(fig_con, radii, sigma_dust_1D, s)
         if "dm" in plots:
             overlay_dust_mass(fig_dust_mass, ax_dust_mass, radii, dust_mass, s)
         if "dmt" in plots:
             overlay_total_dust_mass(fig_dm_tot, ax_dm_tot, radii, dust_mass_tot, s)
+        if "dmf" in plots:
+            final_large_dust(fig_dm_f, ax_dm_f, radii, dust_mass, s)
         if "st" in plots:
             plot_st(fig_st, ax_st, radii, a, s)
     
     # ======================== Generate Plots ==========================
     print(f"-------------------\nPlotting comparison plots for {simdirs}\n=============")
 
-    sim = simdirs[0].split("models/")[-1].split("_")[0]    # ignore full file path
+    sim = simdirs[0].split("simulations/")[-1].split("_")[0]    # ignore full file path
     print(sim)
     if "gs" in plots:
         fig_gas_sigma.savefig(f"{plots_savedir}/{sim}_comparison_gassigma.png")
+    if "dcon" in plots:
+        fig_con.savefig(f"{plots_savedir}/comparison_contour.png")
     if "dm" in plots:
         fig_dust_mass.savefig(f"{plots_savedir}/{sim}_comparison_graindist.png")
     if "dmt" in plots:
         fig_dm_tot.savefig(f"{plots_savedir}/{sim}_comparison_Mdust.png")
+    if "dmf" in plots:
+        fig_dm_f.savefig(f"{plots_savedir}/comparison_largedust.png")
     if "st" in plots:
         fig_st.savefig(f"{plots_savedir}/{sim}_comparison_St.png")
 
