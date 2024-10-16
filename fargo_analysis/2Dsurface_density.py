@@ -102,10 +102,10 @@ def plot_surf_dens(wd,simdir,dustnums,outputnumber,lin_scaling,cbmin,cbmax,plot_
             im.set_rasterized(True)
             cbar_label = 'log $\Sigma$ [$g/cm^{2}$]'
 
-        ax = plt.gca()
-        ax.set_aspect('equal')
         cbar = plt.colorbar()
         cbar.set_label(cbar_label)
+        ax = plt.gca()
+        ax.set_aspect('equal')
         if scalebar:
             sb = AnchoredSizeBar(ax.transData,
                                 50, '50 AU', 'lower center', 
