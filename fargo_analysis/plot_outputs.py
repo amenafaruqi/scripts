@@ -118,6 +118,79 @@ def plot_gas_sigma():
     fig.savefig(f"{plots_savedir}/{sim}_sigmagas.png")
 
 
+# ================== Dust Sigma Profile ===================
+
+def plot_dust_sigma():
+    fig = plt.figure(figsize=(17,16))
+    print("Plotting dust surface density by grain size....")
+
+    n_size_decades = int(np.log10(maxgsize) - np.log10(mingsize))  # e.g. 7
+    size_decades = np.split(np.arange(ndust), n_size_decades)  # e.g. 70/7 = 10
+    sigma_dust_binned = np.zeros((len(outputs), n_size_decades, nrad))
+    psizex = 3
+    psizey = int(n_size_decades/psizex)+1
+
+    # Plot sigma dust for each size decade
+    for n, size_decade in enumerate(size_decades):
+        ax = fig.add_subplot(psizey, psizex, n+1)
+        ax.set_prop_cycle(color=colour_cycler)
+
+        for i, t in enumerate(timesteps):
+            sigma_dust_binned = np.sum(sigma_dust_1D[i,size_decade,:], axis=0)
+            color = next(ax._get_lines.prop_cycler)['color']
+
+            if not p_orbits:
+                tlabel = f"{round(t, 3)} Myr"
+            elif planets:
+                tlabel = f"{int(round(planet_orbits[i], 0))} orbits"
+            
+            ax.plot(radii, sigma_dust_binned, label=tlabel, color=color)
+
+            if planets:
+                for rp in rps[:,i]:
+                    ax.axvline(rp, linestyle='dashed', color=color)
+            
+        if not n%psizex:
+            ax.set_ylabel("$\Sigma_{dust} (g/cm^{2})$")
+        if n < psizex and n_size_decades > psizex:
+            ax.set_xticks([])
+        else:
+            ax.set_xlabel("R (AU)")
+
+        dustsizes = [(10**n) * mingsize, (10**(n+1)) * mingsize]
+        dustsizes = [np.format_float_positional(d,3,fractional=False,unique=True) for d in dustsizes]
+        ax.set_title(f"{dustsizes[0]}-{dustsizes[1]}cm")
+        ax.set_xscale("log")
+        ax.set_yscale("log")
+        ax.set_xlim(min(radii), max(radii))
+
+    # Plot sigma dust for all grains summed
+    ax = fig.add_subplot(psizey, psizex, n+2)
+    ax.set_prop_cycle(color=colour_cycler)
+    for i, t in enumerate(timesteps):
+        if not p_orbits:
+            tlabel = f"{round(t, 3)} Myr"
+        elif planets:
+            tlabel = f"{int(round(planet_orbits[i], 0))} orbits"
+
+        color = next(ax._get_lines.prop_cycler)['color']
+        ax.plot(radii, sigma_dust_tot[i], label=tlabel, color=color)
+
+        if planets:
+            for rp in rps[:,i]:
+                ax.axvline(rp, linestyle='dashed', color=color)
+
+    ax.set_xlabel("R (AU)")
+    ax.set_xscale("log")
+    ax.set_yscale("log")
+    ax.legend()
+    ax.set_title("All Dust")
+    ax.set_xlim(np.min(radii), np.max(radii))
+
+    fig.tight_layout()
+    fig.savefig(f"{plots_savedir}/{sim}_sigmadust.png")
+
+
 # ================= Total dust mass evolution over time  ===============
 
 def plot_total_dust_mass():
@@ -501,6 +574,7 @@ if __name__ == "__main__":
 
     sigma_gas_1D = sigma_gas_azimsum/nphi                           # dimensions: (noutputs, nrad) 
     sigma_dust_1D = sigma_dust_azimsum/nphi                         # dimensions: (noutputs, ndust, nrad)   
+    sigma_dust_tot = np.sum(sigma_dust_1D, axis=1)                     # dimensions: (noutputs, nrad)   
     # sigma_dust_sum_1D = avgdustdens_azimsum/nphi                  # dimensions: (noutputs, nrad)
     
     for i,t in enumerate(outputs):
@@ -525,7 +599,7 @@ if __name__ == "__main__":
                 v_gas[i,0] = np.fromfile(simdir+gas_file_x).reshape(nrad,nphi)       # vx
                 v_gas[i,1] = np.fromfile(simdir+gas_file_y).reshape(nrad,nphi)       # vy
 
-    if grog:
+    if "dcon" in plots and grog:
         uf = 10                                               # fragmentation velocity
         hr = hr0*(radii**f)                                   # aspect ratio
         cs = hr*(((2e30)*(6.67e-11))/(radii*1.5e11))**0.5     # [m/s]
@@ -571,7 +645,8 @@ if __name__ == "__main__":
             plot_dust_mass()
         if "dmassbin" in plots:
             plot_dust_mass_per_bin()
-        # plot_sigma_at_r([rps[0]+5])
+        if "dsig" in plots:
+            plot_dust_sigma()
 
     if plot_window:
         plt.show()
