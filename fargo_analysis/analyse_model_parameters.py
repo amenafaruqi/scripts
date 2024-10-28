@@ -7,7 +7,7 @@ plt.style.use('default')
 import warnings
 warnings.filterwarnings("ignore")
 
-# ======================= Plot Regimes for Gap-Opening ============================
+# ======================= Compute migration timescales ============================
 
 def calc_t_migration(mass, radius):
         hr = hr0*(radius**f)
@@ -20,9 +20,7 @@ def calc_t_migration(mass, radius):
         zeta = q - (gamma-1)*p
         Omega = np.sqrt(4*(np.pi**2)/(radius**3))
         Sigmap = sigma0*(float(radius)**-sigmaslope)*np.exp(-radius/Rc)     # assuming sigma profile is not changing!
-        # print(mass)
-        if p_crida_Rp > 1:     # type I migration regime
-            # print("Type I")
+        if p_crida_Rp > 1:     # type I migration regime if planet is not gap-opening
             Gamma = (-2.5-(1.7*q)+(p/10)+(1.1*(1.5-p))+(7.9*zeta/gamma))*((mass*3e-6/hr)**2)*Sigmap*(radius**4)*(Omega**2)/gamma
             tau = ((radius**2)*Omega*mass*3e-6/(2*Gamma))*1e-6    # convert to Myr
         else:                  # type II migration regime
@@ -30,18 +28,20 @@ def calc_t_migration(mass, radius):
             nu = alpha*Omega*(h**2)
             B = mass*3e-6/(np.pi*Sigmap*(radius**2))
             tau = ((radius**2)*(1+B)/nu)*1e-6
-            # print("Type II")
         return tau
 
 
+# ======================= Plot Regimes for Gap-Opening ============================
+
 def plot_Mp_regimes():
+    print("Plotting mass regimes....")
+
     mps = np.array([12, 25, 60, 120, 160]) 
-    # mps = np.array([12,60,120])
     fig0,ax0 = plt.subplots(figsize=(12,8))
     m_range = np.linspace(0,200,50)
     r_range = np.linspace(0,200,201)
 
-    # Plot pebble isolation criterion (eq 11 from Bitsch+2018)
+    # Plot pebble isolation criterion (eq. 26 from Bitsch+2018)
     hr1d = hr0*(r_range**f)
     dlogPdlogR = f - sigmaslope - 2     # taken from eq. 9 from Bitsch et al. 2018, accounting for their s being -ve. 
     f_fit = ((hr1d/0.05)**3)*(0.34*(np.log10(0.001)/np.log10(alpha))**4 + 0.66)*(1-((dlogPdlogR+2.5)/6))
@@ -53,16 +53,16 @@ def plot_Mp_regimes():
     ax0.fill_between(r_range, M_iso, 200, color='yellow', alpha=0.55)
     ax0.fill_between(r_range, M_iso, 0, color='orangered', alpha=0.73)
     
-    # alpha_St = np.array([0.001, 0.1])
-    # clrs = ["dotted", "dashdot"]
-    # for ai,a in enumerate(alpha_St):
-    #     M_iso = 25*f_fit
-    #     Pi_crit = a/2
-    #     Lambda = 0.00476/f_fit
-    #     M_iso += Pi_crit/Lambda                  # PIM considering diffusion
-    #     ax0.plot(r_range, M_iso, linestyle=clrs[ai], label=f"St = {0.001/a}", color="dodgerblue")
+    # Plot PIM for different alpha/St values
+    alpha_St = np.array([0.001, 0.1])
+    clrs = ["dotted", "dashdot"]
+    for ai,a in enumerate(alpha_St):
+        M_iso = 25*f_fit
+        Pi_crit = a/2
+        Lambda = 0.00476/f_fit
+        M_iso += Pi_crit/Lambda                  # PIM considering diffusion
+        ax0.plot(r_range, M_iso, linestyle=clrs[ai], label=f"St = {0.001/a}", color="dodgerblue")
 
-    ax0.legend(facecolor='grey', framealpha=0.1)
     # Plot gap-opening criterion region (Crida et al. 2006)
     Ms, Rs = np.meshgrid(m_range, r_range)
     hr = hr0*(Rs**f)
@@ -75,34 +75,28 @@ def plot_Mp_regimes():
     dt = 0.1     # timestep to recalculate planet's location
 
     # Plot radius where dust drift velocity = planet migration velocity
+    St = 0.01                            # pebble Stokes number
+    q = -2*f
+    gamma = 5/3
+    zeta = q - (gamma-1)*-sigmaslope
+    Omega = np.sqrt(4*(np.pi**2)/(Rp0**3))
+    Sigmap = sigma0*(float(Rp0)**-sigmaslope)*np.exp(-Rp0/Rc)
+    A = (-2.5-(1.7*q)+(-sigmaslope/10)+(1.1*(1.5+sigmaslope))+(7.9*zeta/gamma))
+    Sigmap = sigma0*(r_range**-sigmaslope)*np.exp(-r_range/Rc)
 
-    # St = 0.01                            # pebble Stokes number
-    # # u_drift = dlogPdlogR*(hr0**2)*2*np.pi/(St+(1/St))   # in AU/yr
-    # # print(u_drift)
-    # a_pebble = 1*6.68e-14                # 1 cm pebble size in AU
-    # q = -2*f
-    # gamma = 5/3
-    # zeta = q - (gamma-1)*-sigmaslope
-    # Omega = np.sqrt(4*(np.pi**2)/(Rp0**3))
-    # # Sigmap = sigma0*(float(Rp0)**-sigmaslope)*np.exp(-Rp0/Rc)
-    # A = (-2.5-(1.7*q)+(-sigmaslope/10)+(1.1*(1.5+sigmaslope))+(7.9*zeta/gamma))
-    # # M_drift_mig = u_drift*((hr0*(Rp0**f))**2)*gamma/(2*A*Sigmap*Omega*Rp0**3)
-    # # print(M_drift_mig/3e-6)  # convert to Earth masses
-    # Sigmap = sigma0*(r_range**-sigmaslope)*np.exp(-r_range/Rc)
-
-    # M_drift_mig = (gamma*St/(2*A))*((hr0*(r_range**f))**4)*dlogPdlogR/(Sigmap*(r_range**2))
-    # M_drift_mig = (np.pi*(rhodust*1.683e6)*gamma*a_pebble/(4*A))*((hr0*(r_range**f))**4)*dlogPdlogR/((Sigmap*r_range)**2)
-    # M_drift_mig = np.abs(M_drift_mig)/3e-6    # convert to Earth masses
-    # ax0.plot(r_range,  M_drift_mig, c='mediumblue')
+    M_drift_mig = (gamma*St/(2*A))*((hr0*(r_range**f))**4)*dlogPdlogR/(Sigmap*(r_range**2))
+    M_drift_mig = np.abs(M_drift_mig)/3e-6    # convert to Earth masses
+    ax0.plot(r_range,  M_drift_mig, c='mediumblue', label=f"$v_{{drift}}=v_{{mig}}$ for St={St}")
+    ax0.legend(facecolor='grey', framealpha=0.2)
 
     # Calculate location of inner damping zone
     Rid = (2*(rmin**-1.5)/3)**(-2/3)
 
     # Calculate migration timescale for each planet mass
     for mp in mps:
-        tau = calc_t_migration(mp, Rp0)     # tau at starting position of planet
+        tau = calc_t_migration(mp, Rp0)     # migration timescale at starting position of planet
         Rp_t = Rp0
-        R_21 = (2**(-2/3))*Rp_t
+        R_21 = (2**(-2/3))*Rp_t             # location  of  2:1 resonance
         t = 0
         while R_21 > Rid and t < 0.5:
             t += dt
@@ -111,14 +105,16 @@ def plot_Mp_regimes():
                 Rp_t = Rp_new
             R_21 = (2**(-2/3))*Rp_t              # location  of  2:1 resonance
             tau = calc_t_migration(mp, Rp_t)
-            # print(mp, " ---- \n")
-            # print(Rp_t, R_21)
-        ax0.scatter(Rp_t, mp, marker='<', color='k')
+        ax0.scatter(Rp_t, mp, marker='<', color='k')   # mark final location of planet
 
+        # Plot migration tracks of planet
         ax0.hlines(y=mp, xmin=Rp_t, xmax=Rp0, linewidth=2, color='k', linestyle='--')
-        # ax0.vlines(x=R_21, ymin=0, ymax = 200, linewidth=2, color='r', linestyle=':')
+        # Plot planet's initial location
         ax0.scatter(Rp0, mp, marker='o', color='k')
     
+    # Plot boundary of inner damping zone
+    ax0.vlines(x=Rid, ymin=0, ymax = 200, linewidth=2, color='crimson', linestyle=':')
+
     ax0.set_xlim(1,70)
     ax0.set_ylim(0,170)
     ax0.set_xlabel("$R_{{p}}$ (AU)")
@@ -127,7 +123,47 @@ def plot_Mp_regimes():
     fig0.savefig(f"{plots_savedir}/Mp_regimes.png", dpi=200)
 
 
-def plot_Dipierro_Mp_regimes():  #figure 2 from dipierro 2017 i.e. as function of Mp and a
+# ========== Plot individual PIM terms for different grain sizes ============
+
+def plot_Miso_vs_R():
+    print("Plotting isolation mass by grain size....")
+
+    fig0,ax0 = plt.subplots(figsize=(12,8))
+    r_range = np.linspace(0,200,201)
+
+    # term 1
+    hr1d = hr0*(r_range**f)
+    dlogPdlogR = f - sigmaslope - 2     # taken from eq. 9 from Bitsch et al. 2018, accounting for their s being -ve. 
+    f_fit = ((hr1d/0.05)**3)*(0.34*(np.log10(0.001)/np.log10(alpha))**4 + 0.66)*(1-((dlogPdlogR+2.5)/6))
+    M_iso = 25*f_fit
+    ax0.plot(r_range, M_iso, label="$M_{iso}^{\dag}$")
+
+    # term 2, introduced in eq. 26
+    grain_sizes = np.array([0.01,0.1,1])
+    sigma_g = sigma0*(r_range**-sigmaslope)/(1.125e-7)
+    Lambda = 0.00476/f_fit
+    for g in grain_sizes:
+        St = g*rhodust*np.pi/(2*sigma_g)
+
+        Pi_crit = alpha/(2*St)
+        M_iso_newterm = Pi_crit/Lambda                  # PIM considering diffusion
+        ax0.plot(r_range, M_iso_newterm, label=f"$\Pi/\lambda$, a={g}cm")
+        c = plt.gca().lines[-1].get_color()
+        ax0.plot(r_range, M_iso+M_iso_newterm, label=f"$M_{{iso}}$, a={g}cm", linestyle="dashed", color=c, alpha=0.7)
+
+    ax0.legend()
+    ax0.set_xlim(1,180)
+    ax0.set_ylim(0,100)
+    ax0.set_xlabel("$R_{{p}}$ (AU)")
+    ax0.set_ylabel("$M_{iso} (M_\oplus)$")
+    fig0.savefig(f"{plots_savedir}/analytics/Miso.png", dpi=200)
+
+
+# ================ Plot mass regimes from Dipierro + 2017 ====================
+
+def plot_Dipierro_Mp_regimes():  # figure 2 from dipierro 2017 i.e. as function of Mp and a
+    print("Plotting Dipierro mass regimes....")
+
     hr = hr0*(Rp**f)                                   # aspect ratio at R=Rp
     factor = 0.4                                       # can be 0.1 (Rafikov+ 2012), 0.15 (Lin+ 1979), 0.4 (Goldreich+ 1979)
     Mp_th = 3*((hr)**3)                                # Mp in solar masses
@@ -145,9 +181,9 @@ def plot_Dipierro_Mp_regimes():  #figure 2 from dipierro 2017 i.e. as function o
 
     ax0.set_xlim(1e-1,1e2)
     ax0.set_ylim(1e-6,1e-2)
-    # ax0.plot(St,Mp_dustonly, color="red")
-    # ax0.axhline(Mp_gap, color="green")
-    # ax0.axhline(Mp_lim, color="skyblue")
+    ax0.plot(St,Mp_dustonly, color="red")
+    ax0.axhline(Mp_gap, color="green")
+    ax0.axhline(Mp_lim, color="skyblue")
     ax0.fill_between(St, Mp_dustonly, 1e-2, color="red")
     ax0.fill_between(St, Mp_lim, 1e-2, color="skyblue")
     ax0.fill_between(St, Mp_gap, 1e-2, color="green")
@@ -169,12 +205,14 @@ def plot_Dipierro_Mp_regimes():  #figure 2 from dipierro 2017 i.e. as function o
     secax_y.set_ylabel("$M_{p}/M_\oplus$")
     secax_y.set_yscale("log")
 
-    fig0.savefig(f"{plots_savedir}/{sim}_Mpregimes.png")
+    fig0.savefig(f"{plots_savedir}/Dipierro_regimes.png")
 
 
 # ======================= Plot Drift Timescale ============================
 
 def plot_tdrift(): #as function of R and a
+    print("Plotting drift timescale....")
+
     A,R = np.meshgrid(a,radii)
     hr = hr0*(R**f)                                   # aspect ratio
     cs = hr*(((2e30)*(6.67e-11))/(R*1.5e11))**0.5     # [m/s]
@@ -184,8 +222,7 @@ def plot_tdrift(): #as function of R and a
     # tau_drift = ((2/(np.pi*rhodust))*(np.dot((radii*sigma_gas_azimsum/(gamma*hr*cs)).reshape(nrad,1), a.reshape(1,ndust))*1.5e11))*3.17e-14    # drift timescale in Myr
     fig,ax = plt.subplots(figsize=(11,6))
     levels = np.linspace(-6, 6, 13)                   
-    print("Plotting drift timescale....")
-    sigma_gas_1D_rep = np.tile(sigma_gas_1D, ndust).reshape(nrad,ndust)
+    sigma_gas_1D_rep = np.tile(sigma_gas_1D, ndust).reshape(nrad,ndust)  # repeat sigma gas for each dust size for ease of calculation
 
     tau_drift = (3.1688e-14)*(2/np.pi)*(sigma_gas_1D_rep/(rhodust*A))*(R*1.5e11/cs)/gamma
     print(tau_drift)
@@ -305,25 +342,25 @@ def plot_tgrowth():  #as function of R and a
 # ==========================================================================
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser(description='Generate 1D plots', prefix_chars='-')
+    parser = argparse.ArgumentParser(description='Analytic calculations based on model inputs (not outputs)', prefix_chars='-')
 
     parser.add_argument('-wd', metavar='wd', type=str, nargs=1, default=["/home/astro/phrkvg/simulations/lowres_models"],help="working directory containing simulations")
     parser.add_argument('-sim', metavar='sim', type=str, nargs=1, default=["Mp60_stat"] ,help="simulation directory containing output files")
-    parser.add_argument('-savedir', metavar='savedir', type=str, nargs=1, default="./images" ,help="directory to save plots to")
+    parser.add_argument('-savedir', metavar='savedir', type=str, nargs=1, default="./images/analytics" ,help="directory to save plots to")
     parser.add_argument('-plot_window', action="store_true")
+    parser.add_argument('-plots', metavar='plots',default=["mpreg"], type=str, nargs="*" ,help="plots to produce")
     parser.add_argument('-porbits', action="store_true")
     parser.add_argument('-style', metavar='style', type=str, nargs="*", default=["publication"] ,help="style sheet to apply to plots")
-    parser.add_argument('-o', metavar='output',default=[1], type=int, nargs=1 ,help="output to plot")
 
     args = parser.parse_args()
     wd = args.wd[0]
     sim = args.sim[0]
     simdir = f"{wd}/{sim}/"
     plot_window = args.plot_window
+    plots = args.plots
     plots_savedir = args.savedir
     p_orbits = args.porbits
     style = args.style
-    output = args.o[0]
 
     if plot_window:
         mpl.use('TkAgg') 
@@ -354,18 +391,13 @@ if __name__ == "__main__":
     rhodust = float(params_dict['RHO_DUST'])
     dgr = float(params_dict['DUST_TO_GAS'])
 
-    # planets_data = np.genfromtxt(f"{simdir}/planet.cfg").reshape(1,6)
-    # Rp = planets_data[:,1][0]
-    # Mp = planets_data[:,2][0]
-    # planet_period = (Rp**3)**0.5                 # orbital period of planet in yrs
-
     with open(f"{simdir}/planet.cfg", 'r') as pfile:
         num_planets = len(pfile.readlines()) - 5        # ignore 5 lines of headers
     
     rps = np.zeros((num_planets))
     for n in range(num_planets):
         planet_data = np.unique(np.loadtxt(f"{simdir}/planet{n}.dat"), axis=0)
-        xp, yp = planet_data[output][1], planet_data[output][2]
+        xp, yp = planet_data[0][1], planet_data[0][2]
         # print(xp,yp)
         rps[n] = ((xp**2) + (yp**2))**0.5
 
@@ -383,7 +415,7 @@ if __name__ == "__main__":
         radii = np.array([np.exp((np.log(r_cells[n])+np.log(r_cells[n+1]))/2) for n in range(len(r_cells)-1)])
     phis = np.array([(phi_cells[n]+phi_cells[n+1])/2 for n in range(len(phi_cells)-1)])
 
-    gasfile = f"gasdens{output}.dat" 
+    gasfile = f"gasdens1.dat" 
     sigma_gas = np.fromfile(simdir+gasfile).reshape(nrad,nphi)/(1.125e-7)         # convert back to g/cm2
     sigma_gas_azimsum = np.sum(sigma_gas, axis=1)                                 # sum over all phi   
     sigma_gas_1D = sigma_gas_azimsum/nphi                                         # dimensions: (nrad) 
@@ -392,7 +424,7 @@ if __name__ == "__main__":
     n_grains = np.zeros((ndust))
 
     for n in np.arange(ndust):
-        dust_file = f"dustdens{n}_{output}.dat" 
+        dust_file = f"dustdens{n}_1.dat" 
         sigma_dust[n] = np.fromfile(simdir+dust_file).reshape(nrad,nphi)/(1.125e-7)
         n_grains[n] = np.sum(sigma_dust[n])*3/(a[n]*rhodust*4)                  # number of dust grains at size a and time t
 
@@ -404,10 +436,16 @@ if __name__ == "__main__":
         for s in style:
             plt.style.use([f"../styles/{s}.mplstyle"])
 
-    # plot_tdrift()
-    # plot_tgrowth()
-    # plot_tmigration()
-    plot_Mp_regimes()
+    if "drift" in plots:
+        plot_tdrift()
+    if "growth" in plots:
+        plot_tgrowth()
+    if "mig" in plots:
+        plot_tmigration()
+    if "mpreg" in plots:
+        plot_Mp_regimes()
+    if "miso" in plots:
+        plot_Miso_vs_R()
 
     if plot_window:
         plt.show()
