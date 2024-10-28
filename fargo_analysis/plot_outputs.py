@@ -358,6 +358,41 @@ def plot_dust_size_distribution():
     fig.savefig(f"{plots_savedir}/{sim}_dustsizes.png")
 
 
+# ============ Gas pressure against R ==============
+
+def plot_gas_pressure():
+    fig, ax = plt.subplots(figsize=(6,5))
+    ax.set_prop_cycle(color=colour_cycler)
+    print("Plotting gas pressure profile....")
+
+    h = hr0*(radii**f)*radii   # dimensions: nrad
+    omega2 = 1/(radii**3) 
+    for i, t in enumerate(timesteps):
+        pressure = h*omega2*sigma_gas_1D[i]*(1.125e-7)   # dimensions: nrad
+
+        if not p_orbits:
+            tlabel = f"{round(t, 3)} Myr"
+        elif planets:
+            tlabel = f"{int(round(planet_orbits[i], 0))} orbits"
+
+        color = next(ax._get_lines.prop_cycler)['color']
+        ax.plot(radii, pressure, label=tlabel, color=color)
+
+        if planets:
+            for rp in rps[:,i]:
+                ax.axvline(rp, linestyle='dashed', color=color)
+
+    ax.set_xlabel("R (AU)")
+    ax.set_ylabel("$P (M_\odot AU^{-1} yr^{-2})$")
+    ax.set_xscale("log")
+    ax.set_yscale("log")
+    ax.legend()
+    ax.set_xlim(np.min(radii), np.max(radii))
+
+    fig.tight_layout()
+    fig.savefig(f"{plots_savedir}/{sim}_gas_pressure.png")
+
+
 # ============== Plot dust eccentricities ==================
 def plot_ecc():
     print("Plotting dust and gas eccentricities....")
@@ -629,6 +664,8 @@ if __name__ == "__main__":
 
     if "gsig" in plots:
         plot_gas_sigma()
+    if "gp" in plots:
+        plot_gas_pressure()
     if "ecc" in plots:
         plot_ecc()
 
