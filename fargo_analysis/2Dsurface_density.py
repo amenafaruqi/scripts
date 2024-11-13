@@ -151,7 +151,7 @@ def plot_surf_dens(wd,simdir,dustnums,outputnumber,lin_scaling,cbmin,cbmax,plot_
         if not no_title:
             plt.title(plot_title)
         plt.tight_layout()
-        plt.savefig(f'./images/dustavg_{simdir}_{outputnumber}.png', dpi=150)
+        plt.savefig(f'./images/disc_snapshots/dustavg_{simdir}_{outputnumber}.png', dpi=150)
 
     else:    # Plotting individual grain sizes, not sum
         for dustnum in dustnums:
@@ -274,7 +274,7 @@ def plot_surf_dens(wd,simdir,dustnums,outputnumber,lin_scaling,cbmin,cbmax,plot_
             if not no_title:
                 plt.title(plot_title)
             plt.tight_layout()
-            plt.savefig(f'./images/gas_{simdir}_{outputnumber}.png', dpi=150)
+            plt.savefig(f'./images/disc_snapshots/gas_{simdir}_{outputnumber}.png', dpi=150)
         else:
             plot_title = f"Dust density of {str(dustsizes[file_i-1])}cm grains at t = {time}Myr"
             if  plot_planet not in ["no", "n"]:
@@ -282,7 +282,7 @@ def plot_surf_dens(wd,simdir,dustnums,outputnumber,lin_scaling,cbmin,cbmax,plot_
             if not no_title:
                 plt.title(plot_title)
             plt.tight_layout()
-            plt.savefig(f'./images/dust{file_i}_{simdir}_{outputnumber}.png', dpi=150)
+            plt.savefig(f'./images/disc_snapshots/dust{file_i}_{simdir}_{outputnumber}.png', dpi=150)
 
         # show()
 
