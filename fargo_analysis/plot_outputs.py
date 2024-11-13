@@ -606,18 +606,20 @@ if __name__ == "__main__":
                 sigma_dust[i,n] = np.fromfile(simdir+dust_file).reshape(nrad,nphi)/(1.125e-7)
     sigma_dust_azimsum = np.sum(sigma_dust, axis=3)                  # sum over all phi 
     sigma_gas_azimsum = np.sum(sigma_gas, axis=2)                    # sum over all phi   
-
     sigma_gas_1D = sigma_gas_azimsum/nphi                           # dimensions: (noutputs, nrad) 
-    sigma_dust_1D = sigma_dust_azimsum/nphi                         # dimensions: (noutputs, ndust, nrad)   
-    sigma_dust_tot = np.sum(sigma_dust_1D, axis=1)                     # dimensions: (noutputs, nrad)   
-    # sigma_dust_sum_1D = avgdustdens_azimsum/nphi                  # dimensions: (noutputs, nrad)
+    if grog:
+        sigma_dust_1D = sigma_dust_azimsum/nphi                         # dimensions: (noutputs, ndust, nrad)   
+        sigma_dust_tot = np.sum(sigma_dust_1D, axis=1)                     # dimensions: (noutputs, nrad)   
+        # sigma_dust_sum_1D = avgdustdens_azimsum/nphi                  # dimensions: (noutputs, nrad)
     
     for i,t in enumerate(outputs):
-        # dust mass for dust of size a as a function of r
-        dust_mass[i,:,:] = [2*np.pi*radii*sigma_dust_1D[i,n,:]*delta_r*333030 for n in range(ndust)]
+        if grog:
+            # dust mass for dust of size a as a function of r
+            dust_mass[i,:,:] = [2*np.pi*radii*sigma_dust_1D[i,n,:]*delta_r*333030 for n in range(ndust)]
         gas_mass[i,:] = 2*np.pi*radii*sigma_gas_1D[i,:]*delta_r*333030      # convert from Msun to Mearth
 
-    dust_mass_tot = np.sum(dust_mass, axis=1)
+    if grog:
+        dust_mass_tot = np.sum(dust_mass, axis=1)
 
     # Get dust and gas velocities
     if "ecc" in plots:
