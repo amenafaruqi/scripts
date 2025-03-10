@@ -23,12 +23,19 @@ def calc_t_migration(mass, radius):
         if p_crida_Rp > 1:     # type I migration regime if planet is not gap-opening
             Gamma = (-2.5-(1.7*q)+(p/10)+(1.1*(1.5-p))+(7.9*zeta/gamma))*((mass*3e-6/hr)**2)*Sigmap*(radius**4)*(Omega**2)/gamma
             tau = ((radius**2)*Omega*mass*3e-6/(2*Gamma))*1e-6    # convert to Myr
+            migreg = "Type I"
         else:                  # type II migration regime
             h = hr*radius
             nu = alpha*Omega*(h**2)
             B = mass*3e-6/(np.pi*Sigmap*(radius**2))
             tau = ((radius**2)*(1+B)/nu)*1e-6
+            migreg = "Type II"
+        print(mass, radius, tau, migreg)
         return tau
+
+
+def calc_t_growth(a,r):
+    pass
 
 
 # ======================= Plot Regimes for Gap-Opening ============================
@@ -36,7 +43,7 @@ def calc_t_migration(mass, radius):
 def plot_Mp_regimes():
     print("Plotting mass regimes....")
 
-    mps = np.array([12, 25, 60, 120, 160]) 
+    mps = np.array([10, 20, 40, 100, 160]) 
     fig0,ax0 = plt.subplots(figsize=(12,8))
     m_range = np.linspace(0,200,50)
     r_range = np.linspace(0,200,201)
@@ -70,6 +77,11 @@ def plot_Mp_regimes():
     p_crida = 0.75*(hr*Rs)/R_h + 50*alpha*(hr**2)/(Ms*3e-6)
     ax0.contourf(Rs, Ms, p_crida, levels=[0,1], cmap="summer")
 
+    # Plot alternative gap-opening criterion from Lin & Papaloizou 1993
+    Mp_lp = 3*333030*((r_range**f)*hr0)**3
+    ax0.plot(r_range, Mp_lp, color="darkgreen")
+    ax0.fill_between(r_range, Mp_lp,200,color="none", hatch="X",edgecolor="darkgreen")
+
     # Plot planet migration tracks
     Rp0 = 40     # remove this afterwards, for testing only
     dt = 0.1     # timestep to recalculate planet's location
@@ -87,7 +99,7 @@ def plot_Mp_regimes():
     M_drift_mig = (gamma*St/(2*A))*((hr0*(r_range**f))**4)*dlogPdlogR/(Sigmap*(r_range**2))
     M_drift_mig = np.abs(M_drift_mig)/3e-6    # convert to Earth masses
     ax0.plot(r_range,  M_drift_mig, c='mediumblue', label=f"$v_{{drift}}=v_{{mig}}$ for St={St}")
-    ax0.legend(facecolor='grey', framealpha=0.2)
+    ax0.legend(facecolor='white', framealpha=0.9)
 
     # Calculate location of inner damping zone
     Rid = (2*(rmin**-1.5)/3)**(-2/3)
@@ -116,7 +128,7 @@ def plot_Mp_regimes():
     ax0.vlines(x=Rid, ymin=0, ymax = 200, linewidth=2, color='crimson', linestyle=':')
 
     ax0.set_xlim(1,70)
-    ax0.set_ylim(0,170)
+    ax0.set_ylim(0,190)
     ax0.set_xlabel("$R_{{p}}$ (AU)")
     ax0.set_ylabel("$M_{{p}} (M_\oplus)$")
     fig0.tight_layout()
@@ -213,19 +225,16 @@ def plot_Dipierro_Mp_regimes():  # figure 2 from dipierro 2017 i.e. as function 
 def plot_tdrift(): #as function of R and a
     print("Plotting drift timescale....")
 
+    fig,ax = plt.subplots(figsize=(11,6))
+    levels = np.linspace(-6, 6, 13)                   
+
     A,R = np.meshgrid(a,radii)
     hr = hr0*(R**f)                                   # aspect ratio
     cs = hr*(((2e30)*(6.67e-11))/(R*1.5e11))**0.5     # [m/s]
-    # p = (sigma_gas_1D*(cs**2)/((2*np.pi)**0.5))*(hr**-1)*((radii*1.5e11)**-1)
-    # gamma = (radii/p)*np.abs(np.append(np.diff(p)/np.diff(radii), 0))
     gamma = np.abs(f - sigmaslope - 2)     # taken from eq. 9 from Bitsch et al. 2018, accounting for their s being -ve. 
-    # tau_drift = ((2/(np.pi*rhodust))*(np.dot((radii*sigma_gas_azimsum/(gamma*hr*cs)).reshape(nrad,1), a.reshape(1,ndust))*1.5e11))*3.17e-14    # drift timescale in Myr
-    fig,ax = plt.subplots(figsize=(11,6))
-    levels = np.linspace(-6, 6, 13)                   
     sigma_gas_1D_rep = np.tile(sigma_gas_1D, ndust).reshape(nrad,ndust)  # repeat sigma gas for each dust size for ease of calculation
 
     tau_drift = (3.1688e-14)*(2/np.pi)*(sigma_gas_1D_rep/(rhodust*A))*(R*1.5e11/cs)/gamma
-    print(tau_drift)
     con = ax.contourf(R, A, np.log10(tau_drift), cmap="YlGnBu")#, levels=levels)
     ax.set_xscale("log")
     ax.set_yscale("log")
@@ -244,6 +253,8 @@ def plot_tdrift(): #as function of R and a
 # ======================= Plot Migration Timescale ============================
 
 def plot_tmigration():  # as function of R
+    print("Plotting migration timescales....")
+
     p = -1*sigmaslope
     q = -2*f
     gamma = 5/3
@@ -280,10 +291,6 @@ def plot_tmigration():  # as function of R
         B=0
         print(B,nu, Omega)
         tauII_arr_M[i] = ((Rp**2)*(1+B)/nu)*1e-6
-    
-    print(tauI_arr_M[::4])
-    print(tauII_arr_M[::4])
-    print("Plotting migration timescales....")
 
     fig2, ax2 = plt.subplots(nrows=2, figsize=(7,6))
     ax2[0].plot(Rs,tauI_arr_R, color='blue', label="Type I")
@@ -312,18 +319,25 @@ def plot_tmigration():  # as function of R
 # ======================= Plot Growth Timescale ============================
 
 def plot_tgrowth():  #as function of R and a
+    print("Plotting growth timescale....")
+
+    fig,ax = plt.subplots(figsize=(11,6))
+    levels = np.linspace(-6, 6, 13)                   
+
     R,A = np.meshgrid(radii,a)
     hr = hr0*(radii**0.25)
     h = hr*radii
-    cs = hr*(((2e30)*(6.67e-11))/(radii*1.5e11))**0.5     # [m/s]
     St = A*rhodust*np.pi/(sigma_gas_1D*2)
-    const = ((4/3)*(2*np.pi/3)**0.5)
-    tau_growth = const*A*rhodust*h/(sigma_dust_1D*cs*((alpha*St)**0.5))
-    print("Plotting growth timescale....")
+    cs = h*2*np.pi/(radii**0.5)
+    tau_growth = rhodust*A*h/(sigma_dust_1D*cs*(alpha*St*3))
+    tau_growth = tau_growth*1e-6   # convert to Myr
+    # cs = hr*(((2e30)*(6.67e-11))/(radii*1.5e11))**0.5     # [m/s]
+    # const = ((4/3)*(2*np.pi/3)**0.5)
+    # tau_growth = const*A*rhodust*h/(sigma_dust_1D*cs*((alpha*St)**0.5))
 
     fig3,ax3 = plt.subplots(figsize=(10,6))
-    levels = np.linspace(-4, 16, 11)                   
-    con = ax3.contourf(R,A, np.log10(tau_growth), cmap="YlGnBu", levels=levels)
+    # levels = np.linspace(-4, 16, 11)                   
+    con = ax3.contourf(R,A, np.log10(tau_growth), cmap="YlGnBu")
     
     ax3.set_xscale("log")
     ax3.set_yscale("log")
@@ -333,9 +347,36 @@ def plot_tgrowth():  #as function of R and a
     fig3.subplots_adjust(right=0.89, hspace=0.35)
     cbar_ax = fig3.add_axes([0.91, 0.53, 0.02, 0.4])
     fig3.colorbar(con, cax=cbar_ax, orientation="vertical", label="log$[\\tau_{growth} (Myr)]$")
-    ax3.axvline(Rp, linestyle='dashed', color='black')
+    ax3.axvline(rps[0], linestyle='dashed', color='black')
 
     fig3.savefig(f"{plots_savedir}/{sim}_tgrowth.png")
+
+
+# ======================= Plot growth vs migration ============================
+
+def growth_vs_migration():
+    print("Plotting growth vs migration timescale....")
+
+    fig0,ax0 = plt.subplots(figsize=(12,8))
+    r_range = np.linspace(0,200,21)
+    a_array = np.array([0.01, 0.1, 1, 10])
+    m_array = np.array([60,120,160])
+
+    # Plot mig timescale for different planet masses and locations
+    for m in m_array:
+        t_mig = np.zeros((len(r_range)))
+        for ri,r in enumerate(r_range):
+            t_mig[ri] = calc_t_migration(m,r)
+        ax0.plot(r_range, t_mig, label=f"$M_{{p}}={m} M_\oplus$")
+    
+    # Plot growth timescale for different grain sizes and locations
+    for a in a_array:
+        t_growth = np.zeros((len(r_range)))
+        for ri,r in enumerate(r_range):
+            t_growth[ri] = calc_t_growth(m,r)
+        ax0.plot(r_range, t_growth, label=f"a={m} cm")
+
+
 
 
 
@@ -361,6 +402,7 @@ if __name__ == "__main__":
     plots_savedir = args.savedir
     p_orbits = args.porbits
     style = args.style
+    output = 1
 
     if plot_window:
         mpl.use('TkAgg') 
@@ -384,6 +426,7 @@ if __name__ == "__main__":
     spacing = str(params_dict['SPACING'])
     ndust = int(params_dict['NDUST'])
     sigma0 = float(params_dict['SIGMA0'])
+    sigma0 = 3.2e-5
     Rc = int(params_dict['SIGMACUTOFF'])
     sigmaslope = int(params_dict['SIGMASLOPE'])
     mingsize = float(params_dict['MIN_GRAIN_SIZE'])
@@ -415,7 +458,7 @@ if __name__ == "__main__":
         radii = np.array([np.exp((np.log(r_cells[n])+np.log(r_cells[n+1]))/2) for n in range(len(r_cells)-1)])
     phis = np.array([(phi_cells[n]+phi_cells[n+1])/2 for n in range(len(phi_cells)-1)])
 
-    gasfile = f"gasdens1.dat" 
+    gasfile = f"gasdens{output}.dat" 
     sigma_gas = np.fromfile(simdir+gasfile).reshape(nrad,nphi)/(1.125e-7)         # convert back to g/cm2
     sigma_gas_azimsum = np.sum(sigma_gas, axis=1)                                 # sum over all phi   
     sigma_gas_1D = sigma_gas_azimsum/nphi                                         # dimensions: (nrad) 
@@ -424,7 +467,7 @@ if __name__ == "__main__":
     n_grains = np.zeros((ndust))
 
     for n in np.arange(ndust):
-        dust_file = f"dustdens{n}_1.dat" 
+        dust_file = f"dustdens{n}_{output}.dat" 
         sigma_dust[n] = np.fromfile(simdir+dust_file).reshape(nrad,nphi)/(1.125e-7)
         n_grains[n] = np.sum(sigma_dust[n])*3/(a[n]*rhodust*4)                  # number of dust grains at size a and time t
 
