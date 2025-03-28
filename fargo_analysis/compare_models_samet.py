@@ -18,6 +18,145 @@ def overlay_gas_sigmas(fig, ax, radii, sigma_gas_1D, model_num=0):
     ax.plot(radii, sigma_gas_1D, color=color)
 
     for m in range(model_num+1):
+        if grog:
+            planetmass = re.search(r"Mp(\d+)_", sims[m]).group(1)    # get planet mass from file path
+        else:
+            planetmass = re.search(r"(\d+)Me", sims[m]).group(1)
+        legend_elements.append(Line2D([0], [0], color=colour_cycler[m], label=f"{planetmass} $M_\oplus$"))
+
+    if planets:
+        if "stat" in sim:
+            planetcolour = 'k'
+        else:
+            planetcolour = color
+        for rp in rps:
+            ax.axvline(rp, linestyle='dashed', color=planetcolour)
+    
+    ax.set_xlabel("R (AU)")
+    ax.set_ylabel("$\Sigma_{gas} (g/cm^{2})$")
+    ax.set_xscale("log")
+    ax.set_yscale("log")
+    ax.set_xlim(np.min(radii), np.max(radii))
+    ax.legend(handles=legend_elements)
+    fig.tight_layout()
+
+
+# ================= Dust Sigma ===================
+
+def overlay_dust_sigmas(fig, ax, radii, sigma_dust, model_num=0):
+    print("Plotting dust distribution by grain size....")
+    legend_elements = []
+    color = colour_cycler[model_num]
+    ax = ax.flatten()
+
+    if grog:
+        n_size_decades = int(np.log10(maxgsize) - np.log10(mingsize))   # assumes min and max g size are the same for both models!
+        size_decades = np.split(np.arange(ndust), n_size_decades)
+
+        for n, size_decade in enumerate(size_decades):
+            dust_sigma_binned_tot = np.sum(sigma_dust[size_decades[n],:],axis=0)
+
+            ax[n].plot(radii, dust_sigma_binned_tot, color=color)
+
+            if planets:
+                if "stat" in sim:
+                    planetcolour = 'k'
+                else:
+                    planetcolour = color
+                for rp in rps:
+                    ax[n].axvline(rp, linestyle='dashed', color=planetcolour)
+
+            dustsizes = [(10**n) * mingsize, (10**(n+1)) * mingsize]
+            dustsizes = [np.format_float_positional(d,3,fractional=False,unique=True) for d in dustsizes]
+            ax[n].set_title(f"{dustsizes[0]}-{dustsizes[1]}cm")
+            ax[n].set_xscale("log")
+            ax[n].set_yscale("log")
+            ax[n].set_xlim(np.min(radii), np.max(radii))
+            
+        for m in range(model_num+1):
+            planetmass = re.search(r"Mp(\d+)_", sims[m]).group(1)    # get planet mass from file path
+            legend_elements.append(Line2D([0], [0], color=colour_cycler[m], label=f"{planetmass} $M_\oplus$"))
+
+
+        ax[0].set_ylabel("$\Sigma_{dust} (g/cm^{2})$")
+        ax[4].set_ylabel("$\Sigma_{dust} (g/cm^{2})$")
+        ax[4].set_xlabel("R (AU)")
+        ax[5].set_xlabel("R (AU)")
+        ax[6].set_xlabel("R (AU)")
+        ax[7].set_xlabel("R (AU)")
+        ax[0].set_xticks([])
+        ax[1].set_xticks([])
+        ax[2].set_xticks([])
+        ax[3].set_xticks([])
+        ax[7].legend(loc="lower left", handles=legend_elements)
+        fig.tight_layout()
+
+        # Plot total dust sigma
+        sigma_dust_tot = np.sum(sigma_dust, axis=0)                  # dimensions: (nrad)  
+        ax[7].plot(radii, sigma_dust_tot, color=color)
+        ax[7].set_title("All dust")
+        ax[7].set_xscale("log")
+        ax[7].set_yscale("log")
+        ax[7].set_xlim(np.min(radii), np.max(radii))
+
+        if planets:
+            if "stat" in sim:
+                planetcolour = 'k'
+            else:
+                planetcolour = color
+            for rp in rps:
+                ax[7].axvline(rp, linestyle='dashed', color=planetcolour)
+
+    # No coagulation case
+    else:
+        for n in range(ndust):
+            ax[n].plot(radii, sigma_dust[n], color=color)
+
+            if planets:
+                for rp in rps:
+                    ax[n].axvline(rp, linestyle='dashed', color="k")
+
+            ax[n].set_title(f"St={round(stokes[n],3)}")
+            ax[n].set_yscale("log")
+            ax[n].set_xscale("log")
+            ax[n].set_xlim(0.7, 1.5)
+            
+        for m in range(model_num+1):
+            planetmass = re.search(r"(\d+)Me", sims[m]).group(1)    # get planet mass from file path
+            legend_elements.append(Line2D([0], [0], color=colour_cycler[m], label=f"{planetmass} $M_\oplus$"))
+
+
+        ax[0].set_ylabel("$\Sigma_{dust}$")
+        ax[2].set_ylabel("$\Sigma_{dust}$")
+        ax[2].set_xlabel("R")
+        ax[3].set_xlabel("R")
+        ax[0].set_xticks([])
+        ax[1].set_xticks([])
+        ax[3].legend(loc="lower left", handles=legend_elements)
+        fig.tight_layout()
+
+        # Plot total dust sigma
+        sigma_dust_tot = np.sum(sigma_dust, axis=0)                  # dimensions: (nrad)  
+        ax[3].plot(radii, sigma_dust_tot, color=color)
+        ax[3].set_title("All St")
+        ax[3].set_yscale("log")
+        ax[3].set_xscale("log")
+        ax[3].set_xlim(0.7,1.5)
+
+        if planets:
+            for rp in rps:
+                ax[3].axvline(rp, linestyle='dashed', color="k")
+
+
+
+# =================== Total Dust Mass =====================
+
+def overlay_total_dust_mass(fig, ax, radii, dust_mass_tot, model_num=0):
+    legend_elements = []
+    color = colour_cycler[model_num]
+    ax.plot(radii, dust_mass_tot, color=color)
+
+    for m in range(model_num+1):
         planetmass = re.search(r"Mp(\d+)_", sims[m]).group(1)    # get planet mass from file path
         legend_elements.append(Line2D([0], [0], color=colour_cycler[m], label=f"{planetmass} $M_\oplus$"))
 
@@ -38,98 +177,10 @@ def overlay_gas_sigmas(fig, ax, radii, sigma_gas_1D, model_num=0):
     fig.tight_layout()
 
 
-# ================= Dust Mass by Grain Size ===================
-
-def overlay_dust_sigmas(fig, ax, radii, dust_mass, model_num=0):
-    print("Plotting dust distribution by grain size....")
-
-    n_size_decades = int(np.log10(maxgsize) - np.log10(mingsize))   # assumes min and max g size are the same for both models!
-    size_decades = np.split(np.arange(ndust), n_size_decades)
-
-    subps = "ABCDEFG"
-    legend_elements = []
-    color = colour_cycler[model_num]
-
-    for n, size_decade in enumerate(size_decades):
-        dust_sigma_binned_tot = np.sum(sigma_dust_1D[size_decades[n],:],axis=0)
-
-        ax[subps[n]].plot(radii, dust_sigma_binned_tot, color=color)
-
-        if planets:
-            if "stat" in sim:
-                planetcolour = 'k'
-            else:
-                planetcolour = color
-            for rp in rps:
-                ax[subps[n]].axvline(rp, linestyle='dashed', color=planetcolour)
-
-        dustsizes = [(10**n) * mingsize, (10**(n+1)) * mingsize]
-        dustsizes = [np.format_float_positional(d,3,fractional=False,unique=True) for d in dustsizes]
-        ax[subps[n]].set_title(f"{dustsizes[0]}-{dustsizes[1]}cm")
-        ax[subps[n]].set_xscale("log")
-        ax[subps[n]].set_yscale("log")
-        # ax[subps[n]].set_xticks([10,20,40,80])
-        # ax[subps[n]].get_xaxis().set_major_formatter(matplotlib.ticker.ScalarFormatter())
-        # ax[subps[n]].xaxis.set_minor_formatter(NullFormatter())
-        # ax[subps[n]].ticklabel_format(axis='x',style="plain")
-        # ax[subps[n]].set_ylim(0, 250)
-        ax[subps[n]].set_xlim(np.min(radii), np.max(radii))
-        
-    for m in range(model_num+1):
-        planetmass = re.search(r"Mp(\d+)_", sims[m]).group(1)    # get planet mass from file path
-        legend_elements.append(Line2D([0], [0], color=colour_cycler[m], label=f"{planetmass} $M_\oplus$"))
-
-
-    ax["A"].set_ylabel("$\Sigma_{dust} (g/cm^{2})$")
-    ax["D"].set_ylabel("$\Sigma_{dust} (g/cm^{2})$$")
-    ax["F"].set_ylabel("$\Sigma_{dust} (g/cm^{2})$")
-    ax["A"].set_xlabel("R (AU)")
-    ax["B"].set_xlabel("R (AU)")
-    ax["C"].set_xlabel("R (AU)")
-    ax["F"].set_xlabel("R (AU)")
-    ax["G"].set_xlabel("R (AU)")
-    # ax["D"].set_xticks([])
-    # ax["E"].set_xticks([])
-    ax["G"].legend(loc="upper right", handles=legend_elements)
-    fig.tight_layout()
-
-
-# =================== Total Dust Mass =====================
-
-def overlay_total_dust_mass(fig, ax, radii, dust_mass_tot, model_num=0):
-    ax.set_prop_cycle(color=colour_cycler)
-    print("Plotting total dust mass....")
-
-    legend_elements=[]
-    for i, t in enumerate(timesteps):
-        color = next(ax._get_lines.prop_cycler)['color']
-        ax.plot(radii, dust_mass_tot[i], label=f"{round(t, 3)} Myr", color=color, linestyle=linestyles[model_num])
-        legend_elements.append(Line2D([0], [0], color=color, lw=2, label=f"{round(t, 3)} Myr"))
-
-        if planets:
-            for rp in rps[:,i]:
-                ax.axvline(rp, linestyle='dashed', color=color)
-
-    for m in range(model_num+1):
-        sim = simdirs[m].split('models/')[-1]    # ignore full file path
-        legend_elements.append(Line2D([0], [0], color='k', linestyle=linestyles[m], label=f"{sim}"))
-
-    if "stat" in sim:
-        ax.axvline(rp, linestyle='dashed', color="k")
-
-    ax.set_xlabel("R (AU)")
-    ax.set_ylabel("$M_{{dust}}/M_\oplus$")
-    ax.set_xscale("log")
-    ax.set_yscale("log")
-    ax.legend(handles=legend_elements)
-    ax.set_xlim(min(radii), max(radii))
-    fig.tight_layout()
-
-
 
 # ================= Plot final dust contours =====================
 
-def plot_final_contours(fig, radii, sigma_dust_1D, model_num=0):
+def plot_dust_contours(fig, radii, sigma_dust_1D, model_num=0):
     R, A = np.meshgrid(radii, a)
     levels = np.linspace(-18, 6, 13) 
     plotsizey = int(len(sims)/plotsizex)+1
@@ -254,9 +305,14 @@ if __name__ == "__main__":
     if "gsig" in plots:
         fig_gas_sigma, ax_gas_sigma = plt.subplots(figsize=(6,5))
     if "dcon" in plots:
-        fig_con = plt.figure(figsize=(17,16))
+        fig_con = plt.figure(figsize=(17,16), nrows=2, ncols=3)
     if "dsig" in plots:
-        fig_dust_sigma, ax_dust_sigma = plt.subplot_mosaic("AABBCC;DDDEEE;FFFGGG", figsize=(17,16))
+        if grog:
+            fig_dust_sigma, ax_dust_sigma = plt.subplots(figsize=(17,8), ncols=4, nrows=2)
+        else:
+            fig_dust_sigma, ax_dust_sigma = plt.subplots(figsize=(10,8), ncols=2, nrows=2)
+    if "dmass" in plots:
+        fig_dust_mass, ax_dust_mass = plt.subplots(figsize=(6,5))
     if "dgr" in plots:
         fig_dgr, ax_dgr = plt.subplots(figsize=(6,5))
 
@@ -293,6 +349,8 @@ if __name__ == "__main__":
             maxgsize = float(params_dict['MAX_GRAIN_SIZE'])
             nss_coag = int(params_dict['NUMSUBSTEPS_COAG'])
             rhodust = float(params_dict['RHO_DUST'])
+        else:
+            max_stokes = float(params_dict['STOKES'])
 
         densfloor = float(params_dict['DENSITY_FLOOR'])
         dt_orbits = int(float(params_dict['DT'])/(2*np.pi))   # 2pi = 1 orbit = 1 yr
@@ -323,6 +381,9 @@ if __name__ == "__main__":
                             ndust+1)
 
             a = (0.5*(a[1:] + a[:-1]))                                   # grain sizes in middles of bins (in cm)
+        else:
+            stokes = np.logspace(np.log10(max_stokes),np.log10(max_stokes*10**(-ndust+1)),ndust)
+            print(stokes)
 
         r_cells = np.loadtxt(f'{wd+sim}/domain_y.dat')[3:-3]             # ignore ghost cells
         phi_cells = np.loadtxt(f'{wd+sim}/domain_x.dat')
@@ -340,28 +401,28 @@ if __name__ == "__main__":
         sigma_gas = np.zeros((nrad, nphi))
         # gas_mass = np.zeros((nrad))
         sigma_dust = np.zeros((ndust, nrad, nphi))
-        # dust_mass = np.zeros((ndust, nrad))
+        dust_mass = np.zeros((ndust, nrad))
 
         gasfile = f"/gasdens{o}.dat" 
         sigma_gas = np.fromfile(wd+sim+gasfile).reshape(nrad,nphi)/(1.125e-7)         # convert back to g/cm2
         n_grains = np.zeros((ndust))
-        if grog:
-            for n in np.arange(ndust):
-                dust_file = f"/dustdens{n}_{o}.dat"
-                sigma_dust[n] = np.fromfile(wd+sim+dust_file).reshape(nrad,nphi)/(1.125e-7)
-            # if s == 1:
-            #     for g in range(len(sav_sigma[0,:])):
+        for n in np.arange(ndust):
+            dust_file = f"/dustdens{n}_{o}.dat"
+            sigma_dust[n] = np.fromfile(wd+sim+dust_file).reshape(nrad,nphi)/(1.125e-7)
+        # if s == 1:
+        #     for g in range(len(sav_sigma[0,:])):
+
         sigma_dust_azimsum = np.sum(sigma_dust, axis=2)                  # sum over all phi 
         sigma_gas_azimsum = np.sum(sigma_gas, axis=1)                    # sum over all phi   
 
         sigma_gas_1D = sigma_gas_azimsum/nphi                           # dimensions: (nrad) 
         sigma_dust_1D = sigma_dust_azimsum/nphi                         # dimensions: (ndust, nrad)  
-        # sigma_dust_sum_1D = avgdustdens_azimsum/nphi                  # dimensions: (nrad)
+
         # dust mass for dust of size a as a function of r
-        # dust_mass[i,:,:] = [2*np.pi*radii*sigma_dust_1D[i,n,:]*delta_r*333030 for n in range(ndust)]
+        dust_mass[:,:] = [2*np.pi*radii*sigma_dust_1D[i,n,:]*delta_r*333030 for n in range(ndust)]
         # gas_mass[i,:] = 2*np.pi*radii*sigma_gas_1D[i,:]*delta_r*333030      # convert from Msun to Mearth
 
-        # dust_mass_tot = np.sum(dust_mass, axis=1)
+        dust_mass_tot = np.sum(dust_mass, axis=0)
 
         # Get dust velocities
         # if grog:
@@ -397,9 +458,11 @@ if __name__ == "__main__":
         if "gsig" in plots:
             overlay_gas_sigmas(fig_gas_sigma, ax_gas_sigma, radii, sigma_gas_1D, s)
         if "dcon" in plots:
-            plot_final_contours(fig_con, radii, sigma_dust_1D, s)
+            plot_dust_contours(fig_con, radii, sigma_dust_1D, s)
         if "dsig" in plots:
             overlay_dust_sigmas(fig_dust_sigma, ax_dust_sigma, radii, sigma_dust_1D, s)
+        if "dmass" in plots:
+            overlay_total_dust_mass(fig_dust_mass, ax_dust_mass, radii, dust_mass_tot, s)
         if "dgr" in plots:
             overlay_dust_gas_ratio(fig_dgr, ax_dgr, radii, dust_mass_tot, gas_mass, s)
     
@@ -412,6 +475,8 @@ if __name__ == "__main__":
         fig_con.savefig(f"{plots_savedir}/allmodels_dcontour.png")
     if "dsig" in plots:
         fig_dust_sigma.savefig(f"{plots_savedir}/comparison_sigmadust.png")
+    if "dmass" in plots:
+        fig_dust_mass.savefig(f"{plots_savedir}/comparison_dustmass.png")
     if "dgr" in plots:
         fig_dgr.savefig(f"{plots_savedir}/allmodels_dgr.png")
 
