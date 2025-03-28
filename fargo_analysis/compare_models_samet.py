@@ -169,7 +169,7 @@ def overlay_total_dust_mass(fig, ax, radii, dust_mass_tot, model_num=0):
             ax.axvline(rp, linestyle='dashed', color=planetcolour)
     
     ax.set_xlabel("R (AU)")
-    ax.set_ylabel("$\Sigma_{gas} (g/cm^{2})$")
+    ax.set_ylabel("$M_{dust} (M_\oplus)$")
     ax.set_xscale("log")
     ax.set_yscale("log")
     ax.set_xlim(np.min(radii), np.max(radii))
@@ -419,7 +419,7 @@ if __name__ == "__main__":
         sigma_dust_1D = sigma_dust_azimsum/nphi                         # dimensions: (ndust, nrad)  
 
         # dust mass for dust of size a as a function of r
-        dust_mass[:,:] = [2*np.pi*radii*sigma_dust_1D[i,n,:]*delta_r*333030 for n in range(ndust)]
+        dust_mass[:,:] = [2*np.pi*radii*sigma_dust_1D[n,:]*delta_r*333030 for n in range(ndust)]
         # gas_mass[i,:] = 2*np.pi*radii*sigma_gas_1D[i,:]*delta_r*333030      # convert from Msun to Mearth
 
         dust_mass_tot = np.sum(dust_mass, axis=0)
