@@ -177,7 +177,6 @@ def overlay_total_dust_mass(fig, ax, radii, dust_mass_tot, model_num=0):
     fig.tight_layout()
 
 
-
 # ================= Plot final dust contours =====================
 
 def plot_dust_contours(fig, ax, radii, a, sigma_dust_1D, model_num=0):
@@ -223,41 +222,30 @@ def plot_dust_contours(fig, ax, radii, a, sigma_dust_1D, model_num=0):
 # ================= Plot dust-gas ratios =====================
 
 def overlay_dust_gas_ratio(fig, ax, radii, dust_mass_tot, gas_mass, model_num=0):
-    ax.set_prop_cycle(color=colour_cycler)
-    print("Plotting dust-gas ratio....")
+    legend_elements = []
+    color = colour_cycler[model_num]
+    epsilon = dust_mass_tot/gas_mass
+    ax.plot(radii, epsilon, color=color)
 
-    c = colours[model_num]
-    sim = simdirs[model_num]
-    mlabel = "migrating"
-    if "stat" in sim:
-        mlabel = "stationary"
+    for m in range(model_num+1):
+        planetmass = re.search(r"Mp(\d+)_", sims[m]).group(1)    # get planet mass from file path
+        legend_elements.append(Line2D([0], [0], color=colour_cycler[m], label=f"{planetmass} $M_\oplus$"))
 
-    x =  re.search("Mp\d+",simdirs[model_num])
-    planet_mass =  x.group()[2:]
-
-    for i,t in enumerate(timesteps):
-        dustgasratio = dust_mass_tot[i]/gas_mass[i]
-        ax.plot(radii, dustgasratio, label=f"{planet_mass}$M_\oplus$ {mlabel}", color=c)
+    if planets:
+        if "stat" in sim:
+            planetcolour = 'k'
+        else:
+            planetcolour = color
+        for rp in rps:
+            ax.axvline(rp, linestyle='dashed', color=planetcolour)
     
-        if planets:
-            if mlabel != "stationary":
-                for rp in rps[:,i]:
-                    ax.axvline(rp, linestyle='dashed', color=c)
-    
-    if mlabel == "stationary":
-        for rp in rps[:,i]:
-            ax.axvline(rp, linestyle='dashed', color="k")
-
-
-    if model_num == len(simdirs)-1:
-        ax.legend()
-        ax.set_xlim(np.min(radii), np.max(radii))
-        ax.set_xlabel("R (AU)")
-        ax.set_ylabel("dust-gas ratio")
-        ax.set_xscale("log")
-        ax.set_yscale("log")
-
-        fig.tight_layout()
+    ax.set_xlabel("R (AU)")
+    ax.set_ylabel("$M_{dust} (M_\oplus)$")
+    ax.set_xscale("log")
+    ax.set_yscale("log")
+    ax.set_xlim(np.min(radii), np.max(radii))
+    ax.legend(handles=legend_elements)
+    fig.tight_layout()
 
 
 # =================================================================
@@ -395,7 +383,7 @@ if __name__ == "__main__":
 
         # Get gas and dust sigma
         sigma_gas = np.zeros((nrad, nphi))
-        # gas_mass = np.zeros((nrad))
+        gas_mass = np.zeros((nrad))
         sigma_dust = np.zeros((ndust, nrad, nphi))
         dust_mass = np.zeros((ndust, nrad))
 
@@ -405,8 +393,6 @@ if __name__ == "__main__":
         for n in np.arange(ndust):
             dust_file = f"/dustdens{n}_{o}.dat"
             sigma_dust[n] = np.fromfile(wd+sim+dust_file).reshape(nrad,nphi)/(1.125e-7)
-        # if s == 1:
-        #     for g in range(len(sav_sigma[0,:])):
 
         sigma_dust_azimsum = np.sum(sigma_dust, axis=2)                  # sum over all phi 
         sigma_gas_azimsum = np.sum(sigma_gas, axis=1)                    # sum over all phi   
@@ -415,21 +401,9 @@ if __name__ == "__main__":
         sigma_dust_1D = sigma_dust_azimsum/nphi                         # dimensions: (ndust, nrad)  
 
         # dust mass for dust of size a as a function of r
-        dust_mass[:,:] = [2*np.pi*radii*sigma_dust_1D[n,:]*delta_r*333030 for n in range(ndust)]
-        # gas_mass[i,:] = 2*np.pi*radii*sigma_gas_1D[i,:]*delta_r*333030      # convert from Msun to Mearth
-
+        dust_mass = [2*np.pi*radii*sigma_dust_1D[n,:]*delta_r*333030 for n in range(ndust)]
+        gas_mass = 2*np.pi*radii*sigma_gas_1D*delta_r*333030      # convert from Msun to Mearth
         dust_mass_tot = np.sum(dust_mass, axis=0)
-
-        # Get dust velocities
-        # if grog:
-        #     v_dust = np.zeros((len(outputs), ndust, 2, nrad, nphi))   # additional dimension of 2 for x and y velocity
-        #     for i,t in enumerate(outputs):
-        #         # for n in np.arange(ndust):
-        #         n=30
-        #         dust_file_x = f"dustvx{n}_{int(t)}.dat"
-        #         dust_file_y = f"dustvy{n}_{int(t)}.dat"
-        #         v_dust[i,n,0] = np.fromfile(simdir+dust_file_x).reshape(nrad,nphi)   # vx
-        #         v_dust[i,n,1] = np.fromfile(simdir+dust_file_y).reshape(nrad,nphi)   # vy
 
         if grog:
             uf = 10                                               # fragmentation velocity
@@ -474,7 +448,7 @@ if __name__ == "__main__":
     if "dmass" in plots:
         fig_dust_mass.savefig(f"{plots_savedir}/comparison_dustmass.png")
     if "dgr" in plots:
-        fig_dgr.savefig(f"{plots_savedir}/allmodels_dgr.png")
+        fig_dgr.savefig(f"{plots_savedir}/comparison_dgr.png")
 
     if plot_window:
         plt.show()
