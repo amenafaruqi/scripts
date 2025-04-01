@@ -136,8 +136,11 @@ def overlay_dust_sigmas(fig, ax, radii, sigma_dust, model_num=0):
         fig.tight_layout()
 
         # Plot total dust sigma
-        sigma_dust_tot = np.sum(sigma_dust, axis=0)                  # dimensions: (nrad)  
-        ax[3].plot(radii, sigma_dust_tot, color=color)
+        dust_mass_tot = np.sum(stokes**3)
+        mass_weighted_sum = np.sum([sigma_dust[n]*stokes[n] for n in range(ndust)], axis=0)
+        mass_weighted_avg = mass_weighted_sum/dust_mass_tot
+        # sigma_dust_tot = np.sum(sigma_dust, axis=0)                  # dimensions: (nrad)  
+        ax[3].plot(radii, mass_weighted_avg, color=color)
         ax[3].set_title("All St")
         ax[3].set_yscale("log")
         ax[3].set_xscale("log")
@@ -289,12 +292,12 @@ if __name__ == "__main__":
     # =================== Define figures and axes ========================
     if "gsig" in plots:
         fig_gas_sigma, ax_gas_sigma = plt.subplots(figsize=(6,5))
-    if "dcon" in plots:
+    if "dcon" in plots:   # only specify dcon for grog models
         fig_con, ax_con = plt.subplots(figsize=(17,12), nrows=2, ncols=3)
     if "dsig" in plots:
-        if grog:
+        if grog:   # assume 7 dust size decades
             fig_dust_sigma, ax_dust_sigma = plt.subplots(figsize=(17,8), ncols=4, nrows=2)
-        else:
+        else:      # assume 3 stokes numbers
             fig_dust_sigma, ax_dust_sigma = plt.subplots(figsize=(10,8), ncols=2, nrows=2)
     if "dmass" in plots:
         fig_dust_mass, ax_dust_mass = plt.subplots(figsize=(6,5))
