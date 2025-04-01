@@ -47,16 +47,16 @@ def overlay_dust_sigmas(fig, ax, radii, sigma_dust, model_num=0):
     print("Plotting dust distribution by grain size....")
     legend_elements = []
     color = colour_cycler[model_num]
-    ax = ax.flatten()
 
     if grog:
         n_size_decades = int(np.log10(maxgsize) - np.log10(mingsize))   # assumes min and max g size are the same for both models!
         size_decades = np.split(np.arange(ndust), n_size_decades)
+        subps = "ABCDEFG"
 
         for n, size_decade in enumerate(size_decades):
             dust_sigma_binned_tot = np.sum(sigma_dust[size_decades[n],:],axis=0)
 
-            ax[n].plot(radii, dust_sigma_binned_tot, color=color)
+            ax[subps[n]].plot(radii, dust_sigma_binned_tot, color=color)
 
             if planets:
                 if "stat" in sim:
@@ -64,48 +64,32 @@ def overlay_dust_sigmas(fig, ax, radii, sigma_dust, model_num=0):
                 else:
                     planetcolour = color
                 for rp in rps:
-                    ax[n].axvline(rp, linestyle='dashed', color=planetcolour)
+                    ax[subps[n]].axvline(rp, linestyle='dashed', color=planetcolour)
 
             dustsizes = [(10**n) * mingsize, (10**(n+1)) * mingsize]
             dustsizes = [np.format_float_positional(d,3,fractional=False,unique=True) for d in dustsizes]
-            ax[n].set_title(f"{dustsizes[0]}-{dustsizes[1]}cm")
-            ax[n].set_xscale("log")
-            ax[n].set_yscale("log")
-            ax[n].set_xlim(np.min(radii), np.max(radii))
+            ax[subps[n]].set_title(f"{dustsizes[0]}-{dustsizes[1]}cm")
+            ax[subps[n]].set_xscale("log")
+            ax[subps[n]].set_yscale("log")
+            ax[subps[n]].set_xlim(np.min(radii), np.max(radii))
             
         for m in range(model_num+1):
             planetmass = re.search(r"Mp(\d+)_", sims[m]).group(1)    # get planet mass from file path
             legend_elements.append(Line2D([0], [0], color=colour_cycler[m], label=f"{planetmass} $M_\oplus$"))
 
-
-        ax[0].set_ylabel("$\Sigma_{dust} (g/cm^{2})$")
-        ax[4].set_ylabel("$\Sigma_{dust} (g/cm^{2})$")
-        ax[4].set_xlabel("R (AU)")
-        ax[5].set_xlabel("R (AU)")
-        ax[6].set_xlabel("R (AU)")
-        ax[7].set_xlabel("R (AU)")
-        ax[0].set_xticks([])
-        ax[1].set_xticks([])
-        ax[2].set_xticks([])
-        ax[3].set_xticks([])
-        ax[7].legend(loc="lower left", handles=legend_elements)
+        ax["A"].set_ylabel("$\Sigma_{dust} (g/cm^{2})$")
+        ax["D"].set_ylabel("$\Sigma_{dust} (g/cm^{2})$")
+        ax["F"].set_ylabel("$\Sigma_{dust} (g/cm^{2})$")
+        ax["A"].set_xlabel("R (AU)")
+        ax["B"].set_xlabel("R (AU)")
+        ax["C"].set_xlabel("R (AU)")
+        ax["F"].set_xlabel("R (AU)")
+        ax["G"].set_xlabel("R (AU)")
+        # ax["D"].set_xticks([])
+        # ax["E"].set_xticks([])
+        ax["G"].legend(loc="lower left", handles=legend_elements)
         fig.tight_layout()
 
-        # Plot total dust sigma
-        sigma_dust_tot = np.sum(sigma_dust, axis=0)                  # dimensions: (nrad)  
-        ax[7].plot(radii, sigma_dust_tot, color=color)
-        ax[7].set_title("All dust")
-        ax[7].set_xscale("log")
-        ax[7].set_yscale("log")
-        ax[7].set_xlim(np.min(radii), np.max(radii))
-
-        if planets:
-            if "stat" in sim:
-                planetcolour = 'k'
-            else:
-                planetcolour = color
-            for rp in rps:
-                ax[7].axvline(rp, linestyle='dashed', color=planetcolour)
 
     # No coagulation case
     else:
@@ -296,7 +280,7 @@ if __name__ == "__main__":
         fig_con, ax_con = plt.subplots(figsize=(17,12), nrows=2, ncols=3)
     if "dsig" in plots:
         if grog:   # assume 7 dust size decades
-            fig_dust_sigma, ax_dust_sigma = plt.subplots(figsize=(17,8), ncols=4, nrows=2)
+            fig_dust_sigma, ax_dust_sigma = plt.subplot_mosaic("AABBCC;DDDEEE;FFFGGG", figsize=(15,13))
         else:      # assume 3 stokes numbers
             fig_dust_sigma, ax_dust_sigma = plt.subplots(figsize=(10,8), ncols=2, nrows=2)
     if "dmass" in plots:
