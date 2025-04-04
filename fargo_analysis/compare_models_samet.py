@@ -93,6 +93,7 @@ def overlay_dust_sigmas(fig, ax, radii, sigma_dust, model_num=0):
 
     # No coagulation case
     else:
+        ax = ax.flatten()
         for n in range(ndust):
             ax[n].plot(radii, sigma_dust[n], color=color)
 
@@ -121,7 +122,7 @@ def overlay_dust_sigmas(fig, ax, radii, sigma_dust, model_num=0):
 
         # Plot total dust sigma
         dust_mass_tot = np.sum(stokes**3)
-        mass_weighted_sum = np.sum([sigma_dust[n]*stokes[n] for n in range(ndust)], axis=0)
+        mass_weighted_sum = np.sum([sigma_dust[n]*(stokes[n]**3) for n in range(ndust)], axis=0)
         mass_weighted_avg = mass_weighted_sum/dust_mass_tot
         # sigma_dust_tot = np.sum(sigma_dust, axis=0)                  # dimensions: (nrad)  
         ax[3].plot(radii, mass_weighted_avg, color=color)
