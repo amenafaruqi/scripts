@@ -11,17 +11,18 @@ warnings.filterwarnings("ignore")
 # ======================= Dust Contour Plots ==============================
 
 def plot_dust_contours():
-    fig0 = plt.figure(figsize=(17,14))
+    fig0 = plt.figure(figsize=(17,14))  
     R, A = np.meshgrid(radii, a)
     # levels = np.linspace(-11,1,7)                    # Brauer 2008 levels
     # levels = np.linspace(-7, 2, 10)                  # Birnstiel 2012 levels 
-    levels = np.linspace(-18, 6, 13)                   
+    levels = np.linspace(-19, 3, 12)             # number of levels = 0.5 x (max-min) + 1             
     print("Plotting dust size contour maps....")
 
     for i, o in enumerate(outputs):
         ax0 = fig0.add_subplot(plotsizey, plotsizex, i+1)
         sigmas = sigma_dust_1D[i]
         con = ax0.contourf(R, A, np.log10(sigmas), cmap="Greys", levels=levels)
+        print(np.max(A))
         ax0.set_ylim(np.min(a), np.max(a))
         ax0.set_xscale("log")
         ax0.set_yscale("log")
@@ -96,7 +97,7 @@ def plot_gas_sigma():
 
     for i, t in enumerate(timesteps):
         if not p_orbits:
-            tlabel = f"{round(t, 3)} Myr"
+            tlabel = f"{round(t, 6)} Myr"
         elif planets:
             tlabel = f"{int(round(planet_orbits[i], 0))} orbits"
 
@@ -113,6 +114,16 @@ def plot_gas_sigma():
     ax.set_yscale("log")
     ax.legend()
     ax.set_xlim(np.min(radii), np.max(radii))
+    # ax.set_xlim(0.5, 10)
+    # ax.set_ylim(5e-1,5e1)
+
+    # rads = np.linspace(1,150,150)
+    # sigma_analytic = sigma0/rads
+    # print(sigma0,Rc)
+    # ax.plot(rads, (8.89e6)*sigma_analytic, color='k', label="No exp")
+    # # ax.plot(rads, sigma_analytic*np.exp(-rads/120), 'k--', label="exp")
+    # ax.plot(rads, sigma_analytic*np.exp(-rads/60), 'k--', label="exp")
+    # ax.legend()
 
     fig.tight_layout()
     fig.savefig(f"{plots_savedir}/{sim}_sigmagas.png")
@@ -121,7 +132,7 @@ def plot_gas_sigma():
 # ================== Dust Sigma Profile ===================
 
 def plot_dust_sigma():
-    fig = plt.figure(figsize=(17,16))
+    fig, ax = plt.subplot_mosaic("AABBCC;DDDEEE;FFFGGG", figsize=(15,13))
     print("Plotting dust surface density by grain size....")
 
     n_size_decades = int(np.log10(maxgsize) - np.log10(mingsize))  # e.g. 7
@@ -129,63 +140,102 @@ def plot_dust_sigma():
     sigma_dust_binned = np.zeros((len(outputs), n_size_decades, nrad))
     psizex = 3
     psizey = int(n_size_decades/psizex)+1
+    subps = "ABCDEFG"
 
     # Plot sigma dust for each size decade
     for n, size_decade in enumerate(size_decades):
-        ax = fig.add_subplot(psizey, psizex, n+1)
-        ax.set_prop_cycle(color=colour_cycler)
-
+        ax[subps[n]].set_prop_cycle(color=colour_cycler)
         for i, t in enumerate(timesteps):
             sigma_dust_binned = np.sum(sigma_dust_1D[i,size_decade,:], axis=0)
-            color = next(ax._get_lines.prop_cycler)['color']
+            color = next(ax[subps[n]]._get_lines.prop_cycler)['color']
 
             if not p_orbits:
                 tlabel = f"{round(t, 3)} Myr"
             elif planets:
                 tlabel = f"{int(round(planet_orbits[i], 0))} orbits"
             
-            ax.plot(radii, sigma_dust_binned, label=tlabel, color=color)
+            ax[subps[n]].plot(radii, sigma_dust_binned, label=tlabel, color=color)
 
             if planets:
                 for rp in rps[:,i]:
-                    ax.axvline(rp, linestyle='dashed', color=color)
-            
-        if not n%psizex:
-            ax.set_ylabel("$\Sigma_{dust} (g/cm^{2})$")
-        if n < psizex and n_size_decades > psizex:
-            ax.set_xticks([])
-        else:
-            ax.set_xlabel("R (AU)")
+                    ax[subps[n]].axvline(rp, linestyle='dashed', color=color)
 
         dustsizes = [(10**n) * mingsize, (10**(n+1)) * mingsize]
         dustsizes = [np.format_float_positional(d,3,fractional=False,unique=True) for d in dustsizes]
-        ax.set_title(f"{dustsizes[0]}-{dustsizes[1]}cm")
-        ax.set_xscale("log")
-        ax.set_yscale("log")
-        ax.set_xlim(min(radii), max(radii))
+        ax[subps[n]].set_title(f"{dustsizes[0]}-{dustsizes[1]}cm")
+        ax[subps[n]].set_xscale("log")
+        ax[subps[n]].set_yscale("log")
+        ax[subps[n]].set_xlim(np.min(radii), np.max(radii))
+        
+    ax["A"].set_ylabel("$\Sigma_{dust} (g/cm^{2})$")
+    ax["D"].set_ylabel("$\Sigma_{dust} (g/cm^{2})$")
+    ax["F"].set_ylabel("$\Sigma_{dust} (g/cm^{2})$")
+    ax["A"].set_xlabel("R (AU)")
+    ax["B"].set_xlabel("R (AU)")
+    ax["C"].set_xlabel("R (AU)")
+    ax["F"].set_xlabel("R (AU)")
+    ax["G"].set_xlabel("R (AU)")
+    # ax["D"].set_xticks([])
+    # ax["E"].set_xticks([])
+    ax["G"].legend(loc="lower left")
+    fig.tight_layout()
 
-    # Plot sigma dust for all grains summed
-    ax = fig.add_subplot(psizey, psizex, n+2)
-    ax.set_prop_cycle(color=colour_cycler)
-    for i, t in enumerate(timesteps):
-        if not p_orbits:
-            tlabel = f"{round(t, 3)} Myr"
-        elif planets:
-            tlabel = f"{int(round(planet_orbits[i], 0))} orbits"
 
-        color = next(ax._get_lines.prop_cycler)['color']
-        ax.plot(radii, sigma_dust_tot[i], label=tlabel, color=color)
+    # for n, size_decade in enumerate(size_decades):
+    #     ax = fig.add_subplot(psizey, psizex, n+1)
+    #     ax.set_prop_cycle(color=colour_cycler)
 
-        if planets:
-            for rp in rps[:,i]:
-                ax.axvline(rp, linestyle='dashed', color=color)
+    #     for i, t in enumerate(timesteps):
+    #         sigma_dust_binned = np.sum(sigma_dust_1D[i,size_decade,:], axis=0)
+    #         color = next(ax._get_lines.prop_cycler)['color']
 
-    ax.set_xlabel("R (AU)")
-    ax.set_xscale("log")
-    ax.set_yscale("log")
-    ax.legend()
-    ax.set_title("All Dust")
-    ax.set_xlim(np.min(radii), np.max(radii))
+    #         if not p_orbits:
+    #             tlabel = f"{round(t, 3)} Myr"
+    #         elif planets:
+    #             tlabel = f"{int(round(planet_orbits[i], 0))} orbits"
+            
+    #         ax.plot(radii, sigma_dust_binned, label=tlabel, color=color)
+
+    #         if planets:
+    #             for rp in rps[:,i]:
+    #                 ax.axvline(rp, linestyle='dashed', color=color)
+            
+    #     if not n%psizex:
+    #         ax.set_ylabel("$\Sigma_{dust} (g/cm^{2})$")
+    #     if n < psizex and n_size_decades > psizex:
+    #         ax.set_xticks([])
+    #     else:
+    #         ax.set_xlabel("R (AU)")
+
+        # dustsizes = [(10**n) * mingsize, (10**(n+1)) * mingsize]
+        # dustsizes = [np.format_float_positional(d,3,fractional=False,unique=True) for d in dustsizes]
+        # ax.set_title(f"{dustsizes[0]}-{dustsizes[1]}cm")
+        # ax.set_xscale("log")
+        # ax.set_yscale("log")
+        # ax.set_xlim(min(radii), max(radii))
+
+    # # Plot sigma dust for all grains summed
+    # ax = fig.add_subplot(psizey, psizex, n+2)
+    # ax.set_prop_cycle(color=colour_cycler)
+    # for i, t in enumerate(timesteps):
+    #     if not p_orbits:
+    #         tlabel = f"{round(t, 3)} Myr"
+    #     elif planets:
+    #         tlabel = f"{int(round(planet_orbits[i], 0))} orbits"
+
+    #     color = next(ax._get_lines.prop_cycler)['color']
+    #     ax.plot(radii, sigma_dust_tot[i], label=tlabel, color=color)
+
+    #     if planets:
+    #         for rp in rps[:,i]:
+    #             ax.axvline(rp, linestyle='dashed', color=color)
+
+    # ax.set_xlabel("R (AU)")
+    # ax.set_xscale("log")
+    # ax.set_yscale("log")
+    # ax.legend()
+    # ax.set_title("All Dust")
+    # ax.set_xlim(np.min(radii), np.max(radii))
 
     fig.tight_layout()
     fig.savefig(f"{plots_savedir}/{sim}_sigmadust.png")
@@ -542,6 +592,9 @@ if __name__ == "__main__":
     alpha = float(params_dict['ALPHA'])
     spacing = str(params_dict['SPACING'])
     omegaframe = float(params_dict['OMEGAFRAME'])
+    sigma0 = float(params_dict['SIGMA0'])
+    # Rc = float(params_dict['SIGMACUTOFF'])
+
     if grog:
         mingsize = float(params_dict['MIN_GRAIN_SIZE'])
         maxgsize = float(params_dict['MAX_GRAIN_SIZE'])
@@ -611,7 +664,7 @@ if __name__ == "__main__":
         sigma_dust_1D = sigma_dust_azimsum/nphi                         # dimensions: (noutputs, ndust, nrad)   
         sigma_dust_tot = np.sum(sigma_dust_1D, axis=1)                     # dimensions: (noutputs, nrad)   
         # sigma_dust_sum_1D = avgdustdens_azimsum/nphi                  # dimensions: (noutputs, nrad)
-    
+        print(sigma_dust_1D[0,30])
     for i,t in enumerate(outputs):
         if grog:
             # dust mass for dust of size a as a function of r
