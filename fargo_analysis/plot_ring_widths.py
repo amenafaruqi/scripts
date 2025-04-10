@@ -20,9 +20,7 @@ r_hill_width = 15
 
 def gaussian(x, a, x0, b): 
     return a*np.exp(-0.5*((x-x0)/b)**2) 
-    # y = a*np.exp(-1*b*x**2)
-    # return y
-
+    # return a*np.exp(-0.5*((x-x0)/(b+c(x-x0)))**2)   # skewed gaussian
 
 def find_ring_peak(radii, sigma):
     peak_i = np.argmax(sigma)
@@ -85,13 +83,11 @@ if __name__ == "__main__":
     parser.add_argument('-sims', metavar='sim', type=str, nargs="*", default=["10Me"] ,help="simulation directory containing output files")
     parser.add_argument('-savedir', metavar='savedir', type=str, nargs=1, default="./images" ,help="directory to save plots to")
     parser.add_argument('-o', metavar='outputs',default=[600], type=int, nargs="*" ,help="outputs to plot")
-    parser.add_argument('-plots', metavar='plots',default=["dmass"], type=str, nargs="*" ,help="plots to produce")
     parser.add_argument('-plot_window', action="store_true")
     parser.add_argument('-style', metavar='style', type=str, nargs="*", default=["publication"] ,help="style sheet to apply to plots")
 
     args = parser.parse_args()
     output = args.o[0]
-    plots = args.plots
     wd = args.wd[0]
     sims = args.sims
     plot_window = args.plot_window
@@ -122,7 +118,7 @@ if __name__ == "__main__":
         nrad = int(params_dict['NY'])
         hr0 = float(params_dict['ASPECTRATIO'])      # aspect ratio at R=1AU
         ndust = int(params_dict['NDUST'])
-        # alpha = float(params_dict['ALPHA'])
+        alpha = float(params_dict['ALPHA'])
         spacing = str(params_dict['SPACING'])
         max_stokes = float(params_dict['STOKES'])
         stokes = np.logspace(np.log10(max_stokes),np.log10(max_stokes*10**(-ndust+1)),ndust)
@@ -137,7 +133,8 @@ if __name__ == "__main__":
         xp, yp = planet_data[output,1], planet_data[output,2]
         rp = ((xp**2) + (yp**2))**0.5
         mp = planet_data[output,7]
-        mp = int(mp/(3.0027e-6))     # convert to earth masses
+        mp = round(mp/(3.0027e-6),0)     # convert to earth masses
+        planet_masses[s] = mp
         r_hill = rp*(mp/3)**(1/3)
 
         # Calculate radial values (cell centres)
@@ -194,19 +191,25 @@ if __name__ == "__main__":
             print(params)
             radii_arr = np.linspace(np.min(radii_bound), np.max(radii_bound),100)
             gaussian_fit = gaussian(radii_arr, afit, x0fit, bfit)
+            ring_width = np.abs(4*bfit)     # ring_width = 4sigma
+            ring_widths[s,i] = ring_width
 
-            # =========== Plot ring width vs planet mass ===========
-            plt.clf()
-            plt.plot(radii,sigma_dust_st/np.max(sigma_bound), c='k')
-            plt.scatter(radii,sigma_dust_st/np.max(sigma_bound), c='k', marker='x')
-            plt.plot(radii_arr, gaussian_fit, c='r')
-            plt.axvline(innerbound, c='k', linestyle='dashed')
-            plt.axvline(outerbound, c='k', linestyle='dashed')
-            plt.xlim(1,1.5)
-            plt.savefig(f"ring_{i}.png")
-        # ax.plot(ring_widths[s,], planet_masses[s])
+            # plt.clf()
+            # plt.plot(radii,sigma_dust_st/np.max(sigma_bound), c='k')
+            # plt.scatter(radii,sigma_dust_st/np.max(sigma_bound), c='k', marker='x')
+            # plt.plot(radii_arr, gaussian_fit, c='r')
+            # plt.axvline(innerbound, c='k', linestyle='dashed')
+            # plt.axvline(outerbound, c='k', linestyle='dashed')
+            # plt.xlim(1,1.5)
+            # plt.savefig(f"ring{s}_{i}.png")
 
-    # fig.savefig("./ring_widths.png")
+    # 3) Plot ring width vs planet mass
+    for i,st in enumerate(stokes):
+        alpha_st = round(alpha/st, 4)
+        ax.scatter(planet_masses, ring_widths[:,i])
+        ax.plot(planet_masses, ring_widths[:,i], label=f"$\\alpha/St = {alpha_st}$")
+    ax.legend()
+    fig.savefig("./ring_widths.png")
 
 
 
