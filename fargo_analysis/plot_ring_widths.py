@@ -10,11 +10,9 @@ from scipy.signal import find_peaks
 from numpy.polynomial import Polynomial
 import argparse
 
-
-# =============== Customisable parameters ===============
-
-sigma_width = 3
-r_hill_width = 15
+# plt.rc('text', usetex=True)
+# plt.rc('font', family='serif')
+# mpl.rcParams['text.latex.preamble'] = r'\usepackage{amsmath}'
 
 # ================== Fitting functions ==================
 
@@ -169,7 +167,7 @@ if __name__ == "__main__":
         # ================ Calculate ring width ================
 
         for i,st in enumerate(stokes):
-            print("---------- Stokes = ", st)
+            # print("---------- Stokes = ", round(st,3))
             sigma_dust_st = sigma_dust_1D[i]
             # 1) Select data only within region close to planet
             # innerbound = rp + 0.11
@@ -188,7 +186,6 @@ if __name__ == "__main__":
             # 2) Fit Gaussian to data to remove small variations
             params, covar = curve_fit(gaussian, radii_bound, sigma_bound/np.max(sigma_bound))
             afit, x0fit, bfit = params
-            print(params)
             radii_arr = np.linspace(np.min(radii_bound), np.max(radii_bound),100)
             gaussian_fit = gaussian(radii_arr, afit, x0fit, bfit)
             ring_width = np.abs(4*bfit)     # ring_width = 4sigma
@@ -208,6 +205,10 @@ if __name__ == "__main__":
         alpha_st = round(alpha/st, 4)
         ax.scatter(planet_masses, ring_widths[:,i])
         ax.plot(planet_masses, ring_widths[:,i], label=f"$\\alpha/St = {alpha_st}$")
+    
+    ax.set_xlabel("R")
+    ax.set_ylabel("Ring width")
+    ax.set_title(f"H/R = {hr0}")
     ax.legend()
     fig.savefig("./ring_widths.png")
 
