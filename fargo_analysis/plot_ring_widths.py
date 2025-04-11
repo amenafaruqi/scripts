@@ -1,5 +1,5 @@
 import numpy as np
-import matplotlib
+import matplotlib as mpl
 import matplotlib.pyplot as plt
 from scipy.optimize import curve_fit 
 
@@ -10,9 +10,9 @@ from scipy.signal import find_peaks
 from numpy.polynomial import Polynomial
 import argparse
 
-# plt.rc('text', usetex=True)
-# plt.rc('font', family='serif')
-# mpl.rcParams['text.latex.preamble'] = r'\usepackage{amsmath}'
+plt.rc('text', usetex=True)
+plt.rc('font', family='serif')
+mpl.rcParams['text.latex.preamble'] = r'\usepackage{amsmath}'
 
 # ================== Fitting functions ==================
 
@@ -77,9 +77,9 @@ def find_ring_troughs(radii, dust_mass_normed, i_peak, bins=np.arange(-5,0)):
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description='Fit dust rings', prefix_chars='-')
 
-    parser.add_argument('-wd', metavar='wd', type=str, nargs=1, default=["/home/astro/phrkvg/simulations/dusty_fargo_models/"],help="working directory containing simulations")
+    parser.add_argument('-wd', metavar='wd', type=str, nargs=1, default=["/home/amena/scratch/simulations/dusty_fargo/"],help="working directory containing simulations")
     parser.add_argument('-sims', metavar='sim', type=str, nargs="*", default=["10Me"] ,help="simulation directory containing output files")
-    parser.add_argument('-savedir', metavar='savedir', type=str, nargs=1, default="./images" ,help="directory to save plots to")
+    parser.add_argument('-savedir', metavar='savedir', type=str, nargs=1, default="/home/amena/scratch/images/" ,help="directory to save plots to")
     parser.add_argument('-o', metavar='outputs',default=[600], type=int, nargs="*" ,help="outputs to plot")
     parser.add_argument('-plot_window', action="store_true")
     parser.add_argument('-style', metavar='style', type=str, nargs="*", default=["publication"] ,help="style sheet to apply to plots")
@@ -97,7 +97,7 @@ if __name__ == "__main__":
 
     fig, ax = plt.subplots(figsize=(8,5))
     planet_masses = np.zeros((len(sims)))
-    ring_widths = np.zeros((len(sims),3))
+    ring_widths = np.zeros((len(sims),5))
 
     # Iterate through models and calculate ring width for each St
     for s, sim in enumerate(sims):
@@ -119,8 +119,7 @@ if __name__ == "__main__":
         alpha = float(params_dict['ALPHA'])
         spacing = str(params_dict['SPACING'])
         max_stokes = float(params_dict['STOKES'])
-        stokes = np.logspace(np.log10(max_stokes),np.log10(max_stokes*10**(-ndust+1)),ndust)
-
+        stokes = np.logspace(np.log10(max_stokes),np.log10(max_stokes*10**(-2)),ndust)   # hardcodes St range to be max_stokes - max_stokes*1e-2
         # Calculate timing parameters
         dt_orbits = int(float(params_dict['DT'])/(2*np.pi))   # 2pi = 1 orbit = 1 yr
         ninterm = float(params_dict['NINTERM'])               # number of dts between outputs
@@ -131,9 +130,10 @@ if __name__ == "__main__":
         xp, yp = planet_data[output,1], planet_data[output,2]
         rp = ((xp**2) + (yp**2))**0.5
         mp = planet_data[output,7]
-        mp = round(mp/(3.0027e-6),0)     # convert to earth masses
-        planet_masses[s] = mp
         r_hill = rp*(mp/3)**(1/3)
+        mp = int(round(mp/(3.0027e-6),0))     # convert to earth masses
+        planet_masses[s] = mp
+        print(f" Planet Mass = {mp} Mearth -----------")
 
         # Calculate radial values (cell centres)
         r_cells = np.loadtxt(f'{simdir}/domain_y.dat')[3:-3]             # ignore ghost cells
@@ -158,7 +158,7 @@ if __name__ == "__main__":
             dust_file0 = f"dustdens{n}_0.dat"
             sigma_dust0[n] = np.fromfile(simdir+dust_file0).reshape(nrad,nphi)/(1.125e-7)
         # sigma_gas_azimsum = np.sum(sigma_gas, axis=2)                  # sum over all phi   
-        # sigma_gas_1D = sigma_gas_azimsum/nphi                         # dimensions: (noutputs, nrad) 
+        # sigma_gas_1D = sigma_gas_azimsum/nphi                          # dimensions: (noutputs, nrad) 
 
         sigma_dust_1D = np.sum(sigma_dust, axis=2)/nphi                         # dimensions: (noutputs, ndust, nrad)   
         sigma_dust0_1D = np.sum(sigma_dust0, axis=2)/nphi                         # dimensions: (noutputs, ndust, nrad)   
@@ -167,13 +167,13 @@ if __name__ == "__main__":
         # ================ Calculate ring width ================
 
         for i,st in enumerate(stokes):
-            # print("---------- Stokes = ", round(st,3))
+            print("---------- Stokes = ", round(st,3))
             sigma_dust_st = sigma_dust_1D[i]
             # 1) Select data only within region close to planet
-            # innerbound = rp + 0.11
-            # outerbound = rp + (r_hill*r_hill_width) -0.1 # search for peak from rp to outerbound
-            innerbound = 1.1
-            outerbound = 1.3
+            innerbound = rp + (4*r_hill)
+            outerbound = rp + (12*r_hill)  # search for peak from rp to outerbound
+            # innerbound = 1.1
+            # outerbound = 1.4
             innerbound_i = np.argmin(np.abs(radii-innerbound))      # index (radial cell number) of lower bound of peak search
             outerbound_i = np.argmin(np.abs(radii-outerbound))      # index (radial cell number) of upper bound of peak search
 
@@ -182,35 +182,45 @@ if __name__ == "__main__":
 
             peak_i_bound = find_ring_peak(radii_bound,sigma_bound)
             peak_i = peak_i_bound + innerbound_i
+            peak_r = radii_bound[peak_i_bound]
+            init_guess = [1,peak_r,0.04]
+            fit_lims = ((0.99,peak_r*0.99,-0.1),(1.01,peak_r*1.01,0.1))
 
             # 2) Fit Gaussian to data to remove small variations
-            params, covar = curve_fit(gaussian, radii_bound, sigma_bound/np.max(sigma_bound))
-            afit, x0fit, bfit = params
-            radii_arr = np.linspace(np.min(radii_bound), np.max(radii_bound),100)
-            gaussian_fit = gaussian(radii_arr, afit, x0fit, bfit)
-            ring_width = np.abs(4*bfit)     # ring_width = 4sigma
+            try:
+                params, covar = curve_fit(gaussian, radii_bound, sigma_bound/np.max(sigma_bound), p0=init_guess, bounds=fit_lims)
+                afit, x0fit, bfit = params
+                print("~~~~~~~~~~~>",bfit)
+                radii_arr = np.linspace(np.min(radii_bound), np.max(radii_bound),100)
+                gaussian_fit = gaussian(radii_arr, afit, x0fit, bfit)
+                ring_width = np.abs(4*bfit)     # ring_width = 4sigma
+            except RuntimeError:
+                ring_width = np.nan
             ring_widths[s,i] = ring_width
-
-            # plt.clf()
-            # plt.plot(radii,sigma_dust_st/np.max(sigma_bound), c='k')
-            # plt.scatter(radii,sigma_dust_st/np.max(sigma_bound), c='k', marker='x')
-            # plt.plot(radii_arr, gaussian_fit, c='r')
-            # plt.axvline(innerbound, c='k', linestyle='dashed')
-            # plt.axvline(outerbound, c='k', linestyle='dashed')
-            # plt.xlim(1,1.5)
-            # plt.savefig(f"ring{s}_{i}.png")
+            
+            fig0, ax0 = plt.subplots(figsize=(7,5))
+            ax0.cla()
+            ax0.plot(radii,sigma_dust_st/np.max(sigma_bound), c='k')
+            ax0.scatter(radii,sigma_dust_st/np.max(sigma_bound), c='k', marker='x')
+            ax0.plot(radii_arr, gaussian_fit, c='r')
+            ax0.axvline(innerbound, c='k', linestyle='dashed')
+            ax0.axvline(outerbound, c='k', linestyle='dashed')
+            ax0.set_xlim(1,1.5)
+            ax0.set_ylim(0,np.max(sigma_bound/np.max(sigma_bound))*1.05)
+            fig0.savefig(f"{plots_savedir}/rings_{mp}Me_{hr0}_{i}.png")
 
     # 3) Plot ring width vs planet mass
     for i,st in enumerate(stokes):
         alpha_st = round(alpha/st, 4)
         ax.scatter(planet_masses, ring_widths[:,i])
         ax.plot(planet_masses, ring_widths[:,i], label=f"$\\alpha/St = {alpha_st}$")
-    
-    ax.set_xlabel("R")
+   
+    ax.set_ylim(-0.1,0.6)
+    ax.set_xlabel("Planet Mass (M$_\oplus$)")
     ax.set_ylabel("Ring width")
     ax.set_title(f"H/R = {hr0}")
     ax.legend()
-    fig.savefig("./ring_widths.png")
+    fig.savefig(f"{plots_savedir}/ring_widths_{hr0}.png", dpi=200)
 
 
 
