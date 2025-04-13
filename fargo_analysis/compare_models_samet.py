@@ -103,7 +103,7 @@ def overlay_dust_sigmas(fig, ax, radii, sigma_dust, model_num=0):
 
             ax[n].set_title(f"St={round(stokes[n],3)}")
             ax[n].set_yscale("log")
-            ax[n].set_xscale("log")
+            # ax[n].set_xscale("log")
             ax[n].set_xlim(0.7, 1.5)
             
         for m in range(model_num+1):
@@ -112,12 +112,14 @@ def overlay_dust_sigmas(fig, ax, radii, sigma_dust, model_num=0):
 
 
         ax[0].set_ylabel("$\Sigma_{dust}$")
-        ax[2].set_ylabel("$\Sigma_{dust}$")
-        ax[2].set_xlabel("R")
+        ax[3].set_ylabel("$\Sigma_{dust}$")
         ax[3].set_xlabel("R")
+        ax[4].set_xlabel("R")
+        ax[5].set_xlabel("R")
         ax[0].set_xticks([])
         ax[1].set_xticks([])
-        ax[3].legend(loc="lower left", handles=legend_elements)
+        ax[2].set_xticks([])
+        ax[5].legend(handles=legend_elements)
         fig.tight_layout()
 
         # Plot total dust sigma
@@ -125,15 +127,15 @@ def overlay_dust_sigmas(fig, ax, radii, sigma_dust, model_num=0):
         mass_weighted_sum = np.sum([sigma_dust[n]*(stokes[n]**3) for n in range(ndust)], axis=0)
         mass_weighted_avg = mass_weighted_sum/dust_mass_tot
         # sigma_dust_tot = np.sum(sigma_dust, axis=0)                  # dimensions: (nrad)  
-        ax[3].plot(radii, mass_weighted_avg, color=color)
-        ax[3].set_title("All St")
-        ax[3].set_yscale("log")
-        ax[3].set_xscale("log")
-        ax[3].set_xlim(0.7,1.5)
+        ax[5].plot(radii, mass_weighted_avg, color=color)
+        ax[5].set_title("All St")
+        ax[5].set_yscale("log")
+        # ax[5].set_xscale("log")
+        ax[5].set_xlim(0.7,1.5)
 
         if planets:
             for rp in rps:
-                ax[3].axvline(rp, linestyle='dashed', color="k")
+                ax[5].axvline(rp, linestyle='dashed', color="k")
 
 
 
@@ -259,7 +261,7 @@ if __name__ == "__main__":
     planets = args.noplanet
     grog = args.nogrog
     plot_window = args.plot_window
-    plots_savedir = args.savedir
+    plots_savedir = args.savedir[0]
     style = args.style
 
     cm = plt.get_cmap('viridis')
@@ -282,8 +284,8 @@ if __name__ == "__main__":
     if "dsig" in plots:
         if grog:   # assume 7 dust size decades
             fig_dust_sigma, ax_dust_sigma = plt.subplot_mosaic("AABBCC;DDDEEE;FFFGGG", figsize=(15,13))
-        else:      # assume 3 stokes numbers
-            fig_dust_sigma, ax_dust_sigma = plt.subplots(figsize=(10,8), ncols=2, nrows=2)
+        else:      # 2 cols for 3 St, 3 for 5 St
+            fig_dust_sigma, ax_dust_sigma = plt.subplots(figsize=(15,8), ncols=3, nrows=2)
     if "dmass" in plots:
         fig_dust_mass, ax_dust_mass = plt.subplots(figsize=(6,5))
     if "dgr" in plots:
@@ -322,10 +324,10 @@ if __name__ == "__main__":
             maxgsize = float(params_dict['MAX_GRAIN_SIZE'])
             nss_coag = int(params_dict['NUMSUBSTEPS_COAG'])
             rhodust = float(params_dict['RHO_DUST'])
+            densfloor = float(params_dict['DENSITY_FLOOR'])
         else:
             max_stokes = float(params_dict['STOKES'])
 
-        densfloor = float(params_dict['DENSITY_FLOOR'])
         dt_orbits = int(float(params_dict['DT'])/(2*np.pi))   # 2pi = 1 orbit = 1 yr
         ninterm = float(params_dict['NINTERM'])               # number of dts between outputs
         dt_outputs = dt_orbits*ninterm                        # time between outputs
@@ -355,7 +357,7 @@ if __name__ == "__main__":
 
             a = (0.5*(a[1:] + a[:-1]))                                   # grain sizes in middles of bins (in cm)
         else:
-            stokes = np.logspace(np.log10(max_stokes),np.log10(max_stokes*10**(-ndust+1)),ndust)
+            stokes = np.logspace(np.log10(max_stokes),np.log10(max_stokes*10**(-2)),ndust)
 
         r_cells = np.loadtxt(f'{wd+sim}/domain_y.dat')[3:-3]             # ignore ghost cells
         phi_cells = np.loadtxt(f'{wd+sim}/domain_x.dat')
