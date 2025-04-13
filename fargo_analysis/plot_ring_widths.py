@@ -14,6 +14,9 @@ plt.rc('text', usetex=True)
 plt.rc('font', family='serif')
 mpl.rcParams['text.latex.preamble'] = r'\usepackage{amsmath}'
 
+cm = plt.get_cmap('viridis')
+colour_cycler = [cm(1.*i/5) for i in range(5)]   # 1 colour for each St
+
 # ================== Fitting functions ==================
 
 def gaussian(x, a, x0, b): 
@@ -23,6 +26,17 @@ def gaussian(x, a, x0, b):
 def find_ring_peak(radii, sigma):
     peak_i = np.argmax(sigma)
     return peak_i
+
+
+def calculate_Miso(hr, alpha, st):
+    dlogPdlogR = f - sigmaslope - 2     # taken from eq. 9 from Bitsch et al. 2018, accounting for their s being -ve. 
+    f_fit = ((hr/0.05)**3)*(0.34*(np.log10(0.001)/np.log10(alpha))**4 + 0.66)*(1-((dlogPdlogR+2.5)/6))
+    alpha_st = alpha/st
+    M_iso = 25*f_fit
+    Pi_crit = alpha_st/2
+    Lambda = 0.00476/f_fit
+    M_iso += Pi_crit/Lambda                  # PIM considering diffusion
+    return M_iso
 
 
 def find_ring_troughs(radii, dust_mass_normed, i_peak, bins=np.arange(-5,0)):
@@ -102,6 +116,7 @@ if __name__ == "__main__":
     # Iterate through models and calculate ring width for each St
     for s, sim in enumerate(sims):
         simdir = f"{wd}/{sim}/"
+        print(f"Reading variables for {simdir}...")
         params_file = f'{simdir}/variables.par'
         params_dict = {}
 
@@ -117,6 +132,8 @@ if __name__ == "__main__":
         hr0 = float(params_dict['ASPECTRATIO'])      # aspect ratio at R=1AU
         ndust = int(params_dict['NDUST'])
         alpha = float(params_dict['ALPHA'])
+        sigmaslope = float(params_dict['SIGMASLOPE'])
+        f = float(params_dict['FLARINGINDEX'])
         spacing = str(params_dict['SPACING'])
         max_stokes = float(params_dict['STOKES'])
         stokes = np.logspace(np.log10(max_stokes),np.log10(max_stokes*10**(-2)),ndust)   # hardcodes St range to be max_stokes - max_stokes*1e-2
@@ -184,13 +201,12 @@ if __name__ == "__main__":
             peak_i = peak_i_bound + innerbound_i
             peak_r = radii_bound[peak_i_bound]
             init_guess = [1,peak_r,0.04]
-            fit_lims = ((0.99,peak_r*0.99,-0.1),(1.01,peak_r*1.01,0.1))
+            fit_lims = ((0.99,peak_r*0.999,-0.15),(1.01,peak_r*1.001,0.15))
 
             # 2) Fit Gaussian to data to remove small variations
             try:
                 params, covar = curve_fit(gaussian, radii_bound, sigma_bound/np.max(sigma_bound), p0=init_guess, bounds=fit_lims)
                 afit, x0fit, bfit = params
-                print("~~~~~~~~~~~>",bfit)
                 radii_arr = np.linspace(np.min(radii_bound), np.max(radii_bound),100)
                 gaussian_fit = gaussian(radii_arr, afit, x0fit, bfit)
                 ring_width = np.abs(4*bfit)     # ring_width = 4sigma
@@ -211,11 +227,14 @@ if __name__ == "__main__":
 
     # 3) Plot ring width vs planet mass
     for i,st in enumerate(stokes):
+        colour = colour_cycler[i]
         alpha_st = round(alpha/st, 4)
-        ax.scatter(planet_masses, ring_widths[:,i])
-        ax.plot(planet_masses, ring_widths[:,i], label=f"$\\alpha/St = {alpha_st}$")
+        ax.scatter(planet_masses, ring_widths[:,i], c=colour)
+        ax.plot(planet_masses, ring_widths[:,i], label=f"$\\alpha/St = {alpha_st}$" , c=colour)
+        M_iso = calculate_Miso(hr0, alpha, st)
+        ax.axvline(M_iso, linestyle='dashed', c=colour)
    
-    ax.set_ylim(-0.1,0.6)
+    ax.set_ylim(-0.05,0.7)
     ax.set_xlabel("Planet Mass (M$_\oplus$)")
     ax.set_ylabel("Ring width")
     ax.set_title(f"H/R = {hr0}")
