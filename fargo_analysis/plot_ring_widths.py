@@ -10,12 +10,13 @@ from scipy.signal import find_peaks
 from numpy.polynomial import Polynomial
 import argparse
 
-plt.rc('text', usetex=True)
-plt.rc('font', family='serif')
-mpl.rcParams['text.latex.preamble'] = r'\usepackage{amsmath}'
+# plt.rc('text', usetex=True)
+# plt.rc('font', family='serif')
+# mpl.rcParams['text.latex.preamble'] = r'\usepackage{amsmath}'
 
+nstokes = 3
 cm = plt.get_cmap('viridis')
-colour_cycler = [cm(1.*i/5) for i in range(5)]   # 1 colour for each St
+colour_cycler = [cm(1.*i/nstokes) for i in range(nstokes)]   # 1 colour for each St
 
 # ================== Fitting functions ==================
 
@@ -39,51 +40,53 @@ def calculate_Miso(hr, alpha, st):
     return M_iso
 
 
-def find_ring_troughs(radii, dust_mass_normed, i_peak, bins=np.arange(-5,0)):
-    # TODO This is not bounded correctly!!! Fix it!!
-    grad_dmass = np.gradient(dust_mass_normed, radii)
-        # gradients left of peak, in order of increasing distance from peak
-    grad_left = grad_dmass[i_peak-1::-1]
-    print(grad_left)
-        # gradients right of peak, in order of increasing distance from peak
-    grad_right = grad_dmass[i_peak+1:]
+# ============ Plotting Functions ==============
 
-    # check for change in gradient sign left of peak
-    grad_li = 0
-    while grad_left[grad_li]*grad_left[grad_li-1] >= 0:
-        grad_li += 1
-    left_trough_i = i_peak - grad_li
+def calculate_ring_widths():
+    for i,st in enumerate(stokes):
+        print("---------- Stokes = ", round(st,3))
+        sigma_dust_st = sigma_dust_1D[i]
 
-    # check for change in gradient sign right of peak
-    grad_ri = 0
-    while grad_right[grad_ri]*grad_right[grad_ri-1] >= 0:
-        grad_ri += 1
-    right_trough_i = i_peak + grad_ri
+        # 1) Select data only within region close to planet
+        innerbound = rp + (4*r_hill)
+        outerbound = rp + (12*r_hill)  # search for peak from rp to outerbound
+        # innerbound = 1.1
+        # outerbound = 1.4
+        innerbound_i = np.argmin(np.abs(radii-innerbound))      # index (radial cell number) of lower bound of peak search
+        outerbound_i = np.argmin(np.abs(radii-outerbound))      # index (radial cell number) of upper bound of peak search
 
-    return left_trough_i, right_trough_i
+        sigma_bound = sigma_dust_st[innerbound_i:outerbound_i]
+        radii_bound = radii[innerbound_i:outerbound_i]
 
-# def find_ring_edges(radii, sigma, i_peak):
-#     # Find ring edges based on 10% drop from peak sigma
-#     # Allows for asymmetric/non-Gaussian shape
-    
-#     sigma_peak = sigma[i_peak]
-#     # sigmas left of peak, in order of increasing distance from peak
-#     sigma_left = sigma[i_peak-1::-1]
-#     # sigmas right of peak, in order of increasing distance from peak
-#     sigma_right = sigma[i_peak+1:]
+        peak_i_bound = find_ring_peak(radii_bound,sigma_bound)
+        peak_i = peak_i_bound + innerbound_i
+        peak_r = radii_bound[peak_i_bound]
+        init_guess = [1,peak_r,0.04]
+        fit_lims = ((0.99,peak_r*0.999,-0.15),(1.01,peak_r*1.001,0.15))
 
-#     # Identify where sigma first drops below 0.1*sigma_peak
-#     left_edge_i = 0
-#     while sigma_left[left_edge_i] >= 0.5*sigma_peak:
-#         left_edge_i += 1
-#     left_edge_i = i_peak - left_edge_i
+        # 2) Fit Gaussian to data to remove small variations
+        try:
+            params, covar = curve_fit(gaussian, radii_bound, sigma_bound/np.max(sigma_bound), p0=init_guess, bounds=fit_lims)
+            afit, x0fit, bfit = params
+            radii_arr = np.linspace(np.min(radii_bound), np.max(radii_bound),100)
+            gaussian_fit = gaussian(radii_arr, afit, x0fit, bfit)
+            ring_width = np.abs(4*bfit)     # ring_width = 4sigma
+        except RuntimeError:
+            ring_width = np.nan
+        ring_widths[s,i] = ring_width
+        
+        fig0, ax0 = plt.subplots(figsize=(7,5))
+        ax0.cla()
+        ax0.plot(radii,sigma_dust_st/np.max(sigma_bound), c='k')
+        ax0.scatter(radii,sigma_dust_st/np.max(sigma_bound), c='k', marker='x')
+        ax0.plot(radii_arr, gaussian_fit, c='r')
+        ax0.axvline(innerbound, c='k', linestyle='dashed')
+        ax0.axvline(outerbound, c='k', linestyle='dashed')
+        ax0.set_xlim(1,1.5)
+        ax0.set_ylim(0,np.max(sigma_bound/np.max(sigma_bound))*1.05)
+        fig0.savefig(f"{plots_savedir}/rings_{mp}Me_{hr0}_{i}.png")
 
-#     right_edge_i = 0
-#     while sigma_right[right_edge_i] >= 0.5*sigma_peak:
-#         right_edge_i += 1
-#     right_edge_i += i_peak
-    
-#     return left_edge_i, right_edge_i
+
 
 
 # ============== Read in data from models ==============
@@ -91,12 +94,13 @@ def find_ring_troughs(radii, dust_mass_normed, i_peak, bins=np.arange(-5,0)):
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description='Fit dust rings', prefix_chars='-')
 
-    parser.add_argument('-wd', metavar='wd', type=str, nargs=1, default=["/home/amena/scratch/simulations/dusty_fargo/"],help="working directory containing simulations")
+    parser.add_argument('-wd', metavar='wd', type=str, nargs=1, default=["/home/astro/phrkvg/simulations/dusty_fargo_models"],help="working directory containing simulations")
     parser.add_argument('-sims', metavar='sim', type=str, nargs="*", default=["10Me"] ,help="simulation directory containing output files")
-    parser.add_argument('-savedir', metavar='savedir', type=str, nargs=1, default="/home/amena/scratch/images/" ,help="directory to save plots to")
+    parser.add_argument('-savedir', metavar='savedir', type=str, nargs=1, default="./images/" ,help="directory to save plots to")
     parser.add_argument('-o', metavar='outputs',default=[600], type=int, nargs="*" ,help="outputs to plot")
     parser.add_argument('-plot_window', action="store_true")
     parser.add_argument('-style', metavar='style', type=str, nargs="*", default=["publication"] ,help="style sheet to apply to plots")
+    parser.add_argument('-plots', metavar='plots',default=["rwidth"], type=str, nargs="*" ,help="plots to produce")
 
     args = parser.parse_args()
     output = args.o[0]
@@ -105,13 +109,23 @@ if __name__ == "__main__":
     plot_window = args.plot_window
     plots_savedir = args.savedir
     style = args.style
+    plots = args.plots    # opts: rwidth, dpdr, dflux
 
     if plot_window:
         matplotlib.use('TkAgg')
 
-    fig, ax = plt.subplots(figsize=(8,5))
-    planet_masses = np.zeros((len(sims)))
-    ring_widths = np.zeros((len(sims),5))
+    
+    # Initialise axes and arrays for data to plot
+    if "rwidth" in plots:
+        fig_rw, ax_rw = plt.subplots(figsize=(8,5))
+        planet_masses = np.zeros((len(sims)))
+        ring_widths = np.zeros((len(sims),5))
+
+    if "dpdr" in plots:
+        fig, ax = plt.subplots(figsize=(8,5))
+        planet_masses = np.zeros((len(sims)))
+        ring_widths = np.zeros((len(sims),5))
+
 
     # Iterate through models and calculate ring width for each St
     for s, sim in enumerate(sims):
@@ -137,6 +151,7 @@ if __name__ == "__main__":
         spacing = str(params_dict['SPACING'])
         max_stokes = float(params_dict['STOKES'])
         stokes = np.logspace(np.log10(max_stokes),np.log10(max_stokes*10**(-2)),ndust)   # hardcodes St range to be max_stokes - max_stokes*1e-2
+        
         # Calculate timing parameters
         dt_orbits = int(float(params_dict['DT'])/(2*np.pi))   # 2pi = 1 orbit = 1 yr
         ninterm = float(params_dict['NINTERM'])               # number of dts between outputs
@@ -181,67 +196,28 @@ if __name__ == "__main__":
         sigma_dust0_1D = np.sum(sigma_dust0, axis=2)/nphi                         # dimensions: (noutputs, ndust, nrad)   
         
 
-        # ================ Calculate ring width ================
+        # ================ Compute values to plot ================
+        if "rwidth" in plots:
+            calculate_ring_widths()
+    
 
+    # ================ Generate chosen plots ================
+    if "rwidth" in plots:
+        # 3) Plot ring width vs planet mass
         for i,st in enumerate(stokes):
-            print("---------- Stokes = ", round(st,3))
-            sigma_dust_st = sigma_dust_1D[i]
-            # 1) Select data only within region close to planet
-            innerbound = rp + (4*r_hill)
-            outerbound = rp + (12*r_hill)  # search for peak from rp to outerbound
-            # innerbound = 1.1
-            # outerbound = 1.4
-            innerbound_i = np.argmin(np.abs(radii-innerbound))      # index (radial cell number) of lower bound of peak search
-            outerbound_i = np.argmin(np.abs(radii-outerbound))      # index (radial cell number) of upper bound of peak search
+            colour = colour_cycler[i]
+            alpha_st = round(alpha/st, 4)
+            ax_rw.scatter(planet_masses, ring_widths[:,i], c=colour)
+            ax_rw.plot(planet_masses, ring_widths[:,i], label=f"$\\alpha/St = {alpha_st}$" , c=colour)
+            M_iso = calculate_Miso(hr0, alpha, st)
+            ax_rw.axvline(M_iso, linestyle='dashed', c=colour)
 
-            sigma_bound = sigma_dust_st[innerbound_i:outerbound_i]
-            radii_bound = radii[innerbound_i:outerbound_i]
-
-            peak_i_bound = find_ring_peak(radii_bound,sigma_bound)
-            peak_i = peak_i_bound + innerbound_i
-            peak_r = radii_bound[peak_i_bound]
-            init_guess = [1,peak_r,0.04]
-            fit_lims = ((0.99,peak_r*0.999,-0.15),(1.01,peak_r*1.001,0.15))
-
-            # 2) Fit Gaussian to data to remove small variations
-            try:
-                params, covar = curve_fit(gaussian, radii_bound, sigma_bound/np.max(sigma_bound), p0=init_guess, bounds=fit_lims)
-                afit, x0fit, bfit = params
-                radii_arr = np.linspace(np.min(radii_bound), np.max(radii_bound),100)
-                gaussian_fit = gaussian(radii_arr, afit, x0fit, bfit)
-                ring_width = np.abs(4*bfit)     # ring_width = 4sigma
-            except RuntimeError:
-                ring_width = np.nan
-            ring_widths[s,i] = ring_width
-            
-            fig0, ax0 = plt.subplots(figsize=(7,5))
-            ax0.cla()
-            ax0.plot(radii,sigma_dust_st/np.max(sigma_bound), c='k')
-            ax0.scatter(radii,sigma_dust_st/np.max(sigma_bound), c='k', marker='x')
-            ax0.plot(radii_arr, gaussian_fit, c='r')
-            ax0.axvline(innerbound, c='k', linestyle='dashed')
-            ax0.axvline(outerbound, c='k', linestyle='dashed')
-            ax0.set_xlim(1,1.5)
-            ax0.set_ylim(0,np.max(sigma_bound/np.max(sigma_bound))*1.05)
-            fig0.savefig(f"{plots_savedir}/rings_{mp}Me_{hr0}_{i}.png")
-
-    # 3) Plot ring width vs planet mass
-    for i,st in enumerate(stokes):
-        colour = colour_cycler[i]
-        alpha_st = round(alpha/st, 4)
-        ax.scatter(planet_masses, ring_widths[:,i], c=colour)
-        ax.plot(planet_masses, ring_widths[:,i], label=f"$\\alpha/St = {alpha_st}$" , c=colour)
-        M_iso = calculate_Miso(hr0, alpha, st)
-        ax.axvline(M_iso, linestyle='dashed', c=colour)
-   
-    ax.set_ylim(-0.05,0.7)
-    ax.set_xlabel("Planet Mass (M$_\oplus$)")
-    ax.set_ylabel("Ring width")
-    ax.set_title(f"H/R = {hr0}")
-    ax.legend()
-    fig.savefig(f"{plots_savedir}/ring_widths_{hr0}.png", dpi=200)
-
-
+        ax_rw.set_ylim(-0.05,0.7)
+        ax_rw.set_xlabel("Planet Mass (M$_\oplus$)")
+        ax_rw.set_ylabel("Ring width")
+        ax_rw.set_title(f"H/R = {hr0}")
+        ax_rw.legend()
+        fig_rw.savefig(f"{plots_savedir}/ring_widths_{hr0}.png", dpi=200)
 
     print(f"-------------------\nPlotting output {output} for {sim}\n=============")
 
