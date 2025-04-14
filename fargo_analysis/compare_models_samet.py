@@ -87,7 +87,7 @@ def overlay_dust_sigmas(fig, ax, radii, sigma_dust, model_num=0):
         ax["G"].set_xlabel("R (AU)")
         # ax["D"].set_xticks([])
         # ax["E"].set_xticks([])
-        ax["G"].legend(loc="lower left", handles=legend_elements)
+        ax["G"].legend(handles=legend_elements)
         fig.tight_layout()
 
 
@@ -103,7 +103,7 @@ def overlay_dust_sigmas(fig, ax, radii, sigma_dust, model_num=0):
 
             ax[n].set_title(f"St={round(stokes[n],3)}")
             ax[n].set_yscale("log")
-            ax[n].set_xscale("log")
+            # ax[n].set_xscale("log")
             ax[n].set_xlim(0.7, 1.5)
             
         for m in range(model_num+1):
@@ -128,7 +128,7 @@ def overlay_dust_sigmas(fig, ax, radii, sigma_dust, model_num=0):
         ax[3].plot(radii, mass_weighted_avg, color=color)
         ax[3].set_title("All St")
         ax[3].set_yscale("log")
-        ax[3].set_xscale("log")
+        # ax[3].set_xscale("log")
         ax[3].set_xlim(0.7,1.5)
 
         if planets:
