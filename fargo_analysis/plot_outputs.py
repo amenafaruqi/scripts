@@ -11,18 +11,17 @@ warnings.filterwarnings("ignore")
 # ======================= Dust Contour Plots ==============================
 
 def plot_dust_contours():
-    fig0 = plt.figure(figsize=(17,14))  
+    fig0 = plt.figure(figsize=(17,10))  
     R, A = np.meshgrid(radii, a)
     # levels = np.linspace(-11,1,7)                    # Brauer 2008 levels
     # levels = np.linspace(-7, 2, 10)                  # Birnstiel 2012 levels 
-    levels = np.linspace(-19, 3, 12)             # number of levels = 0.5 x (max-min) + 1             
+    levels = np.linspace(-8, 2, 6)             # number of levels = 0.5 x (max-min) + 1
     print("Plotting dust size contour maps....")
 
     for i, o in enumerate(outputs):
         ax0 = fig0.add_subplot(plotsizey, plotsizex, i+1)
         sigmas = sigma_dust_1D[i]
         con = ax0.contourf(R, A, np.log10(sigmas), cmap="Greys", levels=levels)
-        print(np.max(A))
         ax0.set_ylim(np.min(a), np.max(a))
         ax0.set_xscale("log")
         ax0.set_yscale("log")
@@ -177,7 +176,7 @@ def plot_dust_sigma():
     ax["G"].set_xlabel("R (AU)")
     # ax["D"].set_xticks([])
     # ax["E"].set_xticks([])
-    ax["G"].legend(loc="lower left")
+    ax["G"].legend()
     fig.tight_layout()
 
 
@@ -543,7 +542,7 @@ if __name__ == "__main__":
     parser.add_argument('-sim', metavar='sim', type=str, nargs=1, default=["planettest"] ,help="simulation directory containing output files")
     parser.add_argument('-savedir', metavar='savedir', type=str, nargs=1, default="./images" ,help="directory to save plots to")
     parser.add_argument('-o', metavar='outputs',default=[], type=int, nargs="*" ,help="outputs to plot")
-    parser.add_argument('-plots', metavar='plots',default=["gsig", "dcon", "dmass"], type=str, nargs="*" ,help="plots to produce")
+    parser.add_argument('-plots', metavar='plots',default=["gsig", "dcon", "dsig"], type=str, nargs="*" ,help="plots to produce")
     parser.add_argument('-noplanet', action="store_false")
     parser.add_argument('-nogrog', action="store_false")
     parser.add_argument('-plot_window', action="store_true")
@@ -664,7 +663,6 @@ if __name__ == "__main__":
         sigma_dust_1D = sigma_dust_azimsum/nphi                         # dimensions: (noutputs, ndust, nrad)   
         sigma_dust_tot = np.sum(sigma_dust_1D, axis=1)                     # dimensions: (noutputs, nrad)   
         # sigma_dust_sum_1D = avgdustdens_azimsum/nphi                  # dimensions: (noutputs, nrad)
-        print(sigma_dust_1D[0,30])
     for i,t in enumerate(outputs):
         if grog:
             # dust mass for dust of size a as a function of r
