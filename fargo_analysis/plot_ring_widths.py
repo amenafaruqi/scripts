@@ -171,9 +171,9 @@ if __name__ == "__main__":
 
         for n in np.arange(ndust):
             dust_file = f"dustdens{n}_{output}.dat"
-            sigma_dust[n] = np.fromfile(simdir+dust_file).reshape(nrad,nphi)/(1.125e-7)
+            sigma_dust[n] = np.fromfile(simdir+dust_file).reshape(nrad,nphi)
             dust_file0 = f"dustdens{n}_0.dat"
-            sigma_dust0[n] = np.fromfile(simdir+dust_file0).reshape(nrad,nphi)/(1.125e-7)
+            sigma_dust0[n] = np.fromfile(simdir+dust_file0).reshape(nrad,nphi)
         # sigma_gas_azimsum = np.sum(sigma_gas, axis=2)                  # sum over all phi   
         # sigma_gas_1D = sigma_gas_azimsum/nphi                          # dimensions: (noutputs, nrad) 
 

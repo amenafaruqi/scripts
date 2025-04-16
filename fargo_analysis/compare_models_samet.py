@@ -1,12 +1,15 @@
 import numpy as np
 import matplotlib.pyplot as plt
-import matplotlib
+import matplotlib as mpl
 from matplotlib.lines import Line2D
 from matplotlib.ticker import ScalarFormatter, NullFormatter
 import argparse
 import re
-plt.style.use('default')
+# plt.style.use('default')
 
+plt.rc('text', usetex=True)
+plt.rc('font', family='serif')
+mpl.rcParams['text.latex.preamble'] = r'\usepackage{amsmath}'
 
 # ====================== Gas Sigma ========================
 
@@ -25,10 +28,10 @@ def overlay_gas_sigmas(fig, ax, radii, sigma_gas_1D, model_num=0):
         legend_elements.append(Line2D([0], [0], color=colour_cycler[m], label=f"{planetmass} $M_\oplus$"))
 
     if planets:
-        if "stat" in sim:
-            planetcolour = 'k'
-        else:
+        if "mig" in sim:
             planetcolour = color
+        else:
+            planetcolour = 'k'
         for rp in rps:
             ax.axvline(rp, linestyle='dashed', color=planetcolour)
     
