@@ -129,8 +129,6 @@ def calculate_pressure_gradients():
         left_trough_i = left_trough_i + innerbound_i
         right_trough_i = right_trough_i + innerbound_i
 
-        # 3) Calculate average dP/dr between peak and trough (outer part of ring)
-        
         fig0, ax0 = plt.subplots(figsize=(7,5))
         ax0.cla()
         ax0.plot(radii,sigma_gas_1D/np.max(sigma_bound), c='k')
@@ -139,9 +137,30 @@ def calculate_pressure_gradients():
         ax0.scatter(radii[right_trough_i],(sigma_gas_1D/np.max(sigma_bound))[right_trough_i], c='r', marker='o')
         ax0.axvline(innerbound, c='k', linestyle='dashed')
         ax0.axvline(outerbound, c='k', linestyle='dashed')
-        ax0.set_xlim(1,1.5)
-        ax0.set_ylim(0,np.max(sigma_bound/np.max(sigma_bound))*1.05)
+        ax0.set_xlim(1,1.6)
+        # ax0.set_ylim(0,np.max(sigma_bound/np.max(sigma_bound))*1.05)
+
+        # 3) Calculate average dP/dr between peak and trough (outer part of ring)
+        r_outer_ring = radii[peak_i+1:right_trough_i-1]
+        sigma_outer_ring = sigma_gas_1D[peak_i+1:right_trough_i-1]
+        h_outer_ring = hr0*r_outer_ring**(f+1)
+        r_inner_ring = radii[left_trough_i+1:peak_i-1]
+        sigma_inner_ring = sigma_gas_1D[left_trough_i+1:peak_i-1]
+        h_inner_ring = hr0*r_inner_ring**(f+1)
+        pressure_ext = 4*(np.pi**2)*h_outer_ring*sigma_outer_ring*(r_outer_ring**(-3))
+        pressure_in = 4*(np.pi**2)*h_inner_ring*sigma_inner_ring*(r_inner_ring**(-3))
+        dPdr_ext = np.abs(np.gradient(pressure_ext, r_outer_ring))
+        dPdr_in = np.abs(np.gradient(pressure_in, r_inner_ring))
+
+        ax0.plot(r_outer_ring,dPdr_ext, c='g')
+        ax0.plot(r_inner_ring,dPdr_in, c='b')
         fig0.savefig(f"{plots_savedir}/gasrings_{mp}Me_{hr0}_.png")
+
+        avg_dpdr_ext = np.max(dPdr_ext)  # mean or sum ???
+        avg_dpdr_in = np.max(dPdr_in)  # mean or sum ???
+        dpdrs_ext[s] = avg_dpdr_ext
+        dpdrs_in[s] = avg_dpdr_in
+
 
 
 # ============== Read in data from models ==============
@@ -179,7 +198,8 @@ if __name__ == "__main__":
     if "dpdr" in plots:
         fig_p, ax_p = plt.subplots(figsize=(8,5))
         planet_masses = np.zeros((len(sims)))
-        dpdrs = np.zeros((len(sims),5))
+        dpdrs_in = np.zeros((len(sims)))
+        dpdrs_ext = np.zeros((len(sims)))
 
 
     # Iterate through models and calculate ring width for each St
@@ -276,11 +296,25 @@ if __name__ == "__main__":
             ax_rw.axvline(M_iso, linestyle='dotted', c=colour)
 
         ax_rw.set_ylim(-0.05,0.7)
-        ax_rw.set_xlabel("Planet Mass (M$_\oplus$)")
-        ax_rw.set_ylabel("Ring width")
+        ax_rw.set_xlabel("Planet mass (M$_\oplus$)")
+        ax_rw.set_ylabel("Ring width (AU)")
         ax_rw.set_title(f"H/R = {hr0}")
         ax_rw.legend()
         fig_rw.savefig(f"{plots_savedir}/ring_widths_{hr0}.png", dpi=200)
+
+    if "dpdr" in plots:
+        # Plot avg pressure gradient vs planet mass
+        print("Plotting dP/dr against planet mass....")
+        ax_p.scatter(planet_masses, dpdrs_ext, c='b')
+        ax_p.plot(planet_masses, dpdrs_ext, c='b')
+        ax_p.scatter(planet_masses, dpdrs_in, c='r')
+        ax_p.plot(planet_masses, dpdrs_in, c='r')
+        # ax_p.set_ylim(-0.05,0.7)
+        ax_p.set_xlabel("Planet mass (M$_\oplus$)")
+        ax_p.set_ylabel("$ |\partial P/\partial r |$")
+        ax_p.set_title(f"H/R = {hr0}")
+        # ax_p.legend()
+        fig_p.savefig(f"{plots_savedir}/pressure_grad_{hr0}.png", dpi=200)
 
     if plot_window:
         plt.show()
