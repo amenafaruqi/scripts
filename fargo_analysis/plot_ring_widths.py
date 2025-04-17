@@ -50,11 +50,14 @@ def find_ring_troughs(radii, sigma, i_peak):
     return left_trough_i,  right_trough_i
 
 
-def calculate_Miso(hr, alpha, st):
+def calculate_Miso(hr, alpha, st, scaling="B18"):
     dlogPdlogR = f - sigmaslope - 2     # taken from eq. 9 from Bitsch et al. 2018, accounting for their s being -ve. 
     f_fit = ((hr/0.05)**3)*(0.34*(np.log10(0.001)/np.log10(alpha))**4 + 0.66)*(1-((dlogPdlogR+2.5)/6))
     alpha_st = alpha/st
-    M_iso = 25*f_fit
+    if scaling == "B18":
+        M_iso = 25*f_fit
+    elif scaling == "L14":
+        M_iso = 20*f_fit
     Pi_crit = alpha_st/2
     Lambda = 0.00476/f_fit
     M_iso += Pi_crit/Lambda                  # PIM considering diffusion
@@ -308,8 +311,12 @@ if __name__ == "__main__":
         ax_p.scatter(planet_masses, dpdrs_in, c='b')
         ax_p.plot(planet_masses, dpdrs_in, c='b', label="interior to ring peak")
         # ax_p.set_ylim(-0.05,0.7)
+        M_iso_B18 = calculate_Miso(hr0, alpha, st=0.1)
+        M_iso_L14 = calculate_Miso(hr0, alpha, st=0.1, scaling="L14")
+        ax_p.axvline(M_iso_B18, linestyle="dotted", color='k', label="Bitsch et al. 2018")
+        ax_p.axvline(M_iso_L14, linestyle="dashed", color='k', label="Lambrechts et al. 2014")
         ax_p.set_xlabel("Planet mass (M$_\oplus$)")
-        ax_p.set_ylabel("$ |\partial P/\partial r |$")
+        ax_p.set_ylabel("$ \\rm{max} (|\partial P/\partial r |)$")
         ax_p.set_title(f"H/R = {hr0}")
         ax_p.legend()
         fig_p.savefig(f"{plots_savedir}/pressure_grad_{hr0}.png", dpi=200)

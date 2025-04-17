@@ -25,10 +25,10 @@ def overlay_gas_sigmas(fig, ax, radii, sigma_gas_1D, model_num=0):
         legend_elements.append(Line2D([0], [0], color=colour_cycler[m], label=f"{planetmass} $M_\oplus$"))
 
     if planets:
-        if "stat" in sim:
-            planetcolour = 'k'
-        else:
+        if "mig" in sim:
             planetcolour = color
+        else:
+            planetcolour = "k"
         for rp in rps:
             ax.axvline(rp, linestyle='dashed', color=planetcolour)
     
@@ -36,7 +36,8 @@ def overlay_gas_sigmas(fig, ax, radii, sigma_gas_1D, model_num=0):
     ax.set_ylabel("$\Sigma_{gas} (g/cm^{2})$")
     ax.set_xscale("log")
     ax.set_yscale("log")
-    ax.set_xlim(np.min(radii), np.max(radii))
+    # ax.set_xlim(np.min(radii), np.max(radii))
+    ax.set_xlim(0.5,2)
     ax.legend(handles=legend_elements)
     fig.tight_layout()
 
