@@ -9,12 +9,13 @@ from scipy.signal import peak_widths
 from scipy.signal import find_peaks
 from numpy.polynomial import Polynomial
 import argparse
+import re
 
 plt.rc('text', usetex=True)
 plt.rc('font', family='serif')
 mpl.rcParams['text.latex.preamble'] = r'\usepackage{amsmath}'
 
-nstokes = 3
+nstokes = 5
 cm = plt.get_cmap('viridis')
 colour_cycler = [cm(1.*i/nstokes) for i in range(nstokes)]   # 1 colour for each St
 
@@ -164,6 +165,16 @@ def calculate_pressure_gradients():
         dpdrs_in[s] = max_dpdr_int
 
 
+def calculate_dlogpdlogr():
+        hr = hr0*radii**(f+1)
+        sigma = sigma_gas_1D
+        pressure = hr*sigma*(radii**(-3))
+        lnp = np.log(pressure)
+        lnr = np.log(radii)
+        dlogpdlogr = np.gradient(lnp, lnr)
+        dlogpdlogrs.append(dlogpdlogr)
+
+
 # ============== Read in data from models ==============
 
 if __name__ == "__main__":
@@ -198,10 +209,11 @@ if __name__ == "__main__":
 
     if "dpdr" in plots:
         fig_p, ax_p = plt.subplots(figsize=(8,5))
+        fig_plog, ax_plog = plt.subplots(figsize=(8,5))
         planet_masses = np.zeros((len(sims)))
         dpdrs_in = np.zeros((len(sims)))
         dpdrs_ext = np.zeros((len(sims)))
-
+        dlogpdlogrs = []
 
     # Iterate through models and calculate ring width for each St
     for s, sim in enumerate(sims):
@@ -280,6 +292,7 @@ if __name__ == "__main__":
         if "dpdr" in plots:
             print(f"Calculating pressure gradients for {mp} Mearth... \n ~ ~ ~ ~ ~")
             calculate_pressure_gradients()
+            calculate_dlogpdlogr()
     
 
     # ================ Generate chosen plots ================
@@ -305,7 +318,7 @@ if __name__ == "__main__":
 
     if "dpdr" in plots:
         # Plot avg pressure gradient vs planet mass
-        print("Plotting dP/dr against planet mass....")
+        print("Plotting dP/dr against planet mass.... \n")
         ax_p.scatter(planet_masses, dpdrs_ext, c='g')
         ax_p.plot(planet_masses, dpdrs_ext, c='g', label = "exterior to ring peak")
         ax_p.scatter(planet_masses, dpdrs_in, c='b')
@@ -321,6 +334,22 @@ if __name__ == "__main__":
         ax_p.legend()
         fig_p.savefig(f"{plots_savedir}/pressure_grad_{hr0}.png", dpi=200)
 
+        print("Plotting dlogP/dlogr for each planet mass....")
+        for s, sim in enumerate(sims):
+            colour = colour_cycler[s]
+            mp = re.search(r"(\d+)Me", sim).group(1)
+            ax_plog.plot(radii, dlogpdlogrs[s], color=colour, label=f"{mp}M$_\oplus$")
+        ax_plog.set_xlabel("r (AU)")
+        ax_plog.set_ylabel("$\partial lnP/ \partial lnr$")
+        ax_plog.set_title(f"H/R = {hr0}")
+        ax_plog.set_xlim(0.3,2.0)
+        ax_plog.set_ylim(-18,12)
+        ax_plog.fill_between(x=radii, y1=0, y2=-20, color='lightgrey',  interpolate=True, alpha=.75)
+        ax_plog.axhline(-2.75, linestyle="dashed", color="k", label="Unperturbed $\partial lnP/ \partial lnr$")
+        ax_plog.legend()
+        fig_plog.savefig(f"{plots_savedir}/dlogpdlogr_{hr0}.png", dpi=200)
+    
+    
     if plot_window:
         plt.show()
 
