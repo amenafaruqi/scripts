@@ -114,7 +114,7 @@ def calculate_ring_widths():
 
 def calculate_pressure_gradients():
         # 1) Select data only within region close to planet
-        innerbound = rp + (5*r_hill)
+        innerbound = rp + (4*r_hill)
         outerbound = rp + (12*r_hill)  # search for peak from rp to outerbound
         innerbound_i = np.argmin(np.abs(radii-innerbound))      # index (radial cell number) of lower bound of peak search
         outerbound_i = np.argmin(np.abs(radii-outerbound))      # index (radial cell number) of upper bound of peak search
@@ -134,7 +134,7 @@ def calculate_pressure_gradients():
         fig0, ax0 = plt.subplots(figsize=(7,5))
         ax0.cla()
         ax0.plot(radii,sigma_gas_1D/np.max(sigma_bound), c='k')
-        ax0.scatter(radii,sigma_gas_1D/np.max(sigma_bound), c='k', marker='x')
+        # ax0.scatter(radii,sigma_gas_1D/np.max(sigma_bound), c='k', marker='x')
         ax0.scatter(radii[l_trough_i],(sigma_gas_1D/np.max(sigma_bound))[l_trough_i], c='r', marker='o')
         ax0.scatter(radii[r_trough_i],(sigma_gas_1D/np.max(sigma_bound))[r_trough_i], c='r', marker='o')
         ax0.scatter(radii[peak_i],(sigma_gas_1D/np.max(sigma_bound))[peak_i], c='y', marker='o')
@@ -144,21 +144,22 @@ def calculate_pressure_gradients():
         ax0.set_ylim(0,np.max(sigma_bound/np.max(sigma_bound))*1.2)
 
         # 3) Calculate dP/dr
-        hr_bound = hr0*radii_bound**(f+1)
-        pressure = 4*(np.pi**2)*hr_bound*sigma_bound*(radii_bound**(-3))
+        hr_bound = hr0*(radii_bound**f)
+        pressure = 4*(np.pi**2)*hr_bound*sigma_bound*(radii_bound**(-2))
         dpdr = np.abs(np.gradient(pressure, radii_bound))
         ax0.plot(radii_bound, dpdr/np.max(dpdr), c='r', label="$| \partial P/ \partial r |$")
+        ax0.plot(radii_bound, pressure/np.max(pressure), c='cyan', label="P")
         # ax0.scatter(radii_bound, dpdr/np.max(dpdr), c='r')
         ax0.legend()
 
         # Find steepest point interior/exterior to ring peak
-        dpdr_int = dpdr[l_trough_bound_i:peak_i_bound-1]   # don't look too close to peak
-        dpdr_ext = dpdr[peak_i_bound+1:r_trough_bound_i]
+        dpdr_int = dpdr[l_trough_bound_i+3:peak_i_bound-1]
+        dpdr_ext = dpdr[peak_i_bound+1:r_trough_bound_i-3]
 
         max_dpdr_int = np.max(dpdr_int)
         max_dpdr_ext = np.max(dpdr_ext)
-        ax0.plot(radii_bound[l_trough_bound_i:peak_i_bound-1], dpdr_int/np.max(dpdr), c='b')
-        ax0.plot(radii_bound[peak_i_bound+1:r_trough_bound_i], dpdr_ext/np.max(dpdr), c='g')
+        ax0.plot(radii_bound[l_trough_bound_i+3:peak_i_bound-1], dpdr_int/np.max(dpdr), c='b')
+        ax0.plot(radii_bound[peak_i_bound+1:r_trough_bound_i-3], dpdr_ext/np.max(dpdr), c='g')
         fig0.savefig(f"{plots_savedir}/gasrings_{mp}Me_{hr0}_.png")
 
         dpdrs_ext[s] = max_dpdr_ext
@@ -173,6 +174,20 @@ def calculate_dlogpdlogr():
         lnr = np.log(radii)
         dlogpdlogr = np.gradient(lnp, lnr)
         dlogpdlogrs.append(dlogpdlogr)
+
+
+def calculate_dust_flux():
+        # Apply correction to v_phi when in the guiding-centre ref frame
+        # Explained here: https://fargo3d.bitbucket.io/def_setups.html
+        # v_phi = v_gas[0,:,:]+(omegaframe*R)  # dimensions: (nrad, nphi)
+
+        v_r = np.sum(v_gas[1,:,:], axis=1)/nphi    # azimuthally avged v_rad (dimensions=nrad)
+        gas_flux.append(v_r*sigma_gas_1D)
+
+        for n in np.arange(ndust):
+            v_r = np.sum(v_dust[n,1,:,:], axis=1)/nphi    # azimuthally avged v_rad (dimensions=nrad)
+            dust_flux.append(v_r*sigma_dust_1D[n])
+
 
 
 # ============== Read in data from models ==============
@@ -198,10 +213,12 @@ if __name__ == "__main__":
     plots = args.plots    # opts: rwidth, dpdr, dflux
 
     if plot_window:
-        matplotlib.use('TkAgg')
-
+        matplotlib.use('TkAgg') 
+    
+    # ------------------------------------------------------
     
     # Initialise axes and arrays for data to plot
+    planet_masses = np.zeros((len(sims)))
     if "rwidth" in plots:
         fig_rw, ax_rw = plt.subplots(figsize=(8,5))
         dpdr = np.zeros((len(sims)))
@@ -210,10 +227,16 @@ if __name__ == "__main__":
     if "dpdr" in plots:
         fig_p, ax_p = plt.subplots(figsize=(8,5))
         fig_plog, ax_plog = plt.subplots(figsize=(8,5))
-        planet_masses = np.zeros((len(sims)))
         dpdrs_in = np.zeros((len(sims)))
         dpdrs_ext = np.zeros((len(sims)))
         dlogpdlogrs = []
+    
+    if "flux" in plots:
+        fig_f, ax_f = plt.subplots(figsize=(12,6), ncols=3, nrows=2, sharex=True)
+        gas_flux = []
+        dust_flux = []
+
+    # ------------------------------------------------------
 
     # Iterate through models and calculate ring width for each St
     for s, sim in enumerate(sims):
@@ -237,6 +260,7 @@ if __name__ == "__main__":
         sigmaslope = float(params_dict['SIGMASLOPE'])
         f = float(params_dict['FLARINGINDEX'])
         spacing = str(params_dict['SPACING'])
+        omegaframe = float(params_dict['OMEGAFRAME'])
         max_stokes = float(params_dict['STOKES'])
         stokes = np.logspace(np.log10(max_stokes),np.log10(max_stokes*10**(-2)),ndust)   # hardcodes St range to be max_stokes - max_stokes*1e-2
         
@@ -280,12 +304,26 @@ if __name__ == "__main__":
             sigma_dust0[n] = np.fromfile(simdir+dust_file0).reshape(nrad,nphi)
         
         # Average over all phi
-        sigma_gas_1D = np.sum(sigma_gas, axis=1)/nphi                        # dimensions: (noutputs, nrad) 
-        sigma_dust_1D = np.sum(sigma_dust, axis=2)/nphi                      # dimensions: (noutputs, ndust, nrad)   
-        sigma_dust0_1D = np.sum(sigma_dust0, axis=2)/nphi                    # dimensions: (noutputs, ndust, nrad)   
-        
+        sigma_gas_1D = np.sum(sigma_gas, axis=1)/nphi                        # dimensions: ( nrad) 
+        sigma_dust_1D = np.sum(sigma_dust, axis=2)/nphi                      # dimensions: (ndust, nrad)   
+        sigma_dust0_1D = np.sum(sigma_dust0, axis=2)/nphi                    # dimensions: (ndust, nrad)   
 
-        # ================ Compute values to plot ================
+        if "flux" in plots:
+            v_dust = np.zeros((ndust, 2, nrad, nphi))   # additional dimension of 2 for x and y velocity
+            v_gas = np.zeros((2, nrad, nphi))           # additional dimension of 2 for x and y velocity
+            gas_file_x = f"gasvx{output}.dat"
+            gas_file_y = f"gasvy{output}.dat"
+            v_gas[0] = np.fromfile(simdir+gas_file_x).reshape(nrad,nphi)       # vx
+            v_gas[1] = np.fromfile(simdir+gas_file_y).reshape(nrad,nphi)       # vy
+
+            for n in np.arange(ndust):
+                dust_file_x = f"dustvx{n}_{output}.dat"
+                dust_file_y = f"dustvy{n}_{output}.dat"
+                v_dust[n,0] = np.fromfile(simdir+dust_file_x).reshape(nrad,nphi)   # vx (azimuthal v)
+                v_dust[n,1] = np.fromfile(simdir+dust_file_y).reshape(nrad,nphi)   # vy (radial v)
+
+
+        # =========== Compute values to plot and populate arrays ============
         if "rwidth" in plots:
             print(f"Calculating ring widths for {mp} Mearth... \n ~ ~ ~ ~ ~")
             calculate_ring_widths()
@@ -293,6 +331,9 @@ if __name__ == "__main__":
             print(f"Calculating pressure gradients for {mp} Mearth... \n ~ ~ ~ ~ ~")
             calculate_pressure_gradients()
             calculate_dlogpdlogr()
+        if "flux" in plots:
+            print(f"Calculating flux for {mp} Mearth... \n ~ ~ ~ ~ ~")
+            calculate_dust_flux()
     
 
     # ================ Generate chosen plots ================
@@ -304,12 +345,12 @@ if __name__ == "__main__":
         for i,st in enumerate(stokes):
             colour = colour_cycler[i]
             alpha_st = round(alpha/st, 4)
-            ax_rw.scatter(planet_masses, ring_widths[:,i], c=colour)
-            ax_rw.plot(planet_masses, ring_widths[:,i], label=f"$\\alpha/St = {alpha_st}$" , c=colour)
+            ax_rw.scatter(planet_masses, ring_widths[:,i], color=colour)
+            ax_rw.plot(planet_masses, ring_widths[:,i], color=colour, label=f"$\\alpha/St = {alpha_st}$" )
             M_iso = calculate_Miso(hr0, alpha, st)
-            ax_rw.axvline(M_iso, linestyle='dotted', c=colour)
+            ax_rw.axvline(M_iso, linestyle='dotted', color=colour)
 
-        ax_rw.set_ylim(-0.05,0.7)
+        # ax_rw.set_ylim(-0.05,0.5)
         ax_rw.set_xlabel("Planet mass (M$_\oplus$)")
         ax_rw.set_ylabel("Ring width (AU)")
         ax_rw.set_title(f"H/R = {hr0}")
@@ -340,15 +381,41 @@ if __name__ == "__main__":
             mp = re.search(r"(\d+)Me", sim).group(1)
             ax_plog.plot(radii, dlogpdlogrs[s], color=colour, label=f"{mp}M$_\oplus$")
         ax_plog.set_xlabel("r (AU)")
-        ax_plog.set_ylabel("$\partial lnP/ \partial lnr$")
+        ax_plog.set_ylabel("$\partial \ln P/ \partial \ln r$")
         ax_plog.set_title(f"H/R = {hr0}")
         ax_plog.set_xlim(0.3,2.0)
         ax_plog.set_ylim(-18,12)
         ax_plog.fill_between(x=radii, y1=0, y2=-20, color='lightgrey',  interpolate=True, alpha=.75)
-        ax_plog.axhline(-2.75, linestyle="dashed", color="k", label="Unperturbed $\partial lnP/ \partial lnr$")
+        ax_plog.axhline(-2.75, linestyle="dashed", color="k", label="Unperturbed $\partial \ln P/ \partial \ln r$")
         ax_plog.legend()
         fig_plog.savefig(f"{plots_savedir}/dlogpdlogr_{hr0}.png", dpi=200)
     
+    if "flux" in plots:
+        ax_f = ax_f.flatten()
+        for s, sim in enumerate(sims):
+            colour = colour_cycler[s]
+            mp = re.search(r"(\d+)Me", sim).group(1)
+            ax_f[0].plot(radii, gas_flux[s]*1e7, color=colour, label=f"{mp} $M_\oplus$")
+            ax_f[0].set_xlim(0.8,1.5)
+            # ax_f[0].set_ylim(-0.5, 0.9)
+            ax_f[0].axvline(1.0, linestyle="dashed", color="k")
+            ax_f[0].set_ylabel("$\Sigma v_{{r}} \\times 10^{-7}$")
+            ax_f[3].set_ylabel("$\Sigma v_{{r}} \\times 10^{-7}$")
+            ax_f[3].set_xlabel("r (AU)")
+            ax_f[4].set_xlabel("r (AU)")
+            ax_f[5].set_xlabel("r (AU)")
+
+            for n in np.arange(ndust):
+                ax_f[n+1].plot(radii, dust_flux[s*ndust:(s+1)*ndust][n]*1e7, color=colour)
+                ax_f[n+1].set_title(f"St={round(stokes[n],4)}")
+                ax_f[n+1].axvline(1.0, linestyle="dashed", color="k")
+
+        
+            ax_f[0].set_title("Gas")
+            ax_f[0].legend()
+            fig_f.suptitle(f"H/R = {hr0}")
+            fig_f.tight_layout()
+            fig_f.savefig(f"{plots_savedir}/flux_{hr0}.png", dpi=200)
     
     if plot_window:
         plt.show()
