@@ -179,14 +179,16 @@ def calculate_dlogpdlogr():
 def calculate_dust_flux():
         # Apply correction to v_phi when in the guiding-centre ref frame
         # Explained here: https://fargo3d.bitbucket.io/def_setups.html
-        # v_phi = v_gas[0,:,:]+(omegaframe*R)  # dimensions: (nrad, nphi)
+        R, PHI = np.meshgrid(radii, phis, indexing="ij")   # dimensions: (nrad, nphi)
 
-        v_r = np.sum(v_gas[1,:,:], axis=1)/nphi    # azimuthally avged v_rad (dimensions=nrad)
-        gas_flux.append(v_r*sigma_gas_1D)
+        v_phi = v_gas[0,:,:]+(omegaframe*R)    # dimensions: (nrad, nphi)
+        v_r = v_gas[1,:,:]                     # dimensions: (nrad, nphi)
+        gas_flux.append(v_r*sigma_gas)
 
         for n in np.arange(ndust):
-            v_r = np.sum(v_dust[n,1,:,:], axis=1)/nphi    # azimuthally avged v_rad (dimensions=nrad)
-            dust_flux.append(v_r*sigma_dust_1D[n])
+            v_phi = v_dust[n,0,:,:]+(omegaframe*R)    # dimensions: (nrad, nphi)
+            v_r = v_dust[n,1,:,:]                     # dimensions: (nrad, nphi)
+            dust_flux.append(v_r*sigma_dust[n])
 
 
 
@@ -232,7 +234,8 @@ if __name__ == "__main__":
         dlogpdlogrs = []
     
     if "flux" in plots:
-        fig_f, ax_f = plt.subplots(figsize=(12,6), ncols=3, nrows=2, sharex=True)
+        # fig_f, ax_f = plt.subplots(figsize=(12,6), ncols=3, nrows=2, sharex=True)
+        fig_f, ax_f = plt.subplots(figsize=(12,13), ncols=5, nrows=5)
         gas_flux = []
         dust_flux = []
 
@@ -391,32 +394,53 @@ if __name__ == "__main__":
         fig_plog.savefig(f"{plots_savedir}/dlogpdlogr_{hr0}.png", dpi=200)
     
     if "flux" in plots:
-        ax_f = ax_f.flatten()
         for s, sim in enumerate(sims):
-            colour = colour_cycler[s]
-            mp = re.search(r"(\d+)Me", sim).group(1)
-            ax_f[0].plot(radii, gas_flux[s]*1e7, color=colour, label=f"{mp} $M_\oplus$")
-            ax_f[0].set_xlim(0.8,1.5)
-            # ax_f[0].set_ylim(-0.5, 0.9)
-            ax_f[0].axvline(1.0, linestyle="dashed", color="k")
-            ax_f[0].set_ylabel("$\Sigma v_{{r}} \\times 10^{-7}$")
-            ax_f[3].set_ylabel("$\Sigma v_{{r}} \\times 10^{-7}$")
-            ax_f[3].set_xlabel("r (AU)")
-            ax_f[4].set_xlabel("r (AU)")
-            ax_f[5].set_xlabel("r (AU)")
+            # colour = colour_cycler[s]
+            # mp = re.search(r"(\d+)Me", sim).group(1)
+            # ax_f[0].plot(radii, gas_flux[s]*1e7, color=colour, label=f"{mp} $M_\oplus$")
+            # ax_f[0].set_xlim(0.8,1.5)
+            # # ax_f[0].set_ylim(-0.5, 0.9)
+            # ax_f[0].axvline(1.0, linestyle="dashed", color="k")
+            # ax_f[0].set_ylabel("$\Sigma v_{{r}} \\times 10^{-7}$")
+            # ax_f[3].set_ylabel("$\Sigma v_{{r}} \\times 10^{-7}$")
+            # ax_f[3].set_xlabel("r (AU)")
+            # ax_f[4].set_xlabel("r (AU)")
+            # ax_f[5].set_xlabel("r (AU)")
+            R, PHI = np.meshgrid(radii, phis, indexing="ij")   # dimensions: (nrad, nphi)
+            x = R*np.cos(PHI)
+            y = R*np.sin(PHI)
 
+            lims = [[-5e-7,5e-7],[-5e-9,5e-9],[-1e-8,1e-8],[-1e-8,1e-8],[-1e-8,1e-8]]
             for n in np.arange(ndust):
-                ax_f[n+1].plot(radii, dust_flux[s*ndust:(s+1)*ndust][n]*1e7, color=colour)
-                ax_f[n+1].set_title(f"St={round(stokes[n],4)}")
-                ax_f[n+1].axvline(1.0, linestyle="dashed", color="k")
+                ax = ax_f[s,n]
+                flux = dust_flux[s*ndust:(s+1)*ndust][n]
+                im = ax.pcolormesh(x, y, flux, shading="auto", cmap="seismic", vmin=lims[n][0], vmax=lims[n][1])
+                if s == 0:
+                    ax.set_title(f"St={round(stokes[n],4)}")
+                ax.set_aspect("equal")
+                # ax_f[n+1].plot(radii, dust_flux[s*ndust:(s+1)*ndust][n]*1e7, color=colour)
+                # ax_f[n+1].set_title(f"St={round(stokes[n],4)}")
+                # ax_f[n+1].axvline(1.0, linestyle="dashed", color="k")
 
         
-            ax_f[0].set_title("Gas")
-            ax_f[0].legend()
-            fig_f.suptitle(f"H/R = {hr0}")
-            fig_f.tight_layout()
-            fig_f.savefig(f"{plots_savedir}/flux_{hr0}.png", dpi=200)
+            # ax_f[0].set_title("Gas")
+            # ax_f[0].legend()
     
+        cbar1 = fig_f.colorbar(im, ax=ax_f[-1,0], orientation='horizontal')
+        cbar1.set_label('$\\Sigma_{d} v_{r} $')
+        cbar2 = fig_f.colorbar(im, ax=ax_f[-1,1], orientation='horizontal')
+        cbar2.set_label('$\\Sigma_{d} v_{r} $')
+        cbar3 = fig_f.colorbar(im, ax=ax_f[-1,2], orientation='horizontal')
+        cbar3.set_label('$\\Sigma_{d} v_{r} $')
+        cbar4 = fig_f.colorbar(im, ax=ax_f[-1,3], orientation='horizontal')
+        cbar4.set_label('$\\Sigma_{d} v_{r} $')
+        cbar5 = fig_f.colorbar(im, ax=ax_f[-1,4], orientation='horizontal')
+        cbar5.set_label('$\\Sigma_{d} v_{r} $')
+
+        fig_f.suptitle(f"H/R = {hr0}")
+        fig_f.tight_layout()
+        fig_f.savefig(f"{plots_savedir}/flux_{hr0}.png", dpi=200)
+
     if plot_window:
         plt.show()
 
