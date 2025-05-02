@@ -234,8 +234,7 @@ if __name__ == "__main__":
         dlogpdlogrs = []
     
     if "flux" in plots:
-        # fig_f, ax_f = plt.subplots(figsize=(12,6), ncols=3, nrows=2, sharex=True)
-        fig_f, ax_f = plt.subplots(figsize=(12,13), ncols=5, nrows=5)
+        fig_f, ax_f = plt.subplots(figsize=(12,15), ncols=5, nrows=5)
         gas_flux = []
         dust_flux = []
 
@@ -350,7 +349,7 @@ if __name__ == "__main__":
             alpha_st = round(alpha/st, 4)
             ax_rw.scatter(planet_masses, ring_widths[:,i], color=colour)
             ax_rw.plot(planet_masses, ring_widths[:,i], color=colour, label=f"$\\alpha/St = {alpha_st}$" )
-            M_iso = calculate_Miso(hr0, alpha, st)
+            M_iso = calculate_Miso(hr0, alpha, st, scaling="B18")
             ax_rw.axvline(M_iso, linestyle='dotted', color=colour)
 
         # ax_rw.set_ylim(-0.05,0.5)
@@ -387,7 +386,7 @@ if __name__ == "__main__":
         ax_plog.set_ylabel("$\partial \ln P/ \partial \ln r$")
         ax_plog.set_title(f"H/R = {hr0}")
         ax_plog.set_xlim(0.3,2.0)
-        ax_plog.set_ylim(-18,12)
+        ax_plog.set_ylim(-18,15)
         ax_plog.fill_between(x=radii, y1=0, y2=-20, color='lightgrey',  interpolate=True, alpha=.75)
         ax_plog.axhline(-2.75, linestyle="dashed", color="k", label="Unperturbed $\partial \ln P/ \partial \ln r$")
         ax_plog.legend()
@@ -395,47 +394,29 @@ if __name__ == "__main__":
     
     if "flux" in plots:
         for s, sim in enumerate(sims):
-            # colour = colour_cycler[s]
-            # mp = re.search(r"(\d+)Me", sim).group(1)
-            # ax_f[0].plot(radii, gas_flux[s]*1e7, color=colour, label=f"{mp} $M_\oplus$")
-            # ax_f[0].set_xlim(0.8,1.5)
-            # # ax_f[0].set_ylim(-0.5, 0.9)
-            # ax_f[0].axvline(1.0, linestyle="dashed", color="k")
-            # ax_f[0].set_ylabel("$\Sigma v_{{r}} \\times 10^{-7}$")
-            # ax_f[3].set_ylabel("$\Sigma v_{{r}} \\times 10^{-7}$")
-            # ax_f[3].set_xlabel("r (AU)")
-            # ax_f[4].set_xlabel("r (AU)")
-            # ax_f[5].set_xlabel("r (AU)")
             R, PHI = np.meshgrid(radii, phis, indexing="ij")   # dimensions: (nrad, nphi)
             x = R*np.cos(PHI)
             y = R*np.sin(PHI)
 
-            lims = [[-5e-7,5e-7],[-5e-9,5e-9],[-1e-8,1e-8],[-1e-8,1e-8],[-1e-8,1e-8]]
+            # lims = [[-1e-9,1e-9],[-5e-9,5e-9],[-1e-8,1e-8],[-1e-8,1e-8],[-1e-8,1e-8]]
+            # lims = [[-5e-6,5e-6],[-5e-4,5e-4],[-5e-6,5e-6],[-5e-6,5e-6],[-1e-7,1e-7]]
+            lims = [[-5e-6,5e-6],[-5e-6,5e-6],[-5e-6,5e-6],[-5e-6,5e-6],[-5e-6,5e-6]]
+            lts = [1e-50,           1e-35,      1e-22,      1e-12,          1e-12]
             for n in np.arange(ndust):
                 ax = ax_f[s,n]
                 flux = dust_flux[s*ndust:(s+1)*ndust][n]
-                im = ax.pcolormesh(x, y, flux, shading="auto", cmap="seismic", vmin=lims[n][0], vmax=lims[n][1])
+                im = ax.pcolormesh(x, y, flux, shading="auto",  
+                norm=mpl.colors.SymLogNorm(linthresh=lts[n], linscale=0.001,vmin=lims[n][0], vmax=lims[n][1]),
+                cmap="seismic")
+                ax.scatter([xp], [yp], color='yellow', marker='.', edgecolors='black')
+                ax.set_aspect("equal")
+
                 if s == 0:
                     ax.set_title(f"St={round(stokes[n],4)}")
-                ax.set_aspect("equal")
-                # ax_f[n+1].plot(radii, dust_flux[s*ndust:(s+1)*ndust][n]*1e7, color=colour)
-                # ax_f[n+1].set_title(f"St={round(stokes[n],4)}")
-                # ax_f[n+1].axvline(1.0, linestyle="dashed", color="k")
-
-        
-            # ax_f[0].set_title("Gas")
-            # ax_f[0].legend()
-    
-        cbar1 = fig_f.colorbar(im, ax=ax_f[-1,0], orientation='horizontal')
-        cbar1.set_label('$\\Sigma_{d} v_{r} $')
-        cbar2 = fig_f.colorbar(im, ax=ax_f[-1,1], orientation='horizontal')
-        cbar2.set_label('$\\Sigma_{d} v_{r} $')
-        cbar3 = fig_f.colorbar(im, ax=ax_f[-1,2], orientation='horizontal')
-        cbar3.set_label('$\\Sigma_{d} v_{r} $')
-        cbar4 = fig_f.colorbar(im, ax=ax_f[-1,3], orientation='horizontal')
-        cbar4.set_label('$\\Sigma_{d} v_{r} $')
-        cbar5 = fig_f.colorbar(im, ax=ax_f[-1,4], orientation='horizontal')
-        cbar5.set_label('$\\Sigma_{d} v_{r} $')
+                elif s == len(sims) - 1:
+                    ticks = [-1e-6, -1e-3, 0, 1e-3, 1e-6]
+                    cbar = fig_f.colorbar(im, ax=ax, orientation="horizontal", ticks=ticks)
+                    cbar.set_label('$\\Sigma_{d} v_{r} $')
 
         fig_f.suptitle(f"H/R = {hr0}")
         fig_f.tight_layout()
