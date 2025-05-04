@@ -191,6 +191,27 @@ def calculate_dust_flux():
             dust_flux.append(v_r*sigma_dust[n])
 
 
+def calculate_ring_peaks():
+    for i,st in enumerate(stokes):
+        print("---------- Stokes = ", round(st,3))
+        sigma_dust_st = sigma_dust_1D[i]
+
+        # 1) Select data only within region close to planet
+        innerbound = rp + (4*r_hill)
+        outerbound = rp + (12*r_hill)  # search for peak from rp to outerbound
+        # innerbound = 1.1
+        # outerbound = 1.4
+        innerbound_i = np.argmin(np.abs(radii-innerbound))      # index (radial cell number) of lower bound of peak search
+        outerbound_i = np.argmin(np.abs(radii-outerbound))      # index (radial cell number) of upper bound of peak search
+
+        sigma_bound = sigma_dust_st[innerbound_i:outerbound_i]
+        radii_bound = radii[innerbound_i:outerbound_i]
+
+        peak_i_bound = find_ring_peak(radii_bound,sigma_bound)
+        peak_r = radii_bound[peak_i_bound]
+        r_peaks[s,i] = peak_r
+
+
 
 # ============== Read in data from models ==============
 
@@ -237,6 +258,11 @@ if __name__ == "__main__":
         fig_f, ax_f = plt.subplots(figsize=(12,15), ncols=5, nrows=5)
         gas_flux = []
         dust_flux = []
+
+    if "rpeak" in plots:
+        fig_peak, ax_peak = plt.subplots(figsize=(8,5))
+        r_peaks = np.zeros((len(sims),5))
+
 
     # ------------------------------------------------------
 
@@ -336,6 +362,9 @@ if __name__ == "__main__":
         if "flux" in plots:
             print(f"Calculating flux for {mp} Mearth... \n ~ ~ ~ ~ ~")
             calculate_dust_flux()
+        if "rpeak" in plots:
+            print(f"Calculating ring peak for {mp} Mearth... \n ~ ~ ~ ~ ~")
+            calculate_ring_peaks()
     
 
     # ================ Generate chosen plots ================
@@ -421,6 +450,25 @@ if __name__ == "__main__":
         fig_f.suptitle(f"H/R = {hr0}")
         fig_f.tight_layout()
         fig_f.savefig(f"{plots_savedir}/flux_{hr0}.png", dpi=200)
+    
+    if "rpeak" in plots:
+        # Plot ring peak vs Hill radius
+        print("Plotting ring peak against Hill radius....")
+        hill_radii = (planet_masses/(3*333030))**(1/3)
+        for i,st in enumerate(stokes):
+            colour = colour_cycler[i]
+            alpha_st = round(alpha/st, 4)
+            ax_peak.scatter(hill_radii, r_peaks[:,i], color=colour)
+            ax_peak.plot(hill_radii, r_peaks[:,i], color=colour, label=f"$\\alpha/St = {alpha_st}$" )
+            M_iso = calculate_Miso(hr0, alpha, st, scaling="B18")
+
+        # ax_rw.set_ylim(-0.05,0.5)
+        ax_peak.set_xlabel("Hill Radius")
+        ax_peak.set_ylabel("Ring Peak Location")
+        ax_peak.set_title(f"H/R = {hr0}")
+        ax_peak.legend()
+        fig_peak.savefig(f"{plots_savedir}/ring_peaks_{hr0}.png", dpi=200)
+
 
     if plot_window:
         plt.show()
