@@ -17,6 +17,7 @@ mpl.rcParams['text.latex.preamble'] = r'\usepackage{amsmath}'
 
 nstokes = 5
 cm = plt.get_cmap('viridis')
+plain_clr = "k"
 colour_cycler = [cm(1.*i/nstokes) for i in range(nstokes)]   # 1 colour for each St
 
 # ================== Fitting functions ==================
@@ -102,11 +103,11 @@ def calculate_ring_widths():
         
         fig0, ax0 = plt.subplots(figsize=(7,5))
         ax0.cla()
-        ax0.plot(radii,sigma_dust_st/np.max(sigma_bound), c='k')
-        ax0.scatter(radii,sigma_dust_st/np.max(sigma_bound), c='k', marker='x')
+        ax0.plot(radii,sigma_dust_st/np.max(sigma_bound), c=plain_clr)
+        ax0.scatter(radii,sigma_dust_st/np.max(sigma_bound), c=plain_clr, marker='x')
         ax0.plot(radii_arr, gaussian_fit, c='r')
-        ax0.axvline(innerbound, c='k', linestyle='dashed')
-        ax0.axvline(outerbound, c='k', linestyle='dashed')
+        ax0.axvline(innerbound, c=plain_clr, linestyle='dashed')
+        ax0.axvline(outerbound, c=plain_clr, linestyle='dashed')
         ax0.set_xlim(1,1.5)
         ax0.set_ylim(0,np.max(sigma_bound/np.max(sigma_bound))*1.05)
         fig0.savefig(f"{plots_savedir}/rings_{mp}Me_{hr0}_{i}.png")
@@ -236,8 +237,14 @@ if __name__ == "__main__":
     plots = args.plots    # opts: rwidth, dpdr, dflux
 
     if plot_window:
-        matplotlib.use('TkAgg') 
-    
+        mpl.use('TkAgg') 
+    else:
+        for sty in style:
+            plt.style.use([f"../styles/{sty}.mplstyle"])
+            if "darkbg" in sty:
+                plots_savedir = plots_savedir+"/darkbg/"
+                plain_clr = "w"
+
     # ------------------------------------------------------
     
     # Initialise axes and arrays for data to plot
@@ -378,14 +385,15 @@ if __name__ == "__main__":
             alpha_st = round(alpha/st, 4)
             ax_rw.scatter(planet_masses, ring_widths[:,i], color=colour)
             ax_rw.plot(planet_masses, ring_widths[:,i], color=colour, label=f"$\\alpha/St = {alpha_st}$" )
-            M_iso = calculate_Miso(hr0, alpha, st, scaling="B18")
+            M_iso = calculate_Miso(hr0, alpha, st, scaling="L14")
             ax_rw.axvline(M_iso, linestyle='dotted', color=colour)
 
         # ax_rw.set_ylim(-0.05,0.5)
         ax_rw.set_xlabel("Planet mass (M$_\oplus$)")
         ax_rw.set_ylabel("Ring width (AU)")
         ax_rw.set_title(f"H/R = {hr0}")
-        ax_rw.legend()
+        ax_rw.legend(loc="upper right")
+        fig_rw.tight_layout()
         fig_rw.savefig(f"{plots_savedir}/ring_widths_{hr0}.png", dpi=200)
 
     if "dpdr" in plots:
@@ -398,12 +406,13 @@ if __name__ == "__main__":
         # ax_p.set_ylim(-0.05,0.7)
         M_iso_B18 = calculate_Miso(hr0, alpha, st=0.1)
         M_iso_L14 = calculate_Miso(hr0, alpha, st=0.1, scaling="L14")
-        ax_p.axvline(M_iso_B18, linestyle="dotted", color='k', label="Bitsch et al. 2018")
-        ax_p.axvline(M_iso_L14, linestyle="dashed", color='k', label="Lambrechts et al. 2014")
+        ax_p.axvline(M_iso_B18, linestyle="dotted", color=plain_clr, label="Bitsch et al. 2018")
+        ax_p.axvline(M_iso_L14, linestyle="dashed", color=plain_clr, label="Lambrechts et al. 2014")
         ax_p.set_xlabel("Planet mass (M$_\oplus$)")
         ax_p.set_ylabel("$ \\rm{max} (|\partial P/\partial r |)$")
         ax_p.set_title(f"H/R = {hr0}")
         ax_p.legend()
+        fig_p.tight_layout()
         fig_p.savefig(f"{plots_savedir}/pressure_grad_{hr0}.png", dpi=200)
 
         print("Plotting dlogP/dlogr for each planet mass....")
@@ -416,9 +425,10 @@ if __name__ == "__main__":
         ax_plog.set_title(f"H/R = {hr0}")
         ax_plog.set_xlim(0.3,2.0)
         ax_plog.set_ylim(-18,15)
-        ax_plog.fill_between(x=radii, y1=0, y2=-20, color='lightgrey',  interpolate=True, alpha=.75)
-        ax_plog.axhline(-2.75, linestyle="dashed", color="k", label="Unperturbed $\partial \ln P/ \partial \ln r$")
-        ax_plog.legend()
+        ax_plog.fill_between(x=radii, y1=0, y2=-20, color='lightgrey',  interpolate=True, alpha=.5)
+        ax_plog.axhline(-2.75, linestyle="dashed", color=plain_clr, label="$\\frac{\partial \ln P}{\partial \ln r}\\rvert_{t=0}$")
+        ax_plog.legend(loc="upper right")
+        fig_plog.tight_layout()
         fig_plog.savefig(f"{plots_savedir}/dlogpdlogr_{hr0}.png", dpi=200)
     
     if "flux" in plots:
@@ -467,6 +477,7 @@ if __name__ == "__main__":
         ax_peak.set_ylabel("Ring Peak Location")
         ax_peak.set_title(f"H/R = {hr0}")
         ax_peak.legend()
+        fig_peak.tight_layout()
         fig_peak.savefig(f"{plots_savedir}/ring_peaks_{hr0}.png", dpi=200)
 
 
