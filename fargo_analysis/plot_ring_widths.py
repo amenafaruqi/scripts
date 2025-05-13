@@ -113,14 +113,18 @@ def calculate_ring_widths():
         fig0.savefig(f"{plots_savedir}/rings_{mp}Me_{hr0}_{i}.png")
 
 
-def calculate_pressure_gradients():
+def calculate_ring_masses():
+    for i,st in enumerate(stokes):
+        print("---------- Stokes = ", round(st,3))
+        sigma_dust_st = sigma_dust_1D[i]
+
         # 1) Select data only within region close to planet
         innerbound = rp + (4*r_hill)
         outerbound = rp + (12*r_hill)  # search for peak from rp to outerbound
         innerbound_i = np.argmin(np.abs(radii-innerbound))      # index (radial cell number) of lower bound of peak search
         outerbound_i = np.argmin(np.abs(radii-outerbound))      # index (radial cell number) of upper bound of peak search
 
-        sigma_bound = sigma_gas_1D[innerbound_i:outerbound_i]
+        sigma_bound = sigma_dust_st[innerbound_i:outerbound_i]
         radii_bound = radii[innerbound_i:outerbound_i]
 
         # 2) Identify ring peaks and troughs in gas
@@ -131,50 +135,73 @@ def calculate_pressure_gradients():
         l_trough_i = l_trough_bound_i + innerbound_i
         r_trough_i = r_trough_bound_i + innerbound_i
 
-        # Plot gas rings to check pressure gradient calculations
-        fig0, ax0 = plt.subplots(figsize=(7,5))
-        ax0.cla()
-        ax0.plot(radii,sigma_gas_1D/np.max(sigma_bound), c='k')
-        # ax0.scatter(radii,sigma_gas_1D/np.max(sigma_bound), c='k', marker='x')
-        ax0.scatter(radii[l_trough_i],(sigma_gas_1D/np.max(sigma_bound))[l_trough_i], c='r', marker='o')
-        ax0.scatter(radii[r_trough_i],(sigma_gas_1D/np.max(sigma_bound))[r_trough_i], c='r', marker='o')
-        ax0.scatter(radii[peak_i],(sigma_gas_1D/np.max(sigma_bound))[peak_i], c='y', marker='o')
-        ax0.axvline(innerbound, c='k', linestyle='dashed')
-        ax0.axvline(outerbound, c='k', linestyle='dashed')
-        ax0.set_xlim(1,1.6)
-        ax0.set_ylim(0,np.max(sigma_bound/np.max(sigma_bound))*1.2)
+        # 3) Sum up mass between left and right trough
+        ring_mass = np.sum(dust_mass[i,l_trough_i:r_trough_i])
+        ring_masses[s,i] = ring_mass
 
-        # 3) Calculate dP/dr
-        hr_bound = hr0*(radii_bound**f)
-        pressure = 4*(np.pi**2)*hr_bound*sigma_bound*(radii_bound**(-2))
-        dpdr = np.abs(np.gradient(pressure, radii_bound))
-        ax0.plot(radii_bound, dpdr/np.max(dpdr), c='r', label="$| \partial P/ \partial r |$")
-        ax0.plot(radii_bound, pressure/np.max(pressure), c='cyan', label="P")
-        # ax0.scatter(radii_bound, dpdr/np.max(dpdr), c='r')
-        ax0.legend()
+    
+def calculate_pressure_gradients():
+    # 1) Select data only within region close to planet
+    innerbound = rp + (4*r_hill)
+    outerbound = rp + (12*r_hill)  # search for peak from rp to outerbound
+    innerbound_i = np.argmin(np.abs(radii-innerbound))      # index (radial cell number) of lower bound of peak search
+    outerbound_i = np.argmin(np.abs(radii-outerbound))      # index (radial cell number) of upper bound of peak search
 
-        # Find steepest point interior/exterior to ring peak
-        dpdr_int = dpdr[l_trough_bound_i+3:peak_i_bound-1]
-        dpdr_ext = dpdr[peak_i_bound+1:r_trough_bound_i-3]
+    sigma_bound = sigma_gas_1D[innerbound_i:outerbound_i]
+    radii_bound = radii[innerbound_i:outerbound_i]
 
-        max_dpdr_int = np.max(dpdr_int)
-        max_dpdr_ext = np.max(dpdr_ext)
-        ax0.plot(radii_bound[l_trough_bound_i+3:peak_i_bound-1], dpdr_int/np.max(dpdr), c='b')
-        ax0.plot(radii_bound[peak_i_bound+1:r_trough_bound_i-3], dpdr_ext/np.max(dpdr), c='g')
-        fig0.savefig(f"{plots_savedir}/gasrings_{mp}Me_{hr0}_.png")
+    # 2) Identify ring peaks and troughs in gas
+    peak_i_bound = find_ring_peak(radii_bound,sigma_bound)
+    peak_i = peak_i_bound + innerbound_i
 
-        dpdrs_ext[s] = max_dpdr_ext
-        dpdrs_in[s] = max_dpdr_int
+    l_trough_bound_i, r_trough_bound_i = find_ring_troughs(radii_bound, sigma_bound, peak_i_bound)
+    l_trough_i = l_trough_bound_i + innerbound_i
+    r_trough_i = r_trough_bound_i + innerbound_i
+
+    # Plot gas rings to check pressure gradient calculations
+    fig0, ax0 = plt.subplots(figsize=(7,5))
+    ax0.cla()
+    ax0.plot(radii,sigma_gas_1D/np.max(sigma_bound), c='k')
+    # ax0.scatter(radii,sigma_gas_1D/np.max(sigma_bound), c='k', marker='x')
+    ax0.scatter(radii[l_trough_i],(sigma_gas_1D/np.max(sigma_bound))[l_trough_i], c='r', marker='o')
+    ax0.scatter(radii[r_trough_i],(sigma_gas_1D/np.max(sigma_bound))[r_trough_i], c='r', marker='o')
+    ax0.scatter(radii[peak_i],(sigma_gas_1D/np.max(sigma_bound))[peak_i], c='y', marker='o')
+    ax0.axvline(innerbound, c='k', linestyle='dashed')
+    ax0.axvline(outerbound, c='k', linestyle='dashed')
+    ax0.set_xlim(1,1.6)
+    ax0.set_ylim(0,np.max(sigma_bound/np.max(sigma_bound))*1.2)
+
+    # 3) Calculate dP/dr
+    hr_bound = hr0*(radii_bound**f)
+    pressure = 4*(np.pi**2)*hr_bound*sigma_bound*(radii_bound**(-2))
+    dpdr = np.abs(np.gradient(pressure, radii_bound))
+    ax0.plot(radii_bound, dpdr/np.max(dpdr), c='r', label="$| \partial P/ \partial r |$")
+    ax0.plot(radii_bound, pressure/np.max(pressure), c='cyan', label="P")
+    # ax0.scatter(radii_bound, dpdr/np.max(dpdr), c='r')
+    ax0.legend()
+
+    # Find steepest point interior/exterior to ring peak
+    dpdr_int = dpdr[l_trough_bound_i+3:peak_i_bound-1]
+    dpdr_ext = dpdr[peak_i_bound+1:r_trough_bound_i-3]
+
+    max_dpdr_int = np.max(dpdr_int)
+    max_dpdr_ext = np.max(dpdr_ext)
+    ax0.plot(radii_bound[l_trough_bound_i+3:peak_i_bound-1], dpdr_int/np.max(dpdr), c='b')
+    ax0.plot(radii_bound[peak_i_bound+1:r_trough_bound_i-3], dpdr_ext/np.max(dpdr), c='g')
+    fig0.savefig(f"{plots_savedir}/gasrings_{mp}Me_{hr0}_.png")
+
+    dpdrs_ext[s] = max_dpdr_ext
+    dpdrs_in[s] = max_dpdr_int
 
 
 def calculate_dlogpdlogr():
-        hr = hr0*radii**(f+1)
-        sigma = sigma_gas_1D
-        pressure = hr*sigma*(radii**(-3))
-        lnp = np.log(pressure)
-        lnr = np.log(radii)
-        dlogpdlogr = np.gradient(lnp, lnr)
-        dlogpdlogrs.append(dlogpdlogr)
+    hr = hr0*radii**(f+1)
+    sigma = sigma_gas_1D
+    pressure = hr*sigma*(radii**(-3))
+    lnp = np.log(pressure)
+    lnr = np.log(radii)
+    dlogpdlogr = np.gradient(lnp, lnr)
+    dlogpdlogrs.append(dlogpdlogr)
 
 
 def calculate_pressure():
@@ -184,18 +211,18 @@ def calculate_pressure():
 
 
 def calculate_dust_flux():
-        # Apply correction to v_phi when in the guiding-centre ref frame
-        # Explained here: https://fargo3d.bitbucket.io/def_setups.html
-        R, PHI = np.meshgrid(radii, phis, indexing="ij")   # dimensions: (nrad, nphi)
+    # Apply correction to v_phi when in the guiding-centre ref frame
+    # Explained here: https://fargo3d.bitbucket.io/def_setups.html
+    R, PHI = np.meshgrid(radii, phis, indexing="ij")   # dimensions: (nrad, nphi)
 
-        v_phi = v_gas[0,:,:]+(omegaframe*R)    # dimensions: (nrad, nphi)
-        v_r = v_gas[1,:,:]                     # dimensions: (nrad, nphi)
-        gas_flux.append(v_r*sigma_gas)
+    v_phi = v_gas[0,:,:]+(omegaframe*R)    # dimensions: (nrad, nphi)
+    v_r = v_gas[1,:,:]                     # dimensions: (nrad, nphi)
+    gas_flux.append(v_r*sigma_gas)
 
-        for n in np.arange(ndust):
-            v_phi = v_dust[n,0,:,:]+(omegaframe*R)    # dimensions: (nrad, nphi)
-            v_r = v_dust[n,1,:,:]                     # dimensions: (nrad, nphi)
-            dust_flux.append(v_r*sigma_dust[n])
+    for n in np.arange(ndust):
+        v_phi = v_dust[n,0,:,:]+(omegaframe*R)    # dimensions: (nrad, nphi)
+        v_r = v_dust[n,1,:,:]                     # dimensions: (nrad, nphi)
+        dust_flux.append(v_r*sigma_dust[n])
 
 
 def calculate_ring_peaks():
@@ -257,8 +284,11 @@ if __name__ == "__main__":
     planet_masses = np.zeros((len(sims)))
     if "rwidth" in plots:
         fig_rw, ax_rw = plt.subplots(figsize=(8,5))
-        dpdr = np.zeros((len(sims)))
         ring_widths = np.zeros((len(sims),5))
+
+    if "rmass" in plots:
+        fig_rm, ax_rm = plt.subplots(figsize=(8,5))
+        ring_masses = np.zeros((len(sims),5))
 
     if "dpdr" in plots:
         fig_p, ax_p = plt.subplots(figsize=(8,5))
@@ -277,7 +307,6 @@ if __name__ == "__main__":
     if "rpeak" in plots:
         fig_peak, ax_peak = plt.subplots(figsize=(8,5))
         r_peaks = np.zeros((len(sims),5))
-
 
     # ------------------------------------------------------
 
@@ -334,22 +363,24 @@ if __name__ == "__main__":
         phis = np.array([(phi_cells[n]+phi_cells[n+1])/2 for n in range(len(phi_cells)-1)])
 
         # Get gas and dust sigma
-        sigma_gas = np.zeros((nrad, nphi))
-        sigma_dust = np.zeros((ndust, nrad, nphi))
-        sigma_dust0 = np.zeros((ndust, nrad, nphi))
-
         gasfile = f"gasdens{output}.dat" 
         sigma_gas = np.fromfile(simdir+gasfile).reshape(nrad,nphi)
+
+        sigma_dust = np.zeros((ndust, nrad, nphi))
+        sigma_dust0 = np.zeros((ndust, nrad, nphi))
         for n in np.arange(ndust):
             dust_file = f"dustdens{n}_{output}.dat"
             sigma_dust[n] = np.fromfile(simdir+dust_file).reshape(nrad,nphi)
             dust_file0 = f"dustdens{n}_0.dat"
             sigma_dust0[n] = np.fromfile(simdir+dust_file0).reshape(nrad,nphi)
-        
+
         # Average over all phi
         sigma_gas_1D = np.sum(sigma_gas, axis=1)/nphi                        # dimensions: ( nrad) 
         sigma_dust_1D = np.sum(sigma_dust, axis=2)/nphi                      # dimensions: (ndust, nrad)   
         sigma_dust0_1D = np.sum(sigma_dust0, axis=2)/nphi                    # dimensions: (ndust, nrad)   
+
+        # Calculate dust masses
+        dust_mass = np.array([2*np.pi*radii*sigma_dust_1D[n,:]*delta_r*333030 for n in range(ndust)])
 
         if "flux" in plots:
             v_dust = np.zeros((ndust, 2, nrad, nphi))   # additional dimension of 2 for x and y velocity
@@ -370,6 +401,9 @@ if __name__ == "__main__":
         if "rwidth" in plots:
             print(f"Calculating ring widths for {mp} Mearth... \n ~ ~ ~ ~ ~")
             calculate_ring_widths()
+        if "rmass" in plots:
+            print(f"Calculating ring masses for {mp} Mearth... \n ~ ~ ~ ~ ~")
+            calculate_ring_masses()
         if "dpdr" in plots:
             print(f"Calculating pressure gradients for {mp} Mearth... \n ~ ~ ~ ~ ~")
             calculate_pressure()
@@ -404,6 +438,25 @@ if __name__ == "__main__":
         ax_rw.legend(loc="upper right")
         fig_rw.tight_layout()
         fig_rw.savefig(f"{plots_savedir}/ring_widths_{hr0}.png", dpi=200)
+
+    if "rmass" in plots:
+        # Plot ring mass vs planet mass
+        print("Plotting ring mass against planet mass....")
+        for i,st in enumerate(stokes):
+            colour = colour_cycler[i]
+            alpha_st = round(alpha/st, 4)
+            ax_rm.scatter(planet_masses, ring_masses[:,i], color=colour)
+            ax_rm.plot(planet_masses, ring_masses[:,i], color=colour, label=f"$\\alpha/St = {alpha_st}$" )
+            M_iso = calculate_Miso(hr0, alpha, st, scaling="L14")
+            ax_rm.axvline(M_iso, linestyle='dotted', color=colour)
+
+        ax_rm.set_xlabel("Planet mass (M$_\oplus$)")
+        ax_rm.set_ylabel("Ring mass ($M_\oplus$)")
+        ax_rm.set_title(f"H/R = {hr0}")
+        ax_rm.legend(loc="upper right")
+        fig_rm.tight_layout()
+        fig_rm.savefig(f"{plots_savedir}/ring_masses_{hr0}.png", dpi=200)
+
 
     if "dpdr" in plots:
         # Plot pressure against R
