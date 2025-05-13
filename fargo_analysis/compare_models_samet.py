@@ -7,6 +7,9 @@ import argparse
 import re
 plt.style.use('default')
 
+plt.rc('text', usetex=True)
+plt.rc('font', family='serif')
+matplotlib.rcParams['text.latex.preamble'] = r'\usepackage{amsmath}'
 
 # ====================== Gas Sigma ========================
 
@@ -28,16 +31,17 @@ def overlay_gas_sigmas(fig, ax, radii, sigma_gas_1D, model_num=0):
         if "mig" in sim:
             planetcolour = color
         else:
-            planetcolour = "k"
+            planetcolour = plain_clr
         for rp in rps:
             ax.axvline(rp, linestyle='dashed', color=planetcolour)
     
-    ax.set_xlabel("R (AU)")
-    ax.set_ylabel("$\Sigma_{gas} (g/cm^{2})$")
-    ax.set_xscale("log")
+    ax.set_xlabel("R")
+    ax.set_ylabel("$\Sigma_{gas}$")
+    # ax.set_xscale("log")
+    ax.set_xticks([0.6, 1, 1.4, 1.8])
     ax.set_yscale("log")
     # ax.set_xlim(np.min(radii), np.max(radii))
-    ax.set_xlim(0.5,2)
+    ax.set_xlim(0.4,2)
     ax.legend(handles=legend_elements)
     fig.tight_layout()
 
@@ -61,7 +65,7 @@ def overlay_dust_sigmas(fig, ax, radii, sigma_dust, model_num=0):
 
             if planets:
                 if "stat" in sim:
-                    planetcolour = 'k'
+                    planetcolour = plain_clr
                 else:
                     planetcolour = color
                 for rp in rps:
@@ -100,7 +104,7 @@ def overlay_dust_sigmas(fig, ax, radii, sigma_dust, model_num=0):
 
             if planets:
                 for rp in rps:
-                    ax[n].axvline(rp, linestyle='dashed', color="k")
+                    ax[n].axvline(rp, linestyle='dashed', color=plain_clr)
 
             ax[n].set_title(f"St={round(stokes[n],3)}")
             ax[n].set_yscale("log")
@@ -128,15 +132,15 @@ def overlay_dust_sigmas(fig, ax, radii, sigma_dust, model_num=0):
         mass_weighted_sum = np.sum([sigma_dust[n]*(stokes[n]**3) for n in range(ndust)], axis=0)
         mass_weighted_avg = mass_weighted_sum/dust_mass_tot
         # sigma_dust_tot = np.sum(sigma_dust, axis=0)                  # dimensions: (nrad)  
-        ax[3].plot(radii, mass_weighted_avg, color=color)
-        ax[3].set_title("All St")
-        ax[3].set_yscale("log")
+        ax[5].plot(radii, mass_weighted_avg, color=color)
+        ax[5].set_title("All St")
+        ax[5].set_yscale("log")
         # ax[3].set_xscale("log")
-        ax[3].set_xlim(0.7,1.5)
+        ax[5].set_xlim(0.7,1.5)
 
         if planets:
             for rp in rps:
-                ax[5].axvline(rp, linestyle='dashed', color="k")
+                ax[5].axvline(rp, linestyle='dashed', color=plain_clr)
 
 
 
@@ -153,7 +157,7 @@ def overlay_total_dust_mass(fig, ax, radii, dust_mass_tot, model_num=0):
 
     if planets:
         if "stat" in sim:
-            planetcolour = 'k'
+            planetcolour = plain_clr
         else:
             planetcolour = color
         for rp in rps:
@@ -224,7 +228,7 @@ def overlay_dust_gas_ratio(fig, ax, radii, dust_mass_tot, gas_mass, model_num=0)
 
     if planets:
         if "stat" in sim:
-            planetcolour = 'k'
+            planetcolour = plain_clr
         else:
             planetcolour = color
         for rp in rps:
@@ -273,13 +277,16 @@ if __name__ == "__main__":
     if plot_window:
         matplotlib.use('TkAgg')
     
+    plain_clr = "k"
     if not plot_window:
         for s in style:
             plt.style.use([f"../styles/{s}.mplstyle"])
+            if "darkbg" in s:
+                plain_clr = "w"
 
     # =================== Define figures and axes ========================
     if "gsig" in plots:
-        fig_gas_sigma, ax_gas_sigma = plt.subplots(figsize=(6,5))
+        fig_gas_sigma, ax_gas_sigma = plt.subplots(figsize=(8,5))
     if "dcon" in plots:   # only specify dcon for grog models
         fig_con, ax_con = plt.subplots(figsize=(17,12), nrows=2, ncols=3)
     if "dsig" in plots:

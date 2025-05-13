@@ -18,7 +18,7 @@ mpl.rcParams['text.latex.preamble'] = r'\usepackage{amsmath}'
 nstokes = 5
 cm = plt.get_cmap('viridis')
 plain_clr = "k"
-colour_cycler = [cm(1.*i/nstokes) for i in range(nstokes)]   # 1 colour for each St
+colour_cycler = cm(np.linspace(0, 1, 5))
 
 # ================== Fitting functions ==================
 
@@ -177,6 +177,12 @@ def calculate_dlogpdlogr():
         dlogpdlogrs.append(dlogpdlogr)
 
 
+def calculate_pressure():
+    hr = hr0*(radii**f)
+    pressure = 4*(np.pi**2)*hr*sigma_gas_1D*(radii**(-2))
+    pressure_arr.append(pressure)
+
+
 def calculate_dust_flux():
         # Apply correction to v_phi when in the guiding-centre ref frame
         # Explained here: https://fargo3d.bitbucket.io/def_setups.html
@@ -257,8 +263,10 @@ if __name__ == "__main__":
     if "dpdr" in plots:
         fig_p, ax_p = plt.subplots(figsize=(8,5))
         fig_plog, ax_plog = plt.subplots(figsize=(8,5))
+        fig_press, ax_press = plt.subplots(figsize=(8,5))
         dpdrs_in = np.zeros((len(sims)))
         dpdrs_ext = np.zeros((len(sims)))
+        pressure_arr = []
         dlogpdlogrs = []
     
     if "flux" in plots:
@@ -364,6 +372,7 @@ if __name__ == "__main__":
             calculate_ring_widths()
         if "dpdr" in plots:
             print(f"Calculating pressure gradients for {mp} Mearth... \n ~ ~ ~ ~ ~")
+            calculate_pressure()
             calculate_pressure_gradients()
             calculate_dlogpdlogr()
         if "flux" in plots:
@@ -397,20 +406,38 @@ if __name__ == "__main__":
         fig_rw.savefig(f"{plots_savedir}/ring_widths_{hr0}.png", dpi=200)
 
     if "dpdr" in plots:
+        # Plot pressure against R
+        print("Plotting pressure profile.... \n")
+        for s, sim in enumerate(sims):
+            colour = colour_cycler[s]
+            mp = re.search(r"(\d+)Me", sim).group(1)
+            ax_press.plot(radii, pressure_arr[s], color=colour, label=f"{mp}$M_\oplus$")
+        ax_press.set_yscale("log")
+        ax_press.set_xlim(0.4,2)
+        ax_press.set_ylim(2e-4,4e-2)
+        ax_press.set_xlabel("r")
+        ax_press.set_ylabel("Gas pressure")
+        ax_press.legend()
+        fig_press.savefig(f"{plots_savedir}/pressure_profile_{hr0}.png")
+
         # Plot avg pressure gradient vs planet mass
         print("Plotting dP/dr against planet mass.... \n")
-        ax_p.scatter(planet_masses, dpdrs_ext, c='g')
-        ax_p.plot(planet_masses, dpdrs_ext, c='g', label = "exterior to ring peak")
-        ax_p.scatter(planet_masses, dpdrs_in, c='b')
-        ax_p.plot(planet_masses, dpdrs_in, c='b', label="interior to ring peak")
+        ax_p.scatter(planet_masses, dpdrs_ext, c='lawngreen')
+        ax_p.plot(planet_masses, dpdrs_ext, c='lawngreen', label = "exterior to ring peak")
+        ax_p.scatter(planet_masses, dpdrs_in, c='deepskyblue')
+        ax_p.plot(planet_masses, dpdrs_in, c='deepskyblue', label="interior to ring peak")
+        # ax_p.plot(planet_masses, dpdrs_in/dpdrs_ext, c='orange', label="interior to exterior $\partial P/\partial r$ ratio")
         # ax_p.set_ylim(-0.05,0.7)
-        M_iso_B18 = calculate_Miso(hr0, alpha, st=0.1)
-        M_iso_L14 = calculate_Miso(hr0, alpha, st=0.1, scaling="L14")
-        ax_p.axvline(M_iso_B18, linestyle="dotted", color=plain_clr, label="Bitsch et al. 2018")
-        ax_p.axvline(M_iso_L14, linestyle="dashed", color=plain_clr, label="Lambrechts et al. 2014")
+        M_iso_B18_upper = calculate_Miso(hr0, alpha, st=0.002, scaling="L14")
+        M_iso_B18_lower = calculate_Miso(hr0, alpha, st=0.2, scaling="L14")
+        ax_p.fill_betweenx(x1=M_iso_B18_lower, x2=M_iso_B18_upper, y=np.linspace(0,0.01,10), color='lightgrey',  interpolate=True, alpha=.2, label="$M_{iso}$")
+        # M_iso_L14 = calculate_Miso(hr0, alpha, st=0.1, scaling="L14")
+        # ax_p.axvline(M_iso_B18, linestyle="dotted", color=plain_clr, label="$M_{iso}$ (Bitsch et al. 2018)")
+        # ax_p.axvline(M_iso_L14, linestyle="dashed", color=plain_clr, label="$M_{iso}$ (Lambrechts et al. 2014)")
         ax_p.set_xlabel("Planet mass (M$_\oplus$)")
         ax_p.set_ylabel("$ \\rm{max} (|\partial P/\partial r |)$")
         ax_p.set_title(f"H/R = {hr0}")
+        ax_p.set_ylim(0.85*np.min(dpdrs_in), 1.05*np.max(dpdrs_in))
         ax_p.legend()
         fig_p.tight_layout()
         fig_p.savefig(f"{plots_savedir}/pressure_grad_{hr0}.png", dpi=200)
@@ -437,15 +464,13 @@ if __name__ == "__main__":
             x = R*np.cos(PHI)
             y = R*np.sin(PHI)
 
-            # lims = [[-1e-9,1e-9],[-5e-9,5e-9],[-1e-8,1e-8],[-1e-8,1e-8],[-1e-8,1e-8]]
-            # lims = [[-5e-6,5e-6],[-5e-4,5e-4],[-5e-6,5e-6],[-5e-6,5e-6],[-1e-7,1e-7]]
-            lims = [[-5e-6,5e-6],[-5e-6,5e-6],[-5e-6,5e-6],[-5e-6,5e-6],[-5e-6,5e-6]]
-            lts = [1e-50,           1e-35,      1e-22,      1e-12,          1e-12]
+            lims = [[-1e-6,1e-6],[-5e-6,5e-6],[-5e-6,5e-6],[-5e-6,5e-6],[-5e-6,5e-6]]
+            lts = [1e-40,           1e-35,      1e-15,      1e-12,          1e-12]
             for n in np.arange(ndust):
                 ax = ax_f[s,n]
                 flux = dust_flux[s*ndust:(s+1)*ndust][n]
                 im = ax.pcolormesh(x, y, flux, shading="auto",  
-                norm=mpl.colors.SymLogNorm(linthresh=lts[n], linscale=0.001,vmin=lims[n][0], vmax=lims[n][1]),
+                norm=mpl.colors.SymLogNorm(linthresh=lts[n], linscale=0.0001,vmin=lims[n][0], vmax=lims[n][1]),
                 cmap="seismic")
                 ax.scatter([xp], [yp], color='yellow', marker='.', edgecolors='black')
                 ax.set_aspect("equal")
