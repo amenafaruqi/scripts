@@ -139,6 +139,33 @@ def calculate_ring_masses():
         ring_mass = np.sum(dust_mass[i,l_trough_i:r_trough_i])
         ring_masses[s,i] = ring_mass
 
+
+def calculate_ring_edges():
+    for i,st in enumerate(stokes):
+        print("---------- Stokes = ", round(st,3))
+        sigma_dust_st = sigma_dust_1D[i]
+
+        # 1) Select data only within region close to planet
+        innerbound = rp + (2*r_hill)
+        outerbound = rp + (18*r_hill)  # search for peak from rp to outerbound
+        innerbound_i = np.argmin(np.abs(radii-innerbound))      # index (radial cell number) of lower bound of peak search
+        outerbound_i = np.argmin(np.abs(radii-outerbound))      # index (radial cell number) of upper bound of peak search
+
+        sigma_bound = sigma_dust_st[innerbound_i:outerbound_i]
+        radii_bound = radii[innerbound_i:outerbound_i]
+
+        # 2) Identify ring peaks and troughs in gas
+        peak_i_bound = find_ring_peak(radii_bound,sigma_bound)
+        peak_i = peak_i_bound + innerbound_i
+
+        l_trough_bound_i, r_trough_bound_i = find_ring_troughs(radii_bound, sigma_bound, peak_i_bound)
+        l_trough_i = l_trough_bound_i + innerbound_i
+        r_trough_i = r_trough_bound_i + innerbound_i
+
+        # 3) Populate array with edge locations
+        inner_edges[s,i] = radii[l_trough_i]
+        outer_edges[s,i] = radii[r_trough_i]
+
     
 def calculate_pressure_gradients():
     # 1) Select data only within region close to planet
@@ -290,6 +317,11 @@ if __name__ == "__main__":
         fig_rm, ax_rm = plt.subplots(figsize=(8,5))
         ring_masses = np.zeros((len(sims),5))
 
+    if "redge" in plots:
+        fig_re, ax_re = plt.subplots(figsize=(8,5))
+        inner_edges = np.zeros((len(sims),5))
+        outer_edges = np.zeros((len(sims),5))
+
     if "dpdr" in plots:
         fig_p, ax_p = plt.subplots(figsize=(8,5))
         fig_plog, ax_plog = plt.subplots(figsize=(8,5))
@@ -404,6 +436,9 @@ if __name__ == "__main__":
         if "rmass" in plots:
             print(f"Calculating ring masses for {mp} Mearth... \n ~ ~ ~ ~ ~")
             calculate_ring_masses()
+        if "redge" in plots:
+            print(f"Calculating ring edge locations for {mp} Mearth... \n ~ ~ ~ ~ ~")
+            calculate_ring_edges()
         if "dpdr" in plots:
             print(f"Calculating pressure gradients for {mp} Mearth... \n ~ ~ ~ ~ ~")
             calculate_pressure()
@@ -456,6 +491,30 @@ if __name__ == "__main__":
         ax_rm.legend(loc="upper right")
         fig_rm.tight_layout()
         fig_rm.savefig(f"{plots_savedir}/ring_masses_{hr0}.png", dpi=200)
+
+    if "redge" in plots:
+        # Plot ring edge locations vs planet mass
+        print("Plotting ring edge locations against planet mass....")
+        pms = np.linspace(np.min(planet_masses), np.max(planet_masses), 100)
+        hill_radii = (pms/(3*333030))**(1/3)
+        for i,st in enumerate(stokes):
+            colour = colour_cycler[i]
+            alpha_st = round(alpha/st, 4)
+            ax_re.scatter(planet_masses, inner_edges[:,i], color=colour)
+            ax_re.plot(planet_masses, inner_edges[:,i], color=colour, label=f"$\\alpha/St = {alpha_st}$" )
+            ax_re.scatter(planet_masses, outer_edges[:,i], color=colour)
+            ax_re.plot(planet_masses, outer_edges[:,i], color=colour,linestyle="dashed" )
+        ax_re.plot(pms, 1+3.5*hill_radii, color=plain_clr, label="$R_{p} + 3.5R_{Hill}$", linestyle="dotted")
+        ax_re.plot(pms, 1.4-10*(pms/333030)**0.5, color="red", linestyle="dotted")
+        # M_iso = calculate_Miso(hr0, alpha, st, scaling="L14")
+        # ax_rm.axvline(M_iso, linestyle='dotted', color=colour)
+
+        ax_re.set_xlabel("Planet mass (M$_\oplus$)")
+        ax_re.set_ylabel("Ring edge location")
+        ax_re.set_title(f"H/R = {hr0}")
+        ax_re.legend()
+        fig_re.tight_layout()
+        fig_re.savefig(f"{plots_savedir}/ring_edges_{hr0}.png", dpi=200)
 
 
     if "dpdr" in plots:
