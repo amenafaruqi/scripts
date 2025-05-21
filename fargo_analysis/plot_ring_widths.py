@@ -11,6 +11,7 @@ from numpy.polynomial import Polynomial
 import argparse
 import re
 
+plt.style.use('default')
 plt.rc('text', usetex=True)
 plt.rc('font', family='serif')
 mpl.rcParams['text.latex.preamble'] = r'\usepackage{amsmath}'
@@ -26,7 +27,7 @@ def gaussian(x, a, x0, b):
     return a*np.exp(-0.5*((x-x0)/b)**2) 
     # return a*np.exp(-0.5*((x-x0)/(b+c(x-x0)))**2)   # skewed gaussian
 
-def find_ring_peak(radii, sigma):
+def find_ring_peak(sigma):
     peak_i = np.argmax(sigma)
     return peak_i
 
@@ -84,7 +85,7 @@ def calculate_ring_widths():
         sigma_bound = sigma_dust_st[innerbound_i:outerbound_i]
         radii_bound = radii[innerbound_i:outerbound_i]
 
-        peak_i_bound = find_ring_peak(radii_bound,sigma_bound)
+        peak_i_bound = find_ring_peak(sigma_bound)
         peak_i = peak_i_bound + innerbound_i
         peak_r = radii_bound[peak_i_bound]
         init_guess = [1,peak_r,0.04]
@@ -128,7 +129,7 @@ def calculate_ring_masses():
         radii_bound = radii[innerbound_i:outerbound_i]
 
         # 2) Identify ring peaks and troughs in gas
-        peak_i_bound = find_ring_peak(radii_bound,sigma_bound)
+        peak_i_bound = find_ring_peak(sigma_bound)
         peak_i = peak_i_bound + innerbound_i
 
         l_trough_bound_i, r_trough_bound_i = find_ring_troughs(radii_bound, sigma_bound, peak_i_bound)
@@ -155,8 +156,7 @@ def calculate_ring_edges():
         radii_bound = radii[innerbound_i:outerbound_i]
 
         # 2) Identify ring peaks and troughs in gas
-        peak_i_bound = find_ring_peak(radii_bound,sigma_bound)
-        peak_i = peak_i_bound + innerbound_i
+        peak_i_bound = find_ring_peak(sigma_bound)
 
         l_trough_bound_i, r_trough_bound_i = find_ring_troughs(radii_bound, sigma_bound, peak_i_bound)
         l_trough_i = l_trough_bound_i + innerbound_i
@@ -178,7 +178,7 @@ def calculate_pressure_gradients():
     radii_bound = radii[innerbound_i:outerbound_i]
 
     # 2) Identify ring peaks and troughs in gas
-    peak_i_bound = find_ring_peak(radii_bound,sigma_bound)
+    peak_i_bound = find_ring_peak(sigma_bound)
     peak_i = peak_i_bound + innerbound_i
 
     l_trough_bound_i, r_trough_bound_i = find_ring_troughs(radii_bound, sigma_bound, peak_i_bound)
@@ -222,9 +222,9 @@ def calculate_pressure_gradients():
 
 
 def calculate_dlogpdlogr():
-    hr = hr0*radii**(f+1)
+    h = hr0*radii**(f+1)
     sigma = sigma_gas_1D
-    pressure = hr*sigma*(radii**(-3))
+    pressure = h*sigma*(radii**(-3))
     lnp = np.log(pressure)
     lnr = np.log(radii)
     dlogpdlogr = np.gradient(lnp, lnr)
@@ -268,10 +268,23 @@ def calculate_ring_peaks():
         sigma_bound = sigma_dust_st[innerbound_i:outerbound_i]
         radii_bound = radii[innerbound_i:outerbound_i]
 
-        peak_i_bound = find_ring_peak(radii_bound,sigma_bound)
+        peak_i_bound = find_ring_peak(sigma_bound)
         peak_r = radii_bound[peak_i_bound]
         r_peaks[s,i] = peak_r
 
+
+def calculate_vdrift():
+    v_drifts_s = []
+    for i,st in enumerate(stokes):
+        print("---------- Stokes = ", round(st,3))
+        hr = hr0*(radii**f)
+        pressure = 4*(np.pi**2)*hr*sigma_gas_1D*(radii**(-2))
+        dpdr = np.gradient(pressure, radii)
+        omega = radii**(-3/2)
+        v_drift = -dpdr*(hr*radii/(omega*sigma_gas_1D))/(st+(1/st))
+        v_drifts_s.append(v_drift)
+
+    v_drifts.append(v_drifts_s)
 
 
 # ============== Read in data from models ==============
@@ -339,6 +352,11 @@ if __name__ == "__main__":
     if "rpeak" in plots:
         fig_peak, ax_peak = plt.subplots(figsize=(8,5))
         r_peaks = np.zeros((len(sims),5))
+
+    if "vdrift" in plots:
+        fig_v, ax_v = plt.subplots(figsize=(8,5))
+        r_peaks = np.zeros((len(sims),5))
+        v_drifts = []
 
     # ------------------------------------------------------
 
@@ -450,7 +468,11 @@ if __name__ == "__main__":
         if "rpeak" in plots:
             print(f"Calculating ring peak for {mp} Mearth... \n ~ ~ ~ ~ ~")
             calculate_ring_peaks()
-    
+        if "vdrift" in plots:
+            print(f"Calculating drift velocities for {mp} Mearth... \n ~ ~ ~ ~ ~")
+            calculate_vdrift()
+            calculate_ring_peaks()
+
 
     # ================ Generate chosen plots ================
     print(f"-------------------\nPlotting output {output} for {sims}\n=============")
@@ -503,9 +525,10 @@ if __name__ == "__main__":
             ax_re.scatter(planet_masses, inner_edges[:,i], color=colour)
             ax_re.plot(planet_masses, inner_edges[:,i], color=colour, label=f"$\\alpha/St = {alpha_st}$" )
             ax_re.scatter(planet_masses, outer_edges[:,i], color=colour)
+            print(planet_masses, outer_edges[:,i])
             ax_re.plot(planet_masses, outer_edges[:,i], color=colour,linestyle="dashed" )
         ax_re.plot(pms, 1+3.5*hill_radii, color=plain_clr, label="$R_{p} + 3.5R_{Hill}$", linestyle="dotted")
-        ax_re.plot(pms, 1.4-10*(pms/333030)**0.5, color="red", linestyle="dotted")
+        # ax_re.plot(pms, 1.4-10*(pms/333030)**0.5, color="red", linestyle="dotted")
         # M_iso = calculate_Miso(hr0, alpha, st, scaling="L14")
         # ax_rm.axvline(M_iso, linestyle='dotted', color=colour)
 
@@ -616,6 +639,24 @@ if __name__ == "__main__":
         ax_peak.legend()
         fig_peak.tight_layout()
         fig_peak.savefig(f"{plots_savedir}/ring_peaks_{hr0}.png", dpi=200)
+    
+    if "vdrift" in plots:
+        v_drifts = np.array(v_drifts)
+        # ax_v = ax_v.flatten()
+        for s, sim in enumerate(sims):
+            colour = colour_cycler[s]
+            mp = re.search(r"(\d+)Me", sim).group(1)
+            ax_v.plot(radii, v_drifts[s,0], color=colour, label=f"{mp}$M_\oplus$")
+            ax_v.axvline(r_peaks[s,0], linestyle="dashed", color=colour)
+        ax_v.set_xlim(0.5,1.5)
+        ax_v.set_ylim(np.min(v_drifts[s,0])*0.9,np.max(v_drifts[s,0])*1.1)
+        ax_v.set_xlabel("r")
+        ax_v.set_ylabel("$v_{drift}$")
+        ax_v.fill_between(x=radii, y1=0, y2=-20, color='lightgrey',  interpolate=True, alpha=.5)
+        # ax_v[-1].remove()
+        ax_v.legend()
+        fig_v.tight_layout()
+        fig_v.savefig(f"{plots_savedir}/vdrift_{hr0}.png")
 
 
     if plot_window:
