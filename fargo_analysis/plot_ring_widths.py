@@ -5,9 +5,7 @@ from scipy.optimize import curve_fit
 
 from mpl_toolkits.axes_grid1 import make_axes_locatable
 from scipy.optimize import curve_fit
-from scipy.signal import peak_widths
-from scipy.signal import find_peaks
-from numpy.polynomial import Polynomial
+from matplotlib.lines import Line2D
 import argparse
 import re
 
@@ -142,12 +140,13 @@ def calculate_ring_masses():
 
 
 def calculate_ring_edges():
+    # grad_mins=[2e-7,1e-7,2e-7,2e-7, 2e-7]
     for i,st in enumerate(stokes):
         print("---------- Stokes = ", round(st,3))
         sigma_dust_st = sigma_dust_1D[i]
 
         # 1) Select data only within region close to planet
-        innerbound = rp + (2*r_hill)
+        innerbound = rp + (3*r_hill)
         outerbound = rp + (18*r_hill)  # search for peak from rp to outerbound
         innerbound_i = np.argmin(np.abs(radii-innerbound))      # index (radial cell number) of lower bound of peak search
         outerbound_i = np.argmin(np.abs(radii-outerbound))      # index (radial cell number) of upper bound of peak search
@@ -155,17 +154,43 @@ def calculate_ring_edges():
         sigma_bound = sigma_dust_st[innerbound_i:outerbound_i]
         radii_bound = radii[innerbound_i:outerbound_i]
 
-        # 2) Identify ring peaks and troughs in gas
+        # 2) Identify ring peak
         peak_i_bound = find_ring_peak(sigma_bound)
+        # peak_i = peak_i_bound + innerbound_i
+        peak_r = radii_bound[peak_i_bound]
 
-        l_trough_bound_i, r_trough_bound_i = find_ring_troughs(radii_bound, sigma_bound, peak_i_bound)
-        l_trough_i = l_trough_bound_i + innerbound_i
-        r_trough_i = r_trough_bound_i + innerbound_i
+        # 3) Locate ring edges in either direction based on sigma drop
+        sigma_peak = sigma_bound[peak_i_bound]
+        grad_bound = np.gradient(sigma_bound)
+        if i != 4:
+            grad_bound_min = np.min(np.abs(grad_bound)) * 10
+        print(grad_bound_min)
+        left_edge_i = peak_i_bound - 3
+        right_edge_i = peak_i_bound + 5
+        threshold = 0.25
+        # rhill = (mp/(3*333030))**(1/3)
+        # Left edge first
+        while (sigma_bound[left_edge_i] > sigma_peak*threshold) and (left_edge_i > 1) and (np.abs(grad_bound[left_edge_i]) > grad_bound_min):    # 1e-23 or 1e-7 for h=0.05
+            left_edge_i -= 1
+        while (sigma_bound[right_edge_i] > sigma_peak*threshold) and (right_edge_i < outerbound_i-innerbound_i-1) and (np.abs(grad_bound[right_edge_i]) > grad_bound_min):
+            right_edge_i += 1
+        
+        # if (s==0) and (i==3):
+        #     right_edge_i += 10   # 3 or 5 for h=0.05
+        # if (s==0) and (i==4):
+        #     right_edge_i += 20   # 15 for h=0.05
+        # if (s==1) and (i==4):
+        #     right_edge_i += 5
+        
+        # Plots for debugging
+        ax_edge[s,i].plot(radii_bound, sigma_bound)
+        ax_edge[s,i].scatter(radii_bound[left_edge_i], sigma_bound[left_edge_i], color='b')
+        ax_edge[s,i].scatter(radii_bound[right_edge_i], sigma_bound[right_edge_i], color='g')
 
         # 3) Populate array with edge locations
-        inner_edges[s,i] = radii[l_trough_i]
-        outer_edges[s,i] = radii[r_trough_i]
-
+        inner_edges[s,i] = radii_bound[left_edge_i] - peak_r
+        outer_edges[s,i] = radii_bound[right_edge_i] - peak_r
+    fig_edge.savefig(f"{plots_savedir}/redge_locs_{hr0}.png", dpi=200)
     
 def calculate_pressure_gradients():
     # 1) Select data only within region close to planet
@@ -332,6 +357,7 @@ if __name__ == "__main__":
 
     if "redge" in plots:
         fig_re, ax_re = plt.subplots(figsize=(8,5))
+        fig_edge,ax_edge = plt.subplots(ncols=5, nrows=5, figsize=(15,15), sharex=True)
         inner_edges = np.zeros((len(sims),5))
         outer_edges = np.zeros((len(sims),5))
 
@@ -525,17 +551,18 @@ if __name__ == "__main__":
             ax_re.scatter(planet_masses, inner_edges[:,i], color=colour)
             ax_re.plot(planet_masses, inner_edges[:,i], color=colour, label=f"$\\alpha/St = {alpha_st}$" )
             ax_re.scatter(planet_masses, outer_edges[:,i], color=colour)
-            print(planet_masses, outer_edges[:,i])
-            ax_re.plot(planet_masses, outer_edges[:,i], color=colour,linestyle="dashed" )
+            ax_re.plot(planet_masses, outer_edges[:,i], color=colour)
         ax_re.plot(pms, 1+3.5*hill_radii, color=plain_clr, label="$R_{p} + 3.5R_{Hill}$", linestyle="dotted")
         # ax_re.plot(pms, 1.4-10*(pms/333030)**0.5, color="red", linestyle="dotted")
-        # M_iso = calculate_Miso(hr0, alpha, st, scaling="L14")
-        # ax_rm.axvline(M_iso, linestyle='dotted', color=colour)
 
+        # ax_re.set_ylim(-0.25,0.25)
+        ax_re.set_xlim(np.min(planet_masses)-2,np.max(planet_masses)+5)
         ax_re.set_xlabel("Planet mass (M$_\oplus$)")
-        ax_re.set_ylabel("Ring edge location")
+        ax_re.set_ylabel("Ring edge locations")
         ax_re.set_title(f"H/R = {hr0}")
-        ax_re.legend()
+        ax_re.fill_between(x=np.arange(0,150), y1=0, y2=-20, color='lightgrey',  interpolate=True, alpha=.3)
+
+        ax_re.legend(loc="upper right")
         fig_re.tight_layout()
         fig_re.savefig(f"{plots_savedir}/ring_edges_{hr0}.png", dpi=200)
 
