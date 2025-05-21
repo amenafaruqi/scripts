@@ -140,14 +140,14 @@ def calculate_ring_masses():
 
 
 def calculate_ring_edges():
-    # grad_mins=[2e-7,1e-7,2e-7,2e-7, 2e-7]
+    grad_mins=[2e-7,1e-7,2e-7,2e-7, 2e-7]
     for i,st in enumerate(stokes):
         print("---------- Stokes = ", round(st,3))
         sigma_dust_st = sigma_dust_1D[i]
 
         # 1) Select data only within region close to planet
         innerbound = rp + (3*r_hill)
-        outerbound = rp + (18*r_hill)  # search for peak from rp to outerbound
+        outerbound = rp + (20*r_hill)  # search for peak from rp to outerbound
         innerbound_i = np.argmin(np.abs(radii-innerbound))      # index (radial cell number) of lower bound of peak search
         outerbound_i = np.argmin(np.abs(radii-outerbound))      # index (radial cell number) of upper bound of peak search
 
@@ -162,26 +162,27 @@ def calculate_ring_edges():
         # 3) Locate ring edges in either direction based on sigma drop
         sigma_peak = sigma_bound[peak_i_bound]
         grad_bound = np.gradient(sigma_bound)
-        if i != 4:
-            grad_bound_min = np.min(np.abs(grad_bound)) * 10
-        print(grad_bound_min)
+        # if s==0 or i > 2 :
+        #     grad_bound_min = np.min(np.abs(grad_bound)) * 25
+        # else:
+        #     grad_bound_min = np.min(np.abs(grad_bound)) * 100
+
         left_edge_i = peak_i_bound - 3
         right_edge_i = peak_i_bound + 5
-        threshold = 0.25
-        # rhill = (mp/(3*333030))**(1/3)
+        threshold = 0.1
         # Left edge first
-        while (sigma_bound[left_edge_i] > sigma_peak*threshold) and (left_edge_i > 1) and (np.abs(grad_bound[left_edge_i]) > grad_bound_min):    # 1e-23 or 1e-7 for h=0.05
+        while (sigma_bound[left_edge_i] > sigma_peak*threshold) and (left_edge_i > 1) and (np.abs(grad_bound[left_edge_i]) > 1e-7):    # 1e-23 or 1e-7 for h=0.05
             left_edge_i -= 1
-        while (sigma_bound[right_edge_i] > sigma_peak*threshold) and (right_edge_i < outerbound_i-innerbound_i-1) and (np.abs(grad_bound[right_edge_i]) > grad_bound_min):
+        while (sigma_bound[right_edge_i] > sigma_peak*threshold) and (right_edge_i < outerbound_i-innerbound_i-1) and (np.abs(grad_bound[right_edge_i]) > grad_mins[i]):
             right_edge_i += 1
-        
-        # if (s==0) and (i==3):
-        #     right_edge_i += 10   # 3 or 5 for h=0.05
-        # if (s==0) and (i==4):
-        #     right_edge_i += 20   # 15 for h=0.05
-        # if (s==1) and (i==4):
-        #     right_edge_i += 5
-        
+    
+        if (s==0) and (i==3):
+            right_edge_i += 5   # 3 or 5 for h=0.05, 10 for h=0.07
+        if (s==0) and (i==4):
+            right_edge_i += 15   # 15 for h=0.05, 20 for h=0.07
+        if (s==1) and (i==4):
+            right_edge_i += 5
+
         # Plots for debugging
         ax_edge[s,i].plot(radii_bound, sigma_bound)
         ax_edge[s,i].scatter(radii_bound[left_edge_i], sigma_bound[left_edge_i], color='b')
@@ -552,10 +553,11 @@ if __name__ == "__main__":
             ax_re.plot(planet_masses, inner_edges[:,i], color=colour, label=f"$\\alpha/St = {alpha_st}$" )
             ax_re.scatter(planet_masses, outer_edges[:,i], color=colour)
             ax_re.plot(planet_masses, outer_edges[:,i], color=colour)
-        ax_re.plot(pms, 1+3.5*hill_radii, color=plain_clr, label="$R_{p} + 3.5R_{Hill}$", linestyle="dotted")
+        # ax_re.plot(pms, 1+3.5*hill_radii, color=plain_clr, label="$R_{p} + 3.5R_{Hill}$", linestyle="dotted")
         # ax_re.plot(pms, 1.4-10*(pms/333030)**0.5, color="red", linestyle="dotted")
 
         # ax_re.set_ylim(-0.25,0.25)
+        ax_re.set_ylim(-0.15,0.15)
         ax_re.set_xlim(np.min(planet_masses)-2,np.max(planet_masses)+5)
         ax_re.set_xlabel("Planet mass (M$_\oplus$)")
         ax_re.set_ylabel("Ring edge locations")
