@@ -32,7 +32,7 @@ def overlay_gas_sigmas(fig, ax, radii, sigma_gas_1D, model_num=0):
         for rp in rps:
             ax.axvline(rp, linestyle='dashed', color=planetcolour)
     
-    ax.set_xlabel("R (AU)")
+    ax.set_xlabel("radius (AU)")
     ax.set_ylabel("$\Sigma_{gas} (g/cm^{2})$")
     ax.set_xscale("log")
     ax.set_yscale("log")
@@ -80,11 +80,11 @@ def overlay_dust_sigmas(fig, ax, radii, sigma_dust, model_num=0):
         ax["A"].set_ylabel("$\Sigma_{dust} (g/cm^{2})$")
         ax["D"].set_ylabel("$\Sigma_{dust} (g/cm^{2})$")
         ax["F"].set_ylabel("$\Sigma_{dust} (g/cm^{2})$")
-        ax["A"].set_xlabel("R (AU)")
-        ax["B"].set_xlabel("R (AU)")
-        ax["C"].set_xlabel("R (AU)")
-        ax["F"].set_xlabel("R (AU)")
-        ax["G"].set_xlabel("R (AU)")
+        ax["A"].set_xlabel("radius (AU)")
+        ax["B"].set_xlabel("radius (AU)")
+        ax["C"].set_xlabel("radius (AU)")
+        ax["F"].set_xlabel("radius (AU)")
+        ax["G"].set_xlabel("radius (AU)")
         # ax["D"].set_xticks([])
         # ax["E"].set_xticks([])
         ax["G"].legend(handles=legend_elements)
@@ -158,7 +158,7 @@ def overlay_total_dust_mass(fig, ax, radii, dust_mass_tot, model_num=0):
         for rp in rps:
             ax.axvline(rp, linestyle='dashed', color=planetcolour)
     
-    ax.set_xlabel("R (AU)")
+    ax.set_xlabel("radius (AU)")
     ax.set_ylabel("$M_{dust} (M_\oplus)$")
     ax.set_xscale("log")
     ax.set_yscale("log")
@@ -196,7 +196,7 @@ def plot_dust_contours(fig, ax, radii, a, sigma_dust_1D, model_num=0):
     if model_num < plotsizex and len(sims) > plotsizex:
         ax0.set_xticks([])
     else:
-        ax0.set_xlabel("R (AU)")
+        ax0.set_xlabel("radius (AU)")
 
     fig.tight_layout()
     
@@ -231,11 +231,11 @@ def overlay_dust_gas_ratio(fig, ax, radii, dust_mass_tot, gas_mass, model_num=0)
         for rp in rps:
             ax.axvline(rp, linestyle='dashed', color=planetcolour)
     
-    ax.set_xlabel("R (AU)")
-    ax.set_ylabel("$M_{dust} (M_\oplus)$")
+    ax.set_xlabel("radius (AU)")
+    ax.set_ylabel("dust-gas ratio")
     ax.set_xscale("log")
     ax.set_yscale("log")
-    ax.set_xlim(np.min(radii), np.max(radii))
+    ax.set_xlim(10, np.max(radii))
     ax.legend(handles=legend_elements)
     fig.tight_layout()
 
