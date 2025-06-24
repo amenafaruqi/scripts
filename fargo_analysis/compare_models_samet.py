@@ -171,8 +171,8 @@ def overlay_total_dust_mass(fig, ax, radii, dust_mass_tot, model_num=0):
 
 def plot_dust_contours(fig, ax, radii, a, sigma_dust_1D, model_num=0):
     R, A = np.meshgrid(radii, a)
-    levels = np.linspace(-18, 6, 13) 
-                  
+    # levels = np.linspace(-18, 6, 13) 
+    levels = np.linspace(-10, 2, 7)                  
     print("Plotting dust size contour maps....")
     ax0 = ax.flatten()[model_num]
     sigmas = sigma_dust_1D
@@ -204,9 +204,11 @@ def plot_dust_contours(fig, ax, radii, a, sigma_dust_1D, model_num=0):
         ax_cbar = ax.flatten()[model_num+1]
         ax_cbar.remove()
         fig.subplots_adjust(right=0.89, hspace=0.3)
-        cax = fig.add_axes([ax0.get_position().x1+0.01,ax0.get_position().y0,0.02,ax0.get_position().height])
+        cax = fig.add_axes([ax0.get_position().x1+0.09,ax0.get_position().y0,0.02,ax0.get_position().height])
         fig.colorbar(con, cax=cax, orientation="vertical", label="log$[\Sigma (g/cm^{{2}})]$")
         ax0.legend(loc="upper right")
+    fig.tight_layout()
+
 
 
 # ================= Plot dust-gas ratios =====================
@@ -261,7 +263,7 @@ if __name__ == "__main__":
     planets = args.noplanet
     grog = args.nogrog
     plot_window = args.plot_window
-    plots_savedir = args.savedir[0]
+    plots_savedir = args.savedir
     style = args.style
 
     cm = plt.get_cmap('viridis')
@@ -301,8 +303,12 @@ if __name__ == "__main__":
         plotsizex = 3
         plotsizey = 2
 
-        outputs = np.array(o)
-        # outputs = outputs.astype(int)
+        if ("10_" in sim) or ("20_" in sim):
+            output = int(o/5)   # need to account for different timestepping in different models
+        elif ("100_" in sim):
+            outut = int(o*2)
+        else:
+            output = o
 
         # Load model params into dict
         param_lines = open(params_file).readlines()
@@ -342,7 +348,7 @@ if __name__ == "__main__":
             rps = np.zeros((num_planets))
             for n in range(num_planets):
                 planet_data = np.unique(np.loadtxt(f"{wd+sim}/planet{n}.dat"), axis=0)
-                xp, yp = planet_data[o,1], planet_data[o,2]
+                xp, yp = planet_data[output,1], planet_data[output,2]
                 # xp, yp = planet_data[np.array(outputs)*5][:,1], planet_data[np.array(outputs)*5][:,2]
                 rps[n] = ((xp**2) + (yp**2))**0.5
 
@@ -377,11 +383,11 @@ if __name__ == "__main__":
         sigma_dust = np.zeros((ndust, nrad, nphi))
         dust_mass = np.zeros((ndust, nrad))
 
-        gasfile = f"/gasdens{o}.dat" 
+        gasfile = f"/gasdens{output}.dat" 
         sigma_gas = np.fromfile(wd+sim+gasfile).reshape(nrad,nphi)/(1.125e-7)         # convert back to g/cm2
         n_grains = np.zeros((ndust))
         for n in np.arange(ndust):
-            dust_file = f"/dustdens{n}_{o}.dat"
+            dust_file = f"/dustdens{n}_{output}.dat"
             sigma_dust[n] = np.fromfile(wd+sim+dust_file).reshape(nrad,nphi)/(1.125e-7)
 
         sigma_dust_azimsum = np.sum(sigma_dust, axis=2)                  # sum over all phi 
@@ -396,10 +402,11 @@ if __name__ == "__main__":
         dust_mass_tot = np.sum(dust_mass, axis=0)
 
         if grog:
-            uf = 10                                               # fragmentation velocity
+            uf = 0.0021                                           # fragmentation velocity 10 m/s in AU/yr
             hr = hr0*(radii**f)                                   # aspect ratio
+            b = (uf**2)*radii/(4*(np.pi**2)*alpha*(hr**2))
+
             cs = hr*(((2e30)*(6.67e-11))/(radii*1.5e11))**0.5     # [m/s]
-            b = (uf**2/alpha)*(hr**-2)*(radii*1.5e11)/((2e30)*(6.67e-11)) # dimensionless
             p = (sigma_gas_1D*(cs**2)/((2*np.pi)**0.5))*(hr**-1)*((radii*1.5e11)**-1)
             pad = np.empty((1, 1))*np.nan
             gamma = (radii/p)*np.abs(np.append(np.diff(p)/np.diff(radii), pad))
@@ -407,12 +414,9 @@ if __name__ == "__main__":
             a_St1 = (2/np.pi)*(sigma_gas_1D/rhodust)              # plot St=1 line
 
             # size of largest grains in a fragmentation-dominated distribution
-            # a_frag = 100*(2/(3*np.pi))*((uf**2)/(rhodust*1000*alpha))*(hr**-2)*(sigma_gas_1D*10/((2e30)*(6.67e-11)))*(radii*1.5e11)  # from Birnstiel+2012
-            a_frag = (sigma_gas_1D/rhodust)*(3-(9-4*(b**2))**0.5)/(np.pi*b)
-            # print(np.min(np.sqrt(9-4*(b**2))),np.max(9-4*(b**2)))
+            a_frag = 0.37*2*sigma_gas_1D*b/(rhodust*3*np.pi)
 
             # size of largest grains in a drift-dominated distribution
-            # a_drift = 100*(2/(rhodust*1000*np.pi))*(hr**-2)*np.sum(sigma_dust_1D, axis=1)*10*(2/3)   # from Birnstiel+2012 (assume gamma=3/2)
             a_drift = (2/np.pi)*(np.sum(sigma_dust_1D, axis=0)/(rhodust*gamma*hr**2))    
     
         if "gsig" in plots:
