@@ -15,7 +15,7 @@ def plot_dust_contours():
     R, A = np.meshgrid(radii, a)
     # levels = np.linspace(-11,1,7)                    # Brauer 2008 levels
     # levels = np.linspace(-7, 2, 10)                  # Birnstiel 2012 levels 
-    levels = np.linspace(-8, 2, 6)             # number of levels = 0.5 x (max-min) + 1
+    levels = np.linspace(-10, 2, 7)             # number of levels = 0.5 x (max-min) + 1
     print("Plotting dust size contour maps....")
 
     for i, o in enumerate(outputs):
@@ -688,10 +688,11 @@ if __name__ == "__main__":
                 v_gas[i,1] = np.fromfile(simdir+gas_file_y).reshape(nrad,nphi)       # vy
 
     if "dcon" in plots and grog:
-        uf = 10                                               # fragmentation velocity
+        uf = 0.0021                                           # fragmentation velocity 10 m/s in AU/yr
         hr = hr0*(radii**f)                                   # aspect ratio
+        b = (uf**2)*radii/(4*(np.pi**2)*alpha*(hr**2))
+
         cs = hr*(((2e30)*(6.67e-11))/(radii*1.5e11))**0.5     # [m/s]
-        b = (uf**2/alpha)*(hr**-2)*(radii*1.5e11)/((2e30)*(6.67e-11)) # dimensionless
         p = (sigma_gas_1D*(cs**2)/((2*np.pi)**0.5))*(hr**-1)*((radii*1.5e11)**-1)
         pad = np.empty((len(timesteps), 1))*np.nan
         gamma = (radii/p)*np.abs(np.append(np.diff(p)/np.diff(radii), pad, axis=1))
@@ -699,14 +700,11 @@ if __name__ == "__main__":
         a_St1 = (2/np.pi)*(sigma_gas_1D/rhodust)              # plot St=1 line
 
         # size of largest grains in a fragmentation-dominated distribution
-        # a_frag = 100*(2/(3*np.pi))*((uf**2)/(rhodust*1000*alpha))*(hr**-2)*(sigma_gas_1D*10/((2e30)*(6.67e-11)))*(radii*1.5e11)  # from Birnstiel+2012
-        a_frag = (sigma_gas_1D/rhodust)*(3-(9-4*(b**2))**0.5)/(np.pi*b)
-        # print(np.min(np.sqrt(9-4*(b**2))),np.max(9-4*(b**2)))
+        a_frag = 0.37*2*sigma_gas_1D*b/(rhodust*3*np.pi)
 
         # size of largest grains in a drift-dominated distribution
-        # a_drift = 100*(2/(rhodust*1000*np.pi))*(hr**-2)*np.sum(sigma_dust_1D, axis=1)*10*(2/3)   # from Birnstiel+2012 (assume gamma=3/2)
         a_drift = (2/np.pi)*(np.sum(sigma_dust_1D, axis=1)/(rhodust*gamma*hr**2))    
-    
+
     # ======================== Generate Plots ==========================
 
     if not plot_window:
