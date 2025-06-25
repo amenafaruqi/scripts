@@ -235,7 +235,7 @@ def overlay_dust_gas_ratio(fig, ax, radii, dust_mass_tot, gas_mass, model_num=0)
     ax.set_ylabel("dust-gas ratio")
     ax.set_xscale("log")
     ax.set_yscale("log")
-    ax.set_xlim(10, np.max(radii))
+    ax.set_xlim(np.min(radii), np.max(radii))
     ax.legend(handles=legend_elements)
     fig.tight_layout()
 
@@ -414,7 +414,7 @@ if __name__ == "__main__":
             a_St1 = (2/np.pi)*(sigma_gas_1D/rhodust)              # plot St=1 line
 
             # size of largest grains in a fragmentation-dominated distribution
-            a_frag = 0.37*2*sigma_gas_1D*b/(rhodust*3*np.pi)
+            a_frag = 2*sigma_gas_1D*b/(rhodust*3*np.pi)
 
             # size of largest grains in a drift-dominated distribution
             a_drift = (2/np.pi)*(np.sum(sigma_dust_1D, axis=0)/(rhodust*gamma*hr**2))    

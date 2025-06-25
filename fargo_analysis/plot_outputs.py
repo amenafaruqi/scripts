@@ -700,7 +700,7 @@ if __name__ == "__main__":
         a_St1 = (2/np.pi)*(sigma_gas_1D/rhodust)              # plot St=1 line
 
         # size of largest grains in a fragmentation-dominated distribution
-        a_frag = 0.37*2*sigma_gas_1D*b/(rhodust*3*np.pi)
+        a_frag = 2*sigma_gas_1D*b/(rhodust*3*np.pi)
 
         # size of largest grains in a drift-dominated distribution
         a_drift = (2/np.pi)*(np.sum(sigma_dust_1D, axis=1)/(rhodust*gamma*hr**2))    
