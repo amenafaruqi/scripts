@@ -146,7 +146,7 @@ def calculate_ring_edges():
         sigma_dust_st = sigma_dust_1D[i]
 
         # 1) Select data only within region close to planet
-        innerbound = rp + (3*r_hill)
+        innerbound = rp + (2*r_hill)
         outerbound = rp + (20*r_hill)  # search for peak from rp to outerbound
         innerbound_i = np.argmin(np.abs(radii-innerbound))      # index (radial cell number) of lower bound of peak search
         outerbound_i = np.argmin(np.abs(radii-outerbound))      # index (radial cell number) of upper bound of peak search
@@ -167,19 +167,20 @@ def calculate_ring_edges():
         # else:
         #     grad_bound_min = np.min(np.abs(grad_bound)) * 100
 
-        left_edge_i = peak_i_bound - 3
+        left_edge_i = peak_i_bound - 5
         right_edge_i = peak_i_bound + 5
         threshold = 0.1
         # Left edge first
-        while (sigma_bound[left_edge_i] > sigma_peak*threshold) and (left_edge_i > 1) and (np.abs(grad_bound[left_edge_i]) > 1e-7):    # 1e-23 or 1e-7 for h=0.05
+        # Iterate while sigma > threshold*sigma_peak AND gradient > than some value
+        while (sigma_bound[left_edge_i] > sigma_peak*threshold) and (left_edge_i > 1) and (np.abs(grad_bound[left_edge_i]) > 5e-8):    # 1e-23 or 1e-7 for h=0.05
             left_edge_i -= 1
-        while (sigma_bound[right_edge_i] > sigma_peak*threshold) and (right_edge_i < outerbound_i-innerbound_i-1) and (np.abs(grad_bound[right_edge_i]) > grad_mins[i]):
+        while (sigma_bound[right_edge_i] > sigma_peak*threshold) and (right_edge_i < outerbound_i-innerbound_i-1) and (np.abs(grad_bound[right_edge_i]) > 2e-7):
             right_edge_i += 1
     
         if (s==0) and (i==3):
-            right_edge_i += 5   # 3 or 5 for h=0.05, 10 for h=0.07
+            right_edge_i += 10   # 3 or 5 for h=0.05, 10 for h=0.07
         if (s==0) and (i==4):
-            right_edge_i += 15   # 15 for h=0.05, 20 for h=0.07
+            right_edge_i += 20    #20 for h=0.05, 35 for h=0.07
         if (s==1) and (i==4):
             right_edge_i += 5
 
@@ -264,16 +265,10 @@ def calculate_pressure():
 
 
 def calculate_dust_flux():
-    # Apply correction to v_phi when in the guiding-centre ref frame
-    # Explained here: https://fargo3d.bitbucket.io/def_setups.html
-    R, PHI = np.meshgrid(radii, phis, indexing="ij")   # dimensions: (nrad, nphi)
-
-    v_phi = v_gas[0,:,:]+(omegaframe*R)    # dimensions: (nrad, nphi)
     v_r = v_gas[1,:,:]                     # dimensions: (nrad, nphi)
     gas_flux.append(v_r*sigma_gas)
 
     for n in np.arange(ndust):
-        v_phi = v_dust[n,0,:,:]+(omegaframe*R)    # dimensions: (nrad, nphi)
         v_r = v_dust[n,1,:,:]                     # dimensions: (nrad, nphi)
         dust_flux.append(v_r*sigma_dust[n])
 
@@ -351,6 +346,9 @@ if __name__ == "__main__":
     if "rwidth" in plots:
         fig_rw, ax_rw = plt.subplots(figsize=(8,5))
         ring_widths = np.zeros((len(sims),5))
+        fig_edge,ax_edge = plt.subplots(ncols=5, nrows=5, figsize=(15,15), sharex=True)
+        inner_edges = np.zeros((len(sims),5))
+        outer_edges = np.zeros((len(sims),5))
 
     if "rmass" in plots:
         fig_rm, ax_rm = plt.subplots(figsize=(8,5))
@@ -477,7 +475,8 @@ if __name__ == "__main__":
         # =========== Compute values to plot and populate arrays ============
         if "rwidth" in plots:
             print(f"Calculating ring widths for {mp} Mearth... \n ~ ~ ~ ~ ~")
-            calculate_ring_widths()
+            # calculate_ring_widths()
+            calculate_ring_edges()
         if "rmass" in plots:
             print(f"Calculating ring masses for {mp} Mearth... \n ~ ~ ~ ~ ~")
             calculate_ring_masses()
@@ -510,8 +509,10 @@ if __name__ == "__main__":
         for i,st in enumerate(stokes):
             colour = colour_cycler[i]
             alpha_st = round(alpha/st, 4)
-            ax_rw.scatter(planet_masses, ring_widths[:,i], color=colour)
-            ax_rw.plot(planet_masses, ring_widths[:,i], color=colour, label=f"$\\alpha/St = {alpha_st}$" )
+            # ax_rw.scatter(planet_masses, ring_widths[:,i], color=colour)
+            # ax_rw.plot(planet_masses, ring_widths[:,i], color=colour, label=f"$\\alpha/St = {alpha_st}$" )
+            ax_rw.scatter(planet_masses, outer_edges[:,i]-inner_edges[:,i], color=colour)
+            ax_rw.plot(planet_masses, outer_edges[:,i]-inner_edges[:,i], color=colour, label=f"$\\alpha/St = {alpha_st}$" )
             M_iso = calculate_Miso(hr0, alpha, st, scaling="L14")
             ax_rw.axvline(M_iso, linestyle='dotted', color=colour)
 
@@ -557,7 +558,7 @@ if __name__ == "__main__":
         # ax_re.plot(pms, 1.4-10*(pms/333030)**0.5, color="red", linestyle="dotted")
 
         # ax_re.set_ylim(-0.25,0.25)
-        ax_re.set_ylim(-0.15,0.15)
+        ax_re.set_ylim(-0.15,0.2)
         ax_re.set_xlim(np.min(planet_masses)-2,np.max(planet_masses)+5)
         ax_re.set_xlabel("Planet mass (M$_\oplus$)")
         ax_re.set_ylabel("Ring edge locations")
@@ -594,7 +595,7 @@ if __name__ == "__main__":
         # ax_p.set_ylim(-0.05,0.7)
         M_iso_B18_upper = calculate_Miso(hr0, alpha, st=0.002, scaling="L14")
         M_iso_B18_lower = calculate_Miso(hr0, alpha, st=0.2, scaling="L14")
-        ax_p.fill_betweenx(x1=M_iso_B18_lower, x2=M_iso_B18_upper, y=np.linspace(0,0.01,10), color='lightgrey',  interpolate=True, alpha=.2, label="$M_{iso}$")
+        ax_p.fill_betweenx(x1=M_iso_B18_lower, x2=M_iso_B18_upper, y=np.linspace(0,0.01,10), color='lightgrey',  interpolate=True, alpha=.9, label="$M_{iso}$")
         # M_iso_L14 = calculate_Miso(hr0, alpha, st=0.1, scaling="L14")
         # ax_p.axvline(M_iso_B18, linestyle="dotted", color=plain_clr, label="$M_{iso}$ (Bitsch et al. 2018)")
         # ax_p.axvline(M_iso_L14, linestyle="dashed", color=plain_clr, label="$M_{iso}$ (Lambrechts et al. 2014)")
@@ -633,8 +634,10 @@ if __name__ == "__main__":
             for n in np.arange(ndust):
                 ax = ax_f[s,n]
                 flux = dust_flux[s*ndust:(s+1)*ndust][n]
+                print(np.min(flux))
                 im = ax.pcolormesh(x, y, flux, shading="auto",  
-                norm=mpl.colors.SymLogNorm(linthresh=lts[n], linscale=0.0001,vmin=lims[n][0], vmax=lims[n][1]),
+                # norm=mpl.colors.SymLogNorm(linthresh=lts[n], linscale=0.0001,vmin=lims[n][0], vmax=lims[n][1]),
+                norm=mpl.colors.SymLogNorm(linthresh=1e-12, linscale=1e-15,vmin=-5e-6, vmax=5e-6),
                 cmap="seismic")
                 ax.scatter([xp], [yp], color='yellow', marker='.', edgecolors='black')
                 ax.set_aspect("equal")
