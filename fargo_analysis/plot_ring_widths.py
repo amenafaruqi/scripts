@@ -12,13 +12,13 @@ import re
 plt.style.use('default')
 plt.rc('text', usetex=True)
 plt.rc('font', family='serif')
-plt.rcParams.update({'font.size': 11})
+plt.rcParams.update({'font.size': 14})
 mpl.rcParams['text.latex.preamble'] = r'\usepackage{amsmath}'
 
 nstokes = 5
 cm = plt.get_cmap('viridis')
 plain_clr = "k"
-colour_cycler = cm(np.linspace(0, 1, 5))
+colour_cycler = cm(np.linspace(0, 1.1, 7))
 
 # ================== Fitting functions ==================
 
@@ -225,10 +225,13 @@ def calculate_ring_masses():
 
         # 3) Sum up mass between left and right trough
         ring_mass = np.sum(dust_mass[i,l_trough_i:r_trough_i])
+        ring_masses[s,i] = ring_mass
 
-        # Apply MRN weighting to mass
-        W_St = (st**0.5)/np.sum(stokes**0.5)
-        ring_masses[s,i] = ring_mass*W_St
+
+def calculate_dust_gas_ratios():
+    dust_mass_tot = np.sum(dust_mass, axis=0)  # sum over all St
+    dgrs.append(dust_mass_tot/gas_mass)
+        
 
 
 def calculate_ring_edges():
@@ -440,6 +443,22 @@ def calculate_vdrift():
     v_drifts.append(v_drifts_s)
 
 
+def calculate_ppf():
+    delta =  1e-5
+    # Calculate mass avged St and Sigma dust
+    mass_avg_sum_St = np.sum([stokes[i]*W_St[i] for i in range(len(stokes))])
+    St_avg = mass_avg_sum_St/len(stokes)
+    # print("St_avg = ", St_avg)
+    Sigma_avg = np.sum([sigma_dust_1D[i,:]*W_St[i] for i in range(len(stokes))], axis=0) # divide by ndust then multiply by ndust
+   
+    # Calculate stability criterion for dust clump
+    h = hr0*(radii**(1+f))    # h as a function of r
+    Qp = ((delta/St_avg)**0.5)*h/(np.pi*(radii**3)*Sigma_avg)
+    # print("Qp = ", Qp)
+    ppf = 1/(1 + np.exp(10*(Qp-0.75)))  # dimensions = nrad
+    ppfs.append(ppf)
+
+
 # ============== Read in data from models ==============
 
 if __name__ == "__main__":
@@ -488,6 +507,10 @@ if __name__ == "__main__":
         fig_rm, ax_rm = plt.subplots(figsize=(12,7))
         ring_masses = np.zeros((len(sims),5))
 
+    if "dgr" in plots:
+        fig_dgr, ax_dgr = plt.subplots(figsize=(12,7))
+        dgrs = []
+
     if "redge" in plots:
         fig_re, ax_re = plt.subplots(figsize=(12,7))
         fig_edge,ax_edge = plt.subplots(ncols=5, nrows=7, figsize=(15,15), sharex=True)
@@ -506,8 +529,8 @@ if __name__ == "__main__":
         dlogpdlogrs = []
     
     if "flux" in plots:
-        fig_f, ax_f = plt.subplots(figsize=(12,15), ncols=5, nrows=5)
-        fig_f1d, ax_f1d = plt.subplots(figsize=(20,5), ncols=5)
+        fig_f, ax_f = plt.subplots(figsize=(12,15), ncols=5, nrows=6)
+        fig_f1d, ax_f1d = plt.subplots(figsize=(20,5), ncols=6)
         gas_flux = []
         dust_flux = []
 
@@ -519,6 +542,10 @@ if __name__ == "__main__":
         fig_v, ax_v = plt.subplots(figsize=(8,5))
         r_peaks = np.zeros((len(sims),5))
         v_drifts = []
+    
+    if "ppf" in plots:
+        fig_pf, ax_pf = plt.subplots(figsize=(12,7))
+        ppfs =  []
 
     # ------------------------------------------------------
 
@@ -582,21 +609,23 @@ if __name__ == "__main__":
         sigma_gas = np.fromfile(simdir+gasfile).reshape(nrad,nphi)
 
         sigma_dust = np.zeros((ndust, nrad, nphi))
-        # sigma_dust0 = np.zeros((ndust, nrad, nphi))
         for n in np.arange(ndust):
             dust_file = f"dustdens{n}_{output}.dat"
             sigma_dust[n] = np.fromfile(simdir+dust_file).reshape(nrad,nphi)
             dust_file0 = f"dustdens{n}_0.dat"
-            # sigma_dust0[n] = np.fromfile(simdir+dust_file0).reshape(nrad,nphi)
 
         # Average over all phi
-        sigma_gas_1D = np.sum(sigma_gas, axis=1)/nphi                        # dimensions: ( nrad) 
+        sigma_gas_1D = np.sum(sigma_gas, axis=1)/nphi                        # dimensions: (nrad) 
         sigma_dust_1D = np.sum(sigma_dust, axis=2)/nphi                      # dimensions: (ndust, nrad)   
-        # sigma_dust0_1D = np.sum(sigma_dust0, axis=2)/nphi                    # dimensions: (ndust, nrad)   
 
         # Calculate dust masses in units of disc mass
-        m_disc = 2*np.pi*sigma0*(ymax-ymin)
-        dust_mass = np.array([2*np.pi*radii*sigma_dust_1D[n,:]*delta_r for n in range(ndust)])/m_disc
+        m_disc0 = 2*np.pi*sigma0*(ymax-ymin)   # total disc (gas) mass at t=0
+        # Calculate MRN weighting coefficient for mass
+        W_St = [(st**0.5)/np.sum(stokes**0.5) for st in stokes]
+
+        dust_mass = np.array([2*np.pi*radii*sigma_dust_1D[n,:]*delta_r*W_St[n] for n in range(ndust)])/m_disc0   # ndust x nrad
+        gas_mass = 2*np.pi*radii*sigma_gas_1D*delta_r/m_disc0   # nrad
+
 
         if "flux" in plots:
             v_dust = np.zeros((ndust, 2, nrad, nphi))   # additional dimension of 2 for x and y velocity
@@ -622,6 +651,9 @@ if __name__ == "__main__":
         if "rmass" in plots:
             print(f"Calculating ring masses for {mp} Mearth... \n ~ ~ ~ ~ ~")
             calculate_ring_masses()
+        if "dgr" in plots:
+            print(f"Calculating dust-gas ratio for {mp} Mearth... \n ~ ~ ~ ~ ~")
+            calculate_dust_gas_ratios()
         if "redge" in plots:
             print(f"Calculating ring edge locations for {mp} Mearth... \n ~ ~ ~ ~ ~")
             calculate_ring_edges()
@@ -641,6 +673,9 @@ if __name__ == "__main__":
             print(f"Calculating drift velocities for {mp} Mearth... \n ~ ~ ~ ~ ~")
             calculate_vdrift()
             calculate_ring_peaks()
+        if "ppf" in plots:
+            print(f"Calculating planetesimal formation probability for {mp} Mearth... \n ~ ~ ~ ~ ~")
+            calculate_ppf()
 
 
     # ================ Generate chosen plots ================
@@ -692,6 +727,26 @@ if __name__ == "__main__":
     
         fig_rm.tight_layout()
         fig_rm.savefig(f"{plots_savedir}/ring_masses_{hr0}.png", dpi=200)
+
+    if "dgr" in plots:
+        # Plot dust-gas ratio vs r
+        print("Plotting dust-gas ratio for different planet masses....")
+        ax_dgr.fill_between(x=np.arange(0,3.5), y1=1e-2, y2=-1e-6, color='lightgrey',  interpolate=True, alpha=.3)
+        for s,sim in enumerate(sims):
+            label = str(planet_masses[s]) + "$M_\oplus$"
+            colour = colour_cycler[s]
+            ax_dgr.plot(radii, dgrs[s], color=colour, label=label)
+
+        ax_dgr.set_ylabel("Dust-gas ratio")
+        ax_dgr.set_xlabel("Radius ($r_{p}$)")
+        ax_dgr.set_yscale("log")
+        ax_dgr.set_ylim(5e-6, 10)
+        ax_dgr.set_xlim(0.2,3)
+        ax_dgr.legend()
+    
+        fig_dgr.tight_layout()
+        fig_dgr.savefig(f"{plots_savedir}/dust_gas_ratio_{hr0}.png", dpi=200)
+
 
     if "redge" in plots:
         # Plot ring edge locations vs planet mass
@@ -785,30 +840,36 @@ if __name__ == "__main__":
             # lts = [1e-40,           1e-35,      1e-15,      1e-12,          1e-12]
             for n in np.arange(ndust):
                 ax = ax_f[s,n]
-                flux = dust_flux[s*ndust:(s+1)*ndust][n]   
+                flux = dust_flux[s*ndust:(s+1)*ndust][n] 
+                flux = flux*3.33e12
 
                 # 1) Plot 2D flux maps:
                 im = ax.pcolormesh(x, y, flux, shading="auto",  
                 # norm=mpl.colors.SymLogNorm(linthresh=lts[n], linscale=0.0001,vmin=lims[n][0], vmax=lims[n][1]),
-                # norm=mpl.colors.SymLogNorm(linthresh=1e-12, linscale=1e-15,vmin=-5e-6, vmax=5e-6),
+                norm=mpl.colors.SymLogNorm(linthresh=1e-12, linscale=1e-15,vmin=-5e11, vmax=5e11),
                 cmap="seismic", zorder=1)
                 ax.scatter([xp], [yp], color='yellow', marker='.', edgecolors='black')
+                ax.set_aspect("equal")
 
                 # Plot ring edges:
-                inner_edge = radii[int(inner_edge_i[s,n])]
-                outer_edge = radii[int(outer_edge_i[s,n])]
-                inner = plt.Circle((0,0), inner_edge, color='k', fill=False, linestyle="dashed")
-                outer = plt.Circle((0,0), outer_edge, color='k', fill=False, linestyle="dashed")
-                ax.add_patch(inner)
-                ax.add_patch(outer)
-                ax.set_aspect("equal")
-                ax.set_xlim(-2,2)
-                ax.set_ylim(-2,2)
+                # inner_edge = radii[int(inner_edge_i[s,n])]
+                # outer_edge = radii[int(outer_edge_i[s,n])]
+                # inner = plt.Circle((0,0), inner_edge, color='k', fill=False, linestyle="dashed")
+                # outer = plt.Circle((0,0), outer_edge, color='k', fill=False, linestyle="dashed")
+                # ax.add_patch(inner)
+                # ax.add_patch(outer)
+                # ax.set_aspect("equal")
+                # ax.set_xlim(-2,2)
+                # ax.set_ylim(-2,2)
 
                 if s == 0:
                     ax.set_title(f"St={round(stokes[n],4)}")
-                elif s == len(sims) - 1:
-                    ticks = [-1e-6, -1e-3, 0, 1e-3, 1e-6]
+                if s != len(sims)-1:
+                    ax.set_xticks([])
+                if n != 0:
+                    ax.set_yticks([])
+                if s == len(sims) - 1:
+                    ticks = [-1e11, 0, 1e11]
                     cbar = fig_f.colorbar(im, ax=ax, orientation="horizontal", ticks=ticks)
                     cbar.set_label('$\\Sigma_{d} v_{r} $')
                 
@@ -828,7 +889,7 @@ if __name__ == "__main__":
         
         ax_f1d[0].set_ylabel("$\Sigma_{d}v_{r}$")
         ax_f1d[0].legend()
-        fig_f.suptitle(f"H/R = {hr0}")
+        # fig_f.suptitle(f"H/R = {hr0}")
         fig_f1d.suptitle(f"H/R = {hr0}")
         fig_f.tight_layout()
         fig_f1d.tight_layout()
@@ -880,6 +941,19 @@ if __name__ == "__main__":
         ax_v.legend()
         fig_v.tight_layout()
         fig_v.savefig(f"{plots_savedir}/vdrift_{hr0}.png")
+
+    if "ppf" in plots:
+        for s, sim in enumerate(sims):
+            colour = colour_cycler[s]
+            mp = re.search(r"(\d+)Me", sim).group(1)
+            ax_pf.plot(radii, ppfs[s], color=colour, label=f"{mp}$M_\oplus$")
+        
+        ax_pf.set_xlabel("Radius ($r_{p}$)")
+        ax_pf.set_ylabel("$\mathcal{P}_{pf}$")
+        ax_pf.set_xlim(0.5,2)
+        ax_pf.set_ylim(0,1.1)
+        ax_pf.legend()
+        fig_pf.savefig(f"{plots_savedir}/ppf_{hr0}.png")
 
 
     if plot_window:
