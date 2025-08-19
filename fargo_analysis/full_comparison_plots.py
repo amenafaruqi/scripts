@@ -8,18 +8,34 @@ import re
 plt.style.use('default')
 
 
+regime_bounds = np.array([
+    [0, 0, 10.3, 150],        #  10 Mearth
+    [0, 0, 26.0, 150],        #  20 Mearth
+    [0, 4.6, 150, 150],       #  40 Mearth
+    [0, 14.7, 150, 150],      #  80 Mearth
+    # [0, 21.2, 150, 150],    # 100 Mearth
+    [0, 150, 150, 150],      # 160 Mearth
+    ])
+
 # ====================== Gas Sigma ========================
 
 def overlay_gas_sigmas(fig, ax, radii, sigma_gas_1D, model_num=0):
     print("Plotting gas surface density....")
     if "mig" in sim:
-        color = "r"
+        color = "royalblue"
         label = "Migrating"
     else:
         color = "k"
         label = "Stationary"
 
     planetmass = re.search(r"Mp(\d+)_", sims[model_num]).group(1)    # get planet mass from file path
+
+    # Indicate regime boundaries on plot
+    green_col = plt.get_cmap('summer')(np.linspace(0, 1, 3))[1]
+    ax[int(s/2)].fill_betweenx(np.arange(0,250), regime_bounds[int(s/2),2], regime_bounds[int(s/2),3], color="orangered", alpha=0.5)
+    ax[int(s/2)].fill_betweenx(np.arange(0,250), regime_bounds[int(s/2),1], regime_bounds[int(s/2),2], color="yellow", alpha=0.4)
+    ax[int(s/2)].fill_betweenx(np.arange(0,250), regime_bounds[int(s/2),0], regime_bounds[int(s/2),1], color=green_col, alpha=0.8)
+
     ax[int(s/2)].plot(radii, sigma_gas_1D, color=color, label=label)
     ax[int(s/2)].set_title(f"{planetmass} $M_\oplus$")
 
@@ -30,13 +46,14 @@ def overlay_gas_sigmas(fig, ax, radii, sigma_gas_1D, model_num=0):
             planetcolour = color
         for rp in rps:
             ax[int(s/2)].axvline(rp, linestyle='dashed', color=planetcolour)
-    
+        
     ax[int(s/2)].set_xlabel("Radius (AU)")
-    ax[0].set_ylabel("Dust-Gas Ratio")
+    ax[0].set_ylabel("$\Sigma_{gas} (g/cm^{2})$")
     ax[int(s/2)].set_xscale("log")
     ax[int(s/2)].set_yscale("log")
     # ax[int(s/2)].set_ylim(1e-5, 1e2)
     ax[int(s/2)].set_xlim(np.min(radii), np.max(radii))
+    ax[int(s/2)].set_ylim(0.1,200)
     ax[0].legend()
     fig.tight_layout()
 
@@ -46,13 +63,20 @@ def overlay_gas_sigmas(fig, ax, radii, sigma_gas_1D, model_num=0):
 def overlay_dust_gas_ratio(fig, ax, radii, dust_mass_tot, gas_mass, model_num=0):
     epsilon = dust_mass_tot/gas_mass
     if "mig" in sim:
-        color = "r"
+        color = "royalblue"
         label = "Migrating"
     else:
         color = "k"
         label = "Stationary"
 
     planetmass = re.search(r"Mp(\d+)_", sims[model_num]).group(1)    # get planet mass from file path
+
+    # Indicate regime boundaries on plot
+    green_col = plt.get_cmap('summer')(np.linspace(0, 1, 3))[1]
+    ax[int(s/2)].fill_betweenx(np.arange(0,250), regime_bounds[int(s/2),2], regime_bounds[int(s/2),3], color="orangered", alpha=0.5)
+    ax[int(s/2)].fill_betweenx(np.arange(0,250), regime_bounds[int(s/2),1], regime_bounds[int(s/2),2], color="yellow", alpha=0.4)
+    ax[int(s/2)].fill_betweenx(np.arange(0,250), regime_bounds[int(s/2),0], regime_bounds[int(s/2),1], color=green_col, alpha=0.8)
+
     ax[int(s/2)].plot(radii, epsilon, color=color, label=label)
     ax[int(s/2)].set_title(f"{planetmass} $M_\oplus$")
 
@@ -171,7 +195,7 @@ if __name__ == "__main__":
     if "dgr" in plots:
         fig_dgr, ax_dgr = plt.subplots(figsize=(15,4), ncols=int(len(sims)/2), sharey=True)
     if "growth" in plots:   # only specify dcon for grog models
-        fig_growth, ax_growth = plt.subplots(figsize=(12,8), nrows=2, ncols=int(len(sims)/2))
+        fig_growth, ax_growth = plt.subplots(figsize=(12,8), nrows=int(len(sims)/2), ncols=2)
 
 
     # ================== Read in data at timesteps =======================
