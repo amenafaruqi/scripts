@@ -101,9 +101,17 @@ def overlay_dust_gas_ratio(fig, ax, radii, dust_mass_tot, gas_mass, model_num=0)
 
 def plot_tgrowth(fig, ax, radii, a, sigma_dust_1D, model_num=0):
     R, A = np.meshgrid(radii, a)
-    levels = np.linspace(-4, 20, 7)                   
+    levels = np.linspace(-4, 16, 6)                   
     print("Plotting growth timescales....")
-    ax0 = ax.flatten()[model_num]
+    # ax0 = ax.flatten()[model_num]
+    if "mig" in sim:
+        coli = 1
+        miglabel = "$\\bf{Migrating}$ \n"
+    else:
+        coli = 0
+        miglabel = "$\\bf{Stationary}$ \n"
+
+    ax0 = ax[int(s/2),coli]
 
     hr = hr0*(radii**0.25)
     h = hr*radii
@@ -112,42 +120,80 @@ def plot_tgrowth(fig, ax, radii, a, sigma_dust_1D, model_num=0):
     tau_growth = rhodust*A*h/(sigma_dust_1D*cs*(alpha*St*3))
     tau_growth = tau_growth*1e-6   # convert to Myr
 
-    con = ax0.contourf(R,A, np.log10(tau_growth), cmap="YlGnBu", levels=levels)
+    con = ax0.contourf(R,A, np.log10(tau_growth), cmap="YlGnBu", levels=levels, extend="both")
     
     ax0.set_xscale("log")
     ax0.set_yscale("log")
-    ax0.set_ylabel("a (cm)")
-    ax0.set_xlabel("Radius (AU)")
+    if coli == 0:
+        ax0.set_ylabel("a (cm)")
+    if int(s/2) == int(len(sims)/2)-1:
+        ax0.set_xlabel("Radius (AU)")
     ax0.set_ylim(np.min(a), np.max(a))
 
     if planets:
         planetmass = re.search(r"Mp(\d+)_", sims[model_num]).group(1)    # get planet mass from file path
         for rp in rps:
             ax0.axvline(rp, linestyle='dashed', color='black')
-        ax0.set_title(f"{planetmass} $M_\oplus$")
-        
-    if not model_num%plotsizex:
-        ax0.set_ylabel("a (cm)")
-    else:
-        ax0.set_yticks([])
-    if model_num < plotsizex and len(sims) > plotsizex:
-        ax0.set_xticks([])
-    else:
-        ax0.set_xlabel("Radius (AU)")
+        if int(s/2) == 0:
+            ax0.set_title(miglabel + f"{planetmass} $M_\oplus$")
+        else:
+            ax0.set_title(f"{planetmass} $M_\oplus$")
 
-    # fig3.subplots_adjust(right=0.89, hspace=0.35)
-    # cbar_ax = fig3.add_axes([0.91, 0.53, 0.02, 0.4])
-    # fig3.colorbar(con, cax=cbar_ax, orientation="vertical", label="log$[\\tau_{growth} (Myr)]$")
+    if int(s) == len(sims) - 1:
+        fig.subplots_adjust(bottom=0.2, hspace=0.05)
+        cbar_ax = fig.add_axes([0.13, 0.05, 0.85, 0.02])
+        # cax = fig.add_subplot(ax[5, :])
+        fig.colorbar(con, cax=cbar_ax, orientation="horizontal", label="log$[\\tau_{growth} (Myr)]$")
+        fig.tight_layout(rect=[0, 0.07, 1, 1])
 
-    fig.tight_layout()
+
+def plot_dust_contours(fig, ax, radii, a, sigma_dust_1D, model_num=0):
+    R, A = np.meshgrid(radii, a)
+    levels = np.linspace(-4, 16, 6)                   
+    print("Plotting growth timescales....")
+    # ax0 = ax.flatten()[model_num]
+    if "mig" in sim:
+        coli = 1
+        miglabel = "$\\bf{Migrating}$ \n"
+    else:
+        coli = 0
+        miglabel = "$\\bf{Stationary}$ \n"
+
+    ax0 = ax[int(s/2),coli]
+
+    hr = hr0*(radii**0.25)
+    h = hr*radii
+    St = A*rhodust*np.pi/(sigma_gas_1D*2)
+    cs = h*2*np.pi/(radii**0.5)
+    tau_growth = rhodust*A*h/(sigma_dust_1D*cs*(alpha*St*3))
+    tau_growth = tau_growth*1e-6   # convert to Myr
+
+    con = ax0.contourf(R,A, np.log10(tau_growth), cmap="YlGnBu", levels=levels, extend="both")
     
-    if model_num == len(sims)-1:
-        ax_cbar = ax.flatten()[model_num+1]
-        ax_cbar.remove()
-        fig.subplots_adjust(right=0.89, hspace=0.3)
-        cax = fig.add_axes([ax0.get_position().x1+0.09,ax0.get_position().y0,0.02,ax0.get_position().height])
-        fig.colorbar(con, cax=cax, orientation="vertical", label="$\\log[\\tau_{growth} (Myr)]$")
-    fig.tight_layout()
+    ax0.set_xscale("log")
+    ax0.set_yscale("log")
+    if coli == 0:
+        ax0.set_ylabel("a (cm)")
+    if int(s/2) == int(len(sims)/2)-1:
+        ax0.set_xlabel("Radius (AU)")
+    ax0.set_ylim(np.min(a), np.max(a))
+
+    if planets:
+        planetmass = re.search(r"Mp(\d+)_", sims[model_num]).group(1)    # get planet mass from file path
+        for rp in rps:
+            ax0.axvline(rp, linestyle='dashed', color='black')
+        if int(s/2) == 0:
+            ax0.set_title(miglabel + f"{planetmass} $M_\oplus$")
+        else:
+            ax0.set_title(f"{planetmass} $M_\oplus$")
+
+    if int(s) == len(sims) - 1:
+        fig.subplots_adjust(bottom=0.2, hspace=0.05)
+        cbar_ax = fig.add_axes([0.13, 0.05, 0.85, 0.02])
+        # cax = fig.add_subplot(ax[5, :])
+        fig.colorbar(con, cax=cbar_ax, orientation="horizontal", label="log$[\\tau_{growth} (Myr)]$")
+        fig.tight_layout(rect=[0, 0.07, 1, 1])
+
 
 
 
@@ -195,7 +241,7 @@ if __name__ == "__main__":
     if "dgr" in plots:
         fig_dgr, ax_dgr = plt.subplots(figsize=(15,4), ncols=int(len(sims)/2), sharey=True)
     if "growth" in plots:   # only specify dcon for grog models
-        fig_growth, ax_growth = plt.subplots(figsize=(12,8), nrows=int(len(sims)/2), ncols=2)
+        fig_growth, ax_growth = plt.subplots(figsize=(7,18), nrows=int(len(sims)/2), ncols=2, sharex=True, sharey=True)
 
 
     # ================== Read in data at timesteps =======================
@@ -339,7 +385,7 @@ if __name__ == "__main__":
     if "dgr" in plots:
         fig_dgr.savefig(f"{plots_savedir}/fullcomp_dgr.png")
     if "growth" in plots:
-        fig_growth.savefig(f"{plots_savedir}/fullcomp_growth.png")
+        fig_growth.savefig(f"{plots_savedir}/fullcomp_growth.png", bbox_inches='tight')
 
     if plot_window:
         plt.show()
