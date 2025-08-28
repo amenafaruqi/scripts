@@ -149,9 +149,9 @@ def plot_tgrowth(fig, ax, radii, a, sigma_dust_1D, model_num=0):
 
 def plot_dust_contours(fig, ax, radii, a, sigma_dust_1D, model_num=0):
     R, A = np.meshgrid(radii, a)
-    levels = np.linspace(-4, 16, 6)                   
-    print("Plotting growth timescales....")
-    # ax0 = ax.flatten()[model_num]
+    levels = np.linspace(-10, 2, 7)                  
+    print("Plotting dust size contour maps....")
+
     if "mig" in sim:
         coli = 1
         miglabel = "$\\bf{Migrating}$ \n"
@@ -161,22 +161,19 @@ def plot_dust_contours(fig, ax, radii, a, sigma_dust_1D, model_num=0):
 
     ax0 = ax[int(s/2),coli]
 
-    hr = hr0*(radii**0.25)
-    h = hr*radii
-    St = A*rhodust*np.pi/(sigma_gas_1D*2)
-    cs = h*2*np.pi/(radii**0.5)
-    tau_growth = rhodust*A*h/(sigma_dust_1D*cs*(alpha*St*3))
-    tau_growth = tau_growth*1e-6   # convert to Myr
-
-    con = ax0.contourf(R,A, np.log10(tau_growth), cmap="YlGnBu", levels=levels, extend="both")
-    
+    sigmas = sigma_dust_1D
+    con = ax0.contourf(R, A, np.log10(sigmas), cmap="Greys", levels=levels)
+    ax0.set_ylim(np.min(a), np.max(a))
     ax0.set_xscale("log")
     ax0.set_yscale("log")
     if coli == 0:
         ax0.set_ylabel("a (cm)")
     if int(s/2) == int(len(sims)/2)-1:
         ax0.set_xlabel("Radius (AU)")
-    ax0.set_ylim(np.min(a), np.max(a))
+
+    ax0.plot(radii, a_St1, c='black', alpha=0.7, label="St=1")
+    ax0.plot(radii, a_drift, c='deepskyblue', alpha=0.7, label="$a_{{drift}}$")
+    ax0.plot(radii, a_frag, c='red', alpha=0.7, label="$a_{{frag}}$")
 
     if planets:
         planetmass = re.search(r"Mp(\d+)_", sims[model_num]).group(1)    # get planet mass from file path
@@ -191,7 +188,7 @@ def plot_dust_contours(fig, ax, radii, a, sigma_dust_1D, model_num=0):
         fig.subplots_adjust(bottom=0.2, hspace=0.05)
         cbar_ax = fig.add_axes([0.13, 0.05, 0.85, 0.02])
         # cax = fig.add_subplot(ax[5, :])
-        fig.colorbar(con, cax=cbar_ax, orientation="horizontal", label="log$[\\tau_{growth} (Myr)]$")
+        fig.colorbar(con, cax=cbar_ax, orientation="horizontal", label="log$[\Sigma (g/cm^{{2}})]$")
         fig.tight_layout(rect=[0, 0.07, 1, 1])
 
 
@@ -240,8 +237,10 @@ if __name__ == "__main__":
         fig_gas_sigma, ax_gas_sigma = plt.subplots(figsize=(15,4), ncols=int(len(sims)/2), sharey=True)
     if "dgr" in plots:
         fig_dgr, ax_dgr = plt.subplots(figsize=(15,4), ncols=int(len(sims)/2), sharey=True)
-    if "growth" in plots:   # only specify dcon for grog models
+    if "growth" in plots:   # only specify for grog models
         fig_growth, ax_growth = plt.subplots(figsize=(7,18), nrows=int(len(sims)/2), ncols=2, sharex=True, sharey=True)
+    if "dcon" in plots:   # only specify for grog models
+        fig_con, ax_con = plt.subplots(figsize=(7,18), nrows=int(len(sims)/2), ncols=2, sharex=True, sharey=True)
 
 
     # ================== Read in data at timesteps =======================
@@ -376,6 +375,8 @@ if __name__ == "__main__":
             overlay_dust_gas_ratio(fig_dgr, ax_dgr, radii, dust_mass_tot, gas_mass, s)
         if "growth" in plots:
             plot_tgrowth(fig_growth, ax_growth, radii, a, sigma_dust_1D, s)
+        if "dcon" in plots:
+            plot_dust_contours(fig_con, ax_con, radii, a, sigma_dust_1D, s)
     
     # ======================== Generate Plots ==========================
     print(f"-------------------\nPlotting comparison plots for {sims}\n=============")
@@ -385,7 +386,9 @@ if __name__ == "__main__":
     if "dgr" in plots:
         fig_dgr.savefig(f"{plots_savedir}/fullcomp_dgr.png")
     if "growth" in plots:
-        fig_growth.savefig(f"{plots_savedir}/fullcomp_growth.png", bbox_inches='tight')
+        fig_growth.savefig(f"{plots_savedir}/fullcomp_growth.png")
+    if "dcon" in plots:
+        fig_con.savefig(f"{plots_savedir}/fullcomp_contours.png")
 
     if plot_window:
         plt.show()
