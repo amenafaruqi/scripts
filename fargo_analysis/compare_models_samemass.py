@@ -1,11 +1,72 @@
 import numpy as np
 import matplotlib.pyplot as plt
 import matplotlib
+import matplotlib.lines as mlines
+import matplotlib.patches as patches
+from matplotlib.transforms import Bbox
+from mpl_toolkits.axes_grid1.inset_locator import TransformedBbox, BboxPatch, BboxConnector
 from matplotlib.lines import Line2D
 from matplotlib.ticker import ScalarFormatter, NullFormatter
+import matplotlib.ticker as mticker
 import argparse
 import re
 plt.style.use('default')
+
+
+def add_x_zoom_box_with_connectors(fig, ax_main, ax_zoom, xlims, edgecolor='k', lw=1.5):
+    """
+    Draw a zoom box in x only on ax_main, and connect:
+    - bottom-left of the box to top-left of ax_zoom
+    - bottom-right of the box to top-right of ax_zoom
+    """
+    # Get y-limits (should be the same on both axes)
+    ylims = ax_main.get_ylim()
+
+    # Draw zoom box (vertical rectangle)
+    rect = patches.Rectangle(
+        (xlims[0], ylims[0]),
+        xlims[1] - xlims[0],
+        ylims[1] - ylims[0],
+        linewidth=lw,
+        edgecolor=edgecolor,
+        facecolor='none',
+        linestyle='dotted',
+        transform=ax_main.transData,
+        zorder=5
+    )
+    ax_main.add_patch(rect)
+
+    # --- Get box corners in display coords ---
+    bl_disp = ax_main.transData.transform((xlims[0], ylims[0]))  # bottom-left
+    br_disp = ax_main.transData.transform((xlims[1], ylims[0]))  # bottom-right
+
+    # Convert to figure coordinates
+    bl_fig = fig.transFigure.inverted().transform(bl_disp)
+    br_fig = fig.transFigure.inverted().transform(br_disp)
+
+    # --- Get zoomed axes top corners in figure coords ---
+    tl_disp = ax_zoom.transAxes.transform((0, 1))  # top-left of zoomed plot
+    tr_disp = ax_zoom.transAxes.transform((1, 1))  # top-right
+
+    tl_fig = fig.transFigure.inverted().transform(tl_disp)
+    tr_fig = fig.transFigure.inverted().transform(tr_disp)
+
+    # --- Draw connectors from main plot to zoomed plot ---
+    connectors = [
+        (bl_fig, tl_fig),  # bottom-left to top-left
+        (br_fig, tr_fig)   # bottom-right to top-right
+    ]
+
+    for (x1, y1), (x2, y2) in connectors:
+        line = plt.Line2D(
+            [x1, x2], [y1, y2],
+            transform=fig.transFigure,
+            color=edgecolor,
+            linewidth=lw,
+            linestyle='dotted',
+            zorder=6
+        )
+        fig.add_artist(line)
 
 
 # ====================== Gas Sigma ========================
@@ -28,6 +89,7 @@ def overlay_gas_sigmas(fig, ax, radii, sigma_gas_1D, model_num=0):
                 ax[i].axvline(rp, linestyle='dashed', color=color)
         
         ax[i].set_xlabel("Radius (AU)")
+        ax[i].set_title(f"{round(t, 3)} Myr")
         ax[i].set_xscale("log")
         ax[i].set_yscale("log")
         ax[i].set_xlim(np.min(radii), np.max(radii))    
@@ -132,76 +194,179 @@ def overlay_total_dust_mass(fig, ax, radii, dust_mass_tot, model_num=0):
 
 # ================= Plot final dust mass in 10-100cm bin =====================
 
-def final_large_dust(fig, ax, radii, dust_mass, model_num=0):
-    n_size_decades = int(np.log10(maxgsize) - np.log10(mingsize))   # assumes min and max g size are the same for both models!
-    size_decades = np.split(np.arange(ndust), n_size_decades)
-    dust_mass_largest_bin = np.sum(dust_mass[-1,size_decades[-1],:], axis=0) # sum within bin, dimensions: nrad
+# def final_large_dust(fig, ax, radii, dust_mass, model_num=0):
+#     n_size_decades = int(np.log10(maxgsize) - np.log10(mingsize))   # assumes min and max g size are the same for both models!
+#     size_decades = np.split(np.arange(ndust), n_size_decades)
+#     dust_mass_largest_bin = np.sum(dust_mass[-1,size_decades[-1],:], axis=0) # sum within bin, dimensions: nrad
     
-    c = colours[model_num]
-    sim = simdirs[model_num]
-    mlabel = "migrating"
-    if "stat" in sim:
-        mlabel = "stationary"
+#     c = colours[model_num]
+#     sim = simdirs[model_num]
+#     mlabel = "migrating"
+#     if "stat" in sim:
+#         mlabel = "stationary"
 
-    x =  re.search("Mp\d+",simdirs[model_num])
-    planet_mass =  x.group()[2:]
-    ax.plot(radii, dust_mass_largest_bin, color=c, label=f"{planet_mass}$M_\oplus$ {mlabel}")
-    for rp in rps[:,-1]:
-        ax.axvline(rp, linestyle='dashed', color='k')
+#     x =  re.search("Mp\d+",simdirs[model_num])
+#     planet_mass =  x.group()[2:]
+#     ax.plot(radii, dust_mass_largest_bin, color=c, label=f"{planet_mass}$M_\oplus$ {mlabel}")
+#     for rp in rps[:,-1]:
+#         ax.axvline(rp, linestyle='dashed', color='k')
 
-    if model_num == len(simdirs)-1:
-        ax.legend(loc="lower right")
-        ax.set_xlabel("R (AU)")
-        ax.set_ylabel("$M_{{dust}} (M_\oplus)$")
-        ax.set_xscale("log")
-        ax.set_yscale("log")
-        ax.set_xlim(min(radii), max(radii))
-        fig.tight_layout()
+#     if model_num == len(simdirs)-1:
+#         ax.legend(loc="lower right")
+#         ax.set_xlabel("R (AU)")
+#         ax.set_ylabel("$M_{{dust}} (M_\oplus)$")
+#         ax.set_xscale("log")
+#         ax.set_yscale("log")
+#         ax.set_xlim(min(radii), max(radii))
+#         fig.tight_layout()
 
 
 # ================= Plot final dust contours =====================
 
-def plot_final_contours(fig, radii, sigma_dust_1D, model_num=0):
+def plot_dust_contours(fig, ax, radii, sigma_dust_1D, model_num=0):
     R, A = np.meshgrid(radii, a)
-    levels = np.linspace(-18, 6, 13) 
-    plotsizey = int(len(simdirs)/plotsizex)+1
+    # levels = np.linspace(-18, 6, 13) 
+    # levels = np.linspace(-9, 1, 6)  
+    levels = np.linspace(-7, 1, 9)  
                   
     print("Plotting dust size contour maps....")
-    if model_num == 0:
-        fig.suptitle(f"t={timesteps[-1]}Myr")
-    ax = fig.add_subplot(plotsizey, plotsizex, model_num+1)
-    sigmas = sigma_dust_1D[i]
-    con = ax.contourf(R, A, np.log10(sigmas), cmap="Greys", levels=levels)
-    ax.set_ylim(np.min(a), np.max(a))
-    ax.set_xscale("log")
-    ax.set_yscale("log")
-    ax.plot(radii, a_St1[i], c='black', alpha=0.7, label="St=1")
-    ax.plot(radii, a_drift[i], c='deepskyblue', alpha=0.7, label="$a_{{drift}}$")
-    ax.plot(radii, a_frag[i], c='red', alpha=0.7, label="$a_{{frag}}$")
-    if planets:
-        for rp in rps[:,i]:
-            ax.axvline(rp, linestyle='dashed', color='black')
+    if "stat" in simdir:
+        lb = "Stationary"
+    else:
+        lb = "Migrating"
+
+    for i, t in enumerate(timesteps):
+        # Full and zoomed axes
+        ax_full = ax[s*2, i]
+        ax_zoom = ax[(s*2)+1, i]
+
+        con = ax_full.contourf(R, A, np.log10(sigma_dust_1D[i]), cmap="Greys", levels=levels)
+        con_zoom = ax_zoom.contourf(R, A, np.log10(sigma_dust_1D[i]), cmap="Greys", levels=levels)
         
-    if not model_num%plotsizex:
-        ax.set_ylabel("a (cm)")
-    else:
-        ax.set_yticks([])
-    if model_num < plotsizex and len(simdirs) > plotsizex:
-        ax.set_xticks([])
-    else:
-        ax.set_xlabel("R (AU)")
-    sim = simdir.split("models/")[-1]
-    ax.set_title(sim)
+        # Set axis limits and scales
+        ax_zoom.set_ylim(np.min(a), np.max(a))      
+        ax_full.set_ylim(np.min(a), np.max(a))        
+        ax_full.set_xlim(np.min(radii), np.max(radii))
+        ax_full.set_xscale("log")
+        ax_full.set_yscale("log")
+        ax_zoom.set_xscale("log")
+        ax_zoom.set_yscale("log")
+
+        # Plot curves
+        ax_full.plot(radii, a_St1[i], c='black', alpha=0.7, label="St=1")
+        ax_full.plot(radii, a_drift[i], c='deepskyblue', alpha=0.7, label="$a_{{drift}}$")
+        ax_full.plot(radii, a_frag[i], c='red', alpha=0.7, label="$a_{{frag}}$")
+        ax_zoom.plot(radii, a_St1[i], c='black', alpha=0.7, label="St=1")
+        ax_zoom.plot(radii, a_drift[i], c='deepskyblue', alpha=0.7, label="$a_{{drift}}$")
+        ax_zoom.plot(radii, a_frag[i], c='red', alpha=0.7, label="$a_{{frag}}$")
+
+        if planets:
+            for rp in rps[:,i]:
+                ax_full.axvline(rp, linestyle='dashed', color='k')
+                ax_zoom.axvline(rp, linestyle='dashed', color='k')
+                ax_zoom.set_xlim(rp-5, rp+20)
+                ax_zoom.set_xticks(np.arange(round(rp-5,-1), round(rp+20,-1), 10))
+                ax_full.set_xticks([10, 100])
+                ax_full.get_xaxis().set_major_formatter(matplotlib.ticker.ScalarFormatter())
+                ax_full.xaxis.set_minor_formatter(NullFormatter())
+                ax_zoom.get_xaxis().set_major_formatter(matplotlib.ticker.ScalarFormatter())
+                ax_zoom.xaxis.set_minor_formatter(NullFormatter())
+
+        # Set labels and titles
+        if i == 0:
+            ax_full.set_ylabel("a (cm)")
+            ax_zoom.set_ylabel("a (cm)")
+        else:
+            ax_full.yaxis.set_major_formatter(matplotlib.ticker.NullFormatter())  # removes major tick labels
+            ax_full.yaxis.set_minor_formatter(matplotlib.ticker.NullFormatter())  # removes minor tick labels (optional)
+            ax_zoom.yaxis.set_major_formatter(matplotlib.ticker.NullFormatter())  # removes major tick labels
+            ax_zoom.yaxis.set_minor_formatter(matplotlib.ticker.NullFormatter())  # removes minor tick labels (optional)
+
+
+        ax[3,i].set_xlabel("Radius (AU)")
+
+        if s == 0:
+            if i == int(len(o)/2):
+                title = "$\\bf{Migrating}$" if "mig" in simdir else "$\\bf{Stationary}$"
+                ax_full.set_title(f"{title}\n {round(t,3)} Myr")
+            else:
+                ax_full.set_title(f"{round(t,3)} Myr")
+        else:
+            if i == int(len(o)/2):
+                title = "$\\bf{Migrating}$" if "mig" in simdir else "$\\bf{Stationary}$"
+                ax_full.set_title(title, pad=10.0)
+
+        # Annotate max grain size in densest region of ring
+        rp = np.array(planet_rs)[s,0,i]    # Look exterior to planet
+
+        xmin, xmax = rp, rp+15
+        max_dens = int(np.max(np.log10(sigma_dust_1D[i])))
+
+        level_index = list(con.levels).index(max_dens) - 1
+        outer_level = con.levels[level_index - len(con.levels)]
+        outer_paths = con.collections[level_index - len(con.levels)].get_paths()
+        max_y = -np.inf
+        max_y_point = None
+
+        for path in outer_paths:
+            vertices = path.vertices  # shape (N, 2), where each row is (x, y)
+            x_vals = vertices[:, 0]
+            y_vals = vertices[:, 1]
+
+            # Filter for points within the x-range
+            mask = (x_vals >= xmin) & (x_vals <= xmax)
+            if np.any(mask):
+                y_vals_in_range = y_vals[mask]
+                x_vals_in_range = x_vals[mask]
+                local_max_y = y_vals_in_range.max()
+                if local_max_y > max_y:
+                    max_y = local_max_y
+                    max_index = mask.nonzero()[0][y_vals_in_range.argmax()]
+                    max_y_point = vertices[max_index]
+
+        # Annotate if a valid point was found
+        if max_y_point is not None:
+            ax_zoom.annotate(
+                f"{round(max_y_point[1], 1):.1f}cm",
+                xy=(max_y_point[0], max_y_point[1]),
+                xytext=(4, 10),
+                textcoords="offset points",
+                color="darkgreen",
+                fontsize=11,
+                arrowprops=dict(arrowstyle="->", color="darkgreen", lw=0.8),
+                ha='left'
+            )
+
 
     fig.tight_layout()
     
-    if model_num == len(simdirs)-1:
+    if s == 1:
         fig.subplots_adjust(right=0.89, hspace=0.3)
-        # cbar_ax = fig0.add_axes([0.91, 0.53, 0.02, 0.4])
-        cax = fig.add_axes([ax.get_position().x1+0.01,ax.get_position().y0,0.02,ax.get_position().height])
-        fig.colorbar(con, cax=cax, orientation="vertical", label="log$[\Sigma (g/cm^{{2}})]$")
-        fig.suptitle(f"t={timesteps[-1]}Myr")
-        ax.legend(loc="upper right")
+        top_ax = ax[0, len(timesteps)-1]
+        bottom_ax = ax[3, len(timesteps)-1]
+        top = top_ax.get_position().y1
+        bottom = bottom_ax.get_position().y0
+        height = top - bottom
+        right = top_ax.get_position().x1
+
+        cax = fig.add_axes([right + 0.01, bottom, 0.02, height])
+        fig.colorbar(con, cax=cax, orientation="vertical", label="log$[\Sigma_{d}\ (g/cm^2)]$")
+        ax[0,0].legend(loc="lower left")
+
+
+        for i, t in enumerate(timesteps):
+            ax_full0 = ax[0, i]
+            ax_zoom0 = ax[1, i]
+            ax_full1 = ax[2, i]
+            ax_zoom1 = ax[3, i]
+            # print(np.array(planet_rs).shape)
+            rp0 = np.array(planet_rs)[0,0,i]    # sim 1
+            rp1 = np.array(planet_rs)[1,0,i]    # sim 2
+            xlims0 = (rp0 - 5, rp0 + 20)
+            xlims1 = (rp1 - 5, rp1 + 20)
+            add_x_zoom_box_with_connectors(fig, ax_full0, ax_zoom0, xlims0)
+            add_x_zoom_box_with_connectors(fig, ax_full1, ax_zoom1, xlims1)
+
 
 
 # ================= Plot dust-gas ratios =====================
@@ -272,6 +437,7 @@ if __name__ == "__main__":
     colour_cycler = [cm(1.*i/5) for i in range(0,len(o)+1)]
     colours = plt.rcParams["axes.prop_cycle"].by_key()["color"]
     linestyles = ['solid', 'dashdot', 'dotted']
+    planet_rs = []
 
     if plot_window:
         matplotlib.use('TkAgg')
@@ -282,9 +448,9 @@ if __name__ == "__main__":
 
     # =================== Define figures and axes ========================
     if "gsig" in plots:
-        fig_gas_sigma, ax_gas_sigma = plt.subplots(ncols=len(o), figsize=(10,4), sharey=True)    # pls do not input > 5 timesteps.
+        fig_gas_sigma, ax_gas_sigma = plt.subplots(ncols=len(o), figsize=(int(len(o)*3),4), sharey=True)    # pls do not input > 5 timesteps.
     if "dcon" in plots:
-        fig_con = plt.figure(ncols=len(o), nrows=2, figsize=(17,16), sharey=True, sharex=True)
+        fig_con, ax_con = plt.subplots(ncols=len(o), nrows=4, figsize=(int(len(o)*3),11))#, sharey=True, sharex=True)
     if "dm" in plots:
         fig_dust_mass, ax_dust_mass = plt.subplot_mosaic("AABBCC;DDDEEE;FFFGGG", figsize=(17,16))
     if "dmt" in plots:
@@ -304,14 +470,14 @@ if __name__ == "__main__":
         plotsizex = 3
         plotsizey = int(len(o)/plotsizex)+1
 
-        if ("10_" in simdir) or ("20_" in simdir):
-            outputs = o/5   # need to account for different timestepping in different models
-        elif ("100_" in simdir):
-            outputs = o*2
-        else:
-            outputs = np.array(o)
+        # if ("10_" in simdir) or ("20_" in simdir):
+        #     outputs = o/5   # need to account for different timestepping in different models
+        # if ("100_" in simdir):
+        #     outputs = np.array(o)*2
+        # else:
+        #     outputs = np.array(o)
         # outputs = outputs.astype(int)
-
+        outputs = np.array(o)
         # Load model params into dict
         param_lines = open(params_file).readlines()
         for line in param_lines:
@@ -349,6 +515,7 @@ if __name__ == "__main__":
                 # xp, yp = planet_data[np.array(outputs)*5][:,1], planet_data[np.array(outputs)*5][:,2]
                 # print(xp,yp)
                 rps[n] = ((xp**2) + (yp**2))**0.5
+            planet_rs.append(rps)
 
             planet0_period = (rps[0]**3)**0.5                 # orbital period of planet in yrs
             planet_orbits = timesteps*1e6/planet0_period
@@ -407,8 +574,8 @@ if __name__ == "__main__":
             hr = hr0*(radii**f)                                   # aspect ratio
             b = (uf**2)*radii/(4*(np.pi**2)*alpha*(hr**2))
 
-            cs = hr*(((2e30)*(6.67e-11))/(radii*1.5e11))**0.5     # [m/s]
-            p = (sigma_gas_1D*(cs**2)/((2*np.pi)**0.5))*(hr**-1)*((radii*1.5e11)**-1)
+            cs = hr*2*np.pi/(radii**0.5)
+            p = (sigma_gas_1D*(cs**2)/((2*np.pi)**0.5))*(hr**-1)*(radii**-1)
             pad = np.empty((len(timesteps), 1))*np.nan
             gamma = (radii/p)*np.abs(np.append(np.diff(p)/np.diff(radii), pad, axis=1))
             C = 2/(np.pi*hr)
@@ -423,7 +590,7 @@ if __name__ == "__main__":
         if "gsig" in plots:
             overlay_gas_sigmas(fig_gas_sigma, ax_gas_sigma, radii, sigma_gas_1D, s)
         if "dcon" in plots:
-            plot_final_contours(fig_con, radii, sigma_dust_1D, s)
+            plot_dust_contours(fig_con, ax_con, radii, sigma_dust_1D, s)
         if "dm" in plots:
             overlay_dust_mass(fig_dust_mass, ax_dust_mass, radii, dust_mass, s)
         if "dmt" in plots:
