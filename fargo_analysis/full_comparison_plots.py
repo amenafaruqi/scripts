@@ -22,7 +22,10 @@ regime_bounds = np.array([
 def overlay_gas_sigmas(fig, ax, radii, sigma_gas_1D, model_num=0):
     print("Plotting gas surface density....")
     if "mig" in sim:
-        color = "royalblue"
+        if colour_bounds:
+            color = "royalblue"
+        else:
+            color = "red"
         label = "Migrating"
     else:
         color = "k"
@@ -31,19 +34,17 @@ def overlay_gas_sigmas(fig, ax, radii, sigma_gas_1D, model_num=0):
     planetmass = re.search(r"Mp(\d+)_", sims[model_num]).group(1)    # get planet mass from file path
 
     # Indicate regime boundaries on plot
-    green_col = plt.get_cmap('summer')(np.linspace(0, 1, 3))[1]
-    ax[int(s/2)].fill_betweenx(np.arange(0,250), regime_bounds[int(s/2),2], regime_bounds[int(s/2),3], color="orangered", alpha=0.5)
-    ax[int(s/2)].fill_betweenx(np.arange(0,250), regime_bounds[int(s/2),1], regime_bounds[int(s/2),2], color="yellow", alpha=0.4)
-    ax[int(s/2)].fill_betweenx(np.arange(0,250), regime_bounds[int(s/2),0], regime_bounds[int(s/2),1], color=green_col, alpha=0.8)
+    if colour_bounds:
+        green_col = plt.get_cmap('summer')(np.linspace(0, 1, 3))[1]
+        ax[int(s/2)].fill_betweenx(np.arange(0,250), regime_bounds[int(s/2),2], regime_bounds[int(s/2),3], color="orangered", alpha=0.5)
+        ax[int(s/2)].fill_betweenx(np.arange(0,250), regime_bounds[int(s/2),1], regime_bounds[int(s/2),2], color="yellow", alpha=0.4)
+        ax[int(s/2)].fill_betweenx(np.arange(0,250), regime_bounds[int(s/2),0], regime_bounds[int(s/2),1], color=green_col, alpha=0.8)
 
     ax[int(s/2)].plot(radii, sigma_gas_1D, color=color, label=label)
     ax[int(s/2)].set_title(f"{planetmass} $M_\oplus$")
 
     if planets:
-        if "stat" in sim:
-            planetcolour = 'k'
-        else:
-            planetcolour = color
+        planetcolour = color
         for rp in rps:
             ax[int(s/2)].axvline(rp, linestyle='dashed', color=planetcolour)
         
@@ -63,7 +64,10 @@ def overlay_gas_sigmas(fig, ax, radii, sigma_gas_1D, model_num=0):
 def overlay_dust_gas_ratio(fig, ax, radii, dust_mass_tot, gas_mass, model_num=0):
     epsilon = dust_mass_tot/gas_mass
     if "mig" in sim:
-        color = "royalblue"
+        if colour_bounds:
+            color = "royalblue"
+        else:
+            color = "red"
         label = "Migrating"
     else:
         color = "k"
@@ -72,19 +76,17 @@ def overlay_dust_gas_ratio(fig, ax, radii, dust_mass_tot, gas_mass, model_num=0)
     planetmass = re.search(r"Mp(\d+)_", sims[model_num]).group(1)    # get planet mass from file path
 
     # Indicate regime boundaries on plot
-    green_col = plt.get_cmap('summer')(np.linspace(0, 1, 3))[1]
-    ax[int(s/2)].fill_betweenx(np.arange(0,250), regime_bounds[int(s/2),2], regime_bounds[int(s/2),3], color="orangered", alpha=0.5)
-    ax[int(s/2)].fill_betweenx(np.arange(0,250), regime_bounds[int(s/2),1], regime_bounds[int(s/2),2], color="yellow", alpha=0.4)
-    ax[int(s/2)].fill_betweenx(np.arange(0,250), regime_bounds[int(s/2),0], regime_bounds[int(s/2),1], color=green_col, alpha=0.8)
+    if colour_bounds:
+        green_col = plt.get_cmap('summer')(np.linspace(0, 1, 3))[1]
+        ax[int(s/2)].fill_betweenx(np.arange(0,250), regime_bounds[int(s/2),2], regime_bounds[int(s/2),3], color="orangered", alpha=0.5)
+        ax[int(s/2)].fill_betweenx(np.arange(0,250), regime_bounds[int(s/2),1], regime_bounds[int(s/2),2], color="yellow", alpha=0.4)
+        ax[int(s/2)].fill_betweenx(np.arange(0,250), regime_bounds[int(s/2),0], regime_bounds[int(s/2),1], color=green_col, alpha=0.8)
 
     ax[int(s/2)].plot(radii, epsilon, color=color, label=label)
     ax[int(s/2)].set_title(f"{planetmass} $M_\oplus$")
 
     if planets:
-        if "stat" in sim:
-            planetcolour = 'k'
-        else:
-            planetcolour = color
+        planetcolour = color
         for rp in rps:
             ax[int(s/2)].axvline(rp, linestyle='dashed', color=planetcolour)
     
@@ -192,6 +194,54 @@ def plot_dust_contours(fig, ax, radii, a, sigma_dust_1D, model_num=0):
         fig.tight_layout(rect=[0, 0.07, 1, 1])
 
 
+def plot_2D_sigma(fig, ax, radii, sigma_gas, sigma_dust, model_num=0):
+    print("Plotting 2D surface density....")
+
+    if "mig" in sim:
+        coli = 1
+        miglabel = "$\\bf{Migrating}$ \n"
+    else:
+        coli = 0
+        miglabel = "$\\bf{Stationary}$ \n"
+
+    # Axes for gas and dust sigma
+    ax_g = ax[int(s/2),coli*2]
+    ax_d = ax[int(s/2),(coli*2)+1]
+
+    R, PHI = np.meshgrid(radii,phis)
+    x = R*np.cos(PHI)
+    y = R*np.sin(PHI)
+
+    ax_g.pcolormesh(x,y,sigma_gas,cmap=cm.Oranges_r,shading="auto")
+    ax_g.set_xlim(-np.max(radii), np.max(radii))
+    ax_g.set_ylim(-np.max(radii), np.max(radii))
+
+    ax_g.pcolormesh(x,y,sigma_gas,cmap=cm.Oranges_r,shading="auto")
+    ax_g.set_xlim(-np.max(radii), np.max(radii))
+    ax_g.set_ylim(-np.max(radii), np.max(radii))
+
+    # if coli == 0:
+    #     ax0.set_ylabel("a (cm)")
+    # if int(s/2) == int(len(sims)/2)-1:
+    #     ax0.set_xlabel("Radius (AU)")
+
+    if planets:
+        planetmass = re.search(r"Mp(\d+)_", sims[model_num]).group(1)    # get planet mass from file path
+        for rp in rps:
+            ax0.axvline(rp, linestyle='dashed', color='black')
+        if int(s/2) == 0:
+            ax0.set_title(miglabel + f"{planetmass} $M_\oplus$")
+        else:
+            ax0.set_title(f"{planetmass} $M_\oplus$")
+
+    if int(s) == len(sims) - 1:
+        fig.subplots_adjust(bottom=0.2, hspace=0.05)
+        cbar_ax = fig.add_axes([0.13, 0.05, 0.85, 0.02])
+        # cax = fig.add_subplot(ax[5, :])
+        fig.colorbar(con, cax=cbar_ax, orientation="horizontal", label="log$[\Sigma (g/cm^{{2}})]$")
+        fig.tight_layout(rect=[0, 0.07, 1, 1])
+
+
 
 
 # =================================================================
@@ -205,6 +255,7 @@ if __name__ == "__main__":
     parser.add_argument('-o', metavar='outputs',default=[30], type=int, nargs=1 ,help="output to plot")
     parser.add_argument('-plots', metavar='plots',default=[], type=str, nargs="*" ,help="plots to produce")
     parser.add_argument('-noplanet', action="store_false")
+    parser.add_argument('-nobounds', action="store_false")
     parser.add_argument('-nogrog', action="store_false")
     parser.add_argument('-plot_window', action="store_true")
     parser.add_argument('-style', metavar='style', type=str, nargs="*", default=["publication"], help="style sheet to apply to plots")
@@ -215,6 +266,7 @@ if __name__ == "__main__":
     wd = args.wd[0]
     sims = args.sims
     planets = args.noplanet
+    colour_bounds = args.nobounds
     grog = args.nogrog
     plot_window = args.plot_window
     plots_savedir = args.savedir
@@ -241,6 +293,8 @@ if __name__ == "__main__":
         fig_growth, ax_growth = plt.subplots(figsize=(7,18), nrows=int(len(sims)/2), ncols=2, sharex=True, sharey=True)
     if "dcon" in plots:   # only specify for grog models
         fig_con, ax_con = plt.subplots(figsize=(7,18), nrows=int(len(sims)/2), ncols=2, sharex=True, sharey=True)
+    if "2dsig" in plots:   # only specify for grog models
+        fig_2d, ax_2d = plt.subplots(figsize=(12,18), nrows=int(len(sims)/2), ncols=4, sharex=True, sharey=True)
 
 
     # ================== Read in data at timesteps =======================
@@ -256,7 +310,7 @@ if __name__ == "__main__":
         if ("10_" in sim) or ("20_" in sim):
             output = int(o/5)   # need to account for different timestepping in different models
         elif ("100_" in sim):
-            outut = int(o*2)
+            output = int(o*2)
         else:
             output = o
 
@@ -377,7 +431,9 @@ if __name__ == "__main__":
             plot_tgrowth(fig_growth, ax_growth, radii, a, sigma_dust_1D, s)
         if "dcon" in plots:
             plot_dust_contours(fig_con, ax_con, radii, a, sigma_dust_1D, s)
-    
+        if "2dsig" in plots:
+            plot_2D_sigma(fig_2d, ax_2d, radii, sigma_gas_1D, sigma_dust_1D, s)
+
     # ======================== Generate Plots ==========================
     print(f"-------------------\nPlotting comparison plots for {sims}\n=============")
 
@@ -389,6 +445,8 @@ if __name__ == "__main__":
         fig_growth.savefig(f"{plots_savedir}/fullcomp_growth.png")
     if "dcon" in plots:
         fig_con.savefig(f"{plots_savedir}/fullcomp_contours.png")
+    if "2dsig" in plots:
+        fig_2d.savefig(f"{plots_savedir}/fullcomp_2Dsigma.png")
 
     if plot_window:
         plt.show()
