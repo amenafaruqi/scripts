@@ -848,12 +848,37 @@ if __name__ == "__main__":
     if "dgr" in plots:
         # Plot dust-gas ratio vs r
         print("Plotting dust-gas ratio for different planet masses....")
-        ax_dgr.plot(radii, [1e-2]*len(radii), color="lightgrey", linestyle="dashed")
-        ax_dgr.plot(radii, [1]*len(radii), color="lightgrey", linestyle="dotted")
+        ax_dgr.fill_between(x=np.arange(0,3.5), y1=1e-2, y2=-1e-6, color='lightgrey',  interpolate=True, alpha=.3)
         for s,sim in enumerate(sims):
             label = str(planet_masses[s]) + "$M_\oplus$"
-            colour = colour_cycler_m[s]
+            colour = colour_cycler[s]
             ax_dgr.plot(radii, dgrs[s], color=colour, label=label)
+
+        ax_dgr.set_ylabel("Dust-gas ratio")
+        ax_dgr.set_xlabel("Radius ($r_{p}$)")
+        ax_dgr.set_yscale("log")
+        ax_dgr.set_ylim(5e-6, 10)
+        ax_dgr.set_xlim(0.2,3)
+        ax_dgr.legend()
+    
+        fig_dgr.tight_layout()
+        fig_dgr.savefig(f"{plots_savedir}/dust_gas_ratio_{hr0}.png", dpi=200)
+
+
+    if "redge" in plots:
+        # Plot ring edge locations vs planet mass
+        print("Plotting ring edge locations against planet mass....")
+        pms = np.linspace(np.min(planet_masses), np.max(planet_masses), 100)
+        hill_radii = (pms/(3*333030))**(1/3)
+        for i,st in enumerate(stokes):
+            colour = colour_cycler[i]
+            alpha_st = round(alpha/st, 4)
+            ax_re.scatter(planet_masses, inner_edges[:,i], color=colour)
+            ax_re.plot(planet_masses, inner_edges[:,i], color=colour, label=f"$\\alpha/St = {alpha_st}$" )
+            ax_re.scatter(planet_masses, outer_edges[:,i], color=colour)
+            ax_re.plot(planet_masses, outer_edges[:,i], color=colour)
+        # ax_re.plot(pms, 1+3.5*hill_radii, color=plain_clr, label="$R_{p} + 3.5R_{Hill}$", linestyle="dotted")
+        # ax_re.plot(pms, 1.4-10*(pms/333030)**0.5, color="red", linestyle="dotted")
 
         ax_dgr.set_ylabel("Dust-to-gas ratio")
         ax_dgr.set_xlabel("Radius ($r_{p}$)")
@@ -934,17 +959,14 @@ if __name__ == "__main__":
             for n in np.arange(ndust):
                 ax = ax_f[s,n]
                 flux = dust_flux[s*ndust:(s+1)*ndust][n] 
-                print("------------- St = ", stokes[n])
-                print("Min flux = ", np.min(flux))
-                print("Max flux = ", np.max(flux))
-                print("Median abs flux = ", np.median(np.abs(flux)))
+                flux = flux*3.33e12
 
                 # 1) Plot 2D flux maps:
                 cmin = -1e6
                 cmax = 1e6
                 im = ax.pcolormesh(x, y, flux, shading="auto",  
                 # norm=mpl.colors.SymLogNorm(linthresh=lts[n], linscale=0.0001,vmin=lims[n][0], vmax=lims[n][1]),
-                norm=mpl.colors.SymLogNorm(linthresh=1e-12, linscale=1e-15,vmin=cmin, vmax=cmax),
+                norm=mpl.colors.SymLogNorm(linthresh=1e-12, linscale=1e-15,vmin=-5e11, vmax=5e11),
                 cmap="seismic", zorder=1)
                 ax.scatter([xp], [yp], color='yellow', marker='.', edgecolors='black')
                 ax.set_aspect("equal")
@@ -967,7 +989,7 @@ if __name__ == "__main__":
                 if n != 0:
                     ax.set_yticks([])
                 if s == len(sims) - 1:
-                    ticks = [cmin, 0, cmax]
+                    ticks = [-1e11, 0, 1e11]
                     cbar = fig_f.colorbar(im, ax=ax, orientation="horizontal", ticks=ticks)
                     cbar.set_label('$\\Sigma_{d} v_{r} $')
                 
@@ -1061,7 +1083,6 @@ if __name__ == "__main__":
         ax_pf.set_xlabel("Radius ($r_{p}$)")
         ax_pf.set_ylabel("$\mathcal{P}_{pf}$")
         ax_pf.set_xlim(1,1.4)
-        ax_pf.set_ylim(0,1.1)
         ax_pf.legend()
         fig_pf.savefig(f"{plots_savedir}/ppf_{hr0}.png")
 
