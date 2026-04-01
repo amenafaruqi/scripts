@@ -274,32 +274,51 @@ def plot_2D_sigma(fig, ax, radii, sigma_gas, sigma_dust):
             fig.colorbar(con, cax=cax, orientation="horizontal", label=f"log$[\Sigma_{{{label}}}\ (g/cm^2)]$")
 
 
-# def calculate_ring_mass(radii, dust_mass_tot, rp, s):
-#     if "mig" in sim:
-#         coli = 1
-#     else:
-#         coli = 0
+def calculate_ring_mass(radii, dust_mass, rp):
+    # Identify ring region, sum dust mass in region (keep ndusts separate), sum by mass and store
+    # 2 and 20 Rhill unless outer planet bounds this
 
-#     planetmass = int(re.search(r"Mp(\d+)_", sim).group(1))    # get planet mass from file path
-#     r_hill = rp*((planetmass*1e-6)**(1/3))
+    # Set labels and indexes to populate arrays
+    if "stat" in sim:
+        if len(rps) == 1:
+            rowi = 0
+            coli = 0
+        else:
+            rowi = 1
+            coli = 0
+    else:
+        if len(rps) == 1:
+            rowi = 0
+            coli = 1
+        else:
+            rowi = 1
+            coli = 1
+    
+    planetmass = int(re.findall(r"Mp(\d+)_", sim)[0])          # Take inner planet mass only
+    r_hill = rps[0]*((planetmass*1e-6)**(1/3))
 
-#     # Stat models: sum over all radii from rp*1.1 to rp*1.6
-#     # if "stat" in sim:
-#     i_inner = min(range(len(radii)), key=lambda i: abs(radii[i]-((1.07*rp)+r_hill*2)))
-#     i_outer = min(range(len(radii)), key=lambda i: abs(radii[i]-((1.07*rp)+r_hill*20)))
+    # Find radial cells closest to 2 and 20 R_Hill
+    i_inner = min(range(len(radii)), key=lambda i: abs(radii[i]-((1.07*rp)+r_hill*2)))
+    i_outer = min(range(len(radii)), key=lambda i: abs(radii[i]-((1.07*rp)+r_hill*20)))
 
-#     # else:
-#     #     # Mig models: sum over all radii between rp*1.1 and 50 AU
-#     #     i_inner = min(range(len(radii)), key=lambda i: abs(radii[i]-rp*1.1))
-#     #     i_outer = min(range(len(radii)), key=lambda i: abs(radii[i]-rp*1.8))
+    if rowi:     # i.e. if 2-planet model, bound by outer planet location
+        rp_p2 = rps[1]      # Outer planet location
+        i_p2 = min(range(len(radii)), key=lambda i: abs(radii[i]-((rp_p2))))
+        # Use outer planet location as outer bound if it lies within 20 R_Hill (of inner planet)
+        i_outer = np.min([i_outer, i_p2])
 
-#     # print((1.07*rp)+r_hill*3, (1.07*rp)+r_hill*20)
-#     dust_mass_ring = dust_mass_tot[i_inner:i_outer]
-#     ring_mass = np.sum(dust_mass_ring)    # in Earth masses
-#     print(ring_mass)
+    # Dust mass in ring, broken down by dust bin
+    print(radii[i_inner], radii[i_outer])
+    dust_mass_ring = np.sum(dust_mass[:,i_inner:i_outer], axis=1)       # dimensions = ndust = 70
 
-#     # Store value in array
-#     ring_masses[coli,int(s/2)] = ring_mass
+    n_size_decades = int(np.log10(maxgsize) - np.log10(mingsize))   # assumes min and max g size are the same for both models!
+    size_decades = np.split(np.arange(ndust), n_size_decades)
+
+    for n, size_decade in enumerate(size_decades):
+        ring_mass_by_size = np.sum(dust_mass_ring[size_decade])
+        ring_masses[rowi, coli, n] = ring_mass_by_size
+    
+    print(ring_masses)
 
 
 # def plot_ring_mass(fig, ax, mps, ring_masses):
@@ -360,13 +379,13 @@ if __name__ == "__main__":
         fig_con, ax_con = plt.subplots(figsize=(8,8), nrows=2, ncols=2, sharex=True, sharey=True)
     if "2dsig" in plots:   # only specify for grog models
         fig_2d, ax_2d = plt.subplots(figsize=(7,14), nrows=4, ncols=2, sharex=True, sharey=True)
-    # if "rmass" in plots:
-    #     fig_m, ax_m = plt.subplots(figsize=(6,4))
+    if "rmass" in plots:
+        fig_m, ax_m = plt.subplots(figsize=(6,4))
 
     # ================== Read in data at timesteps =======================
 
     # Array to store ring masses
-    ring_masses = np.zeros((2,5))
+    ring_masses = np.zeros((2,2,7))           # 4 models x 7 size decades
     mps = []
 
     for s, sim in enumerate(sims):
@@ -457,9 +476,9 @@ if __name__ == "__main__":
         sigma_dust_1D = sigma_dust_azimsum/nphi                         # dimensions: (ndust, nrad)  
 
         # dust mass for dust of size a as a function of r
-        dust_mass = [2*np.pi*radii*sigma_dust_1D[n,:]*delta_r*333030*(1.125e-7) for n in range(ndust)]
+        dust_mass = [2*np.pi*radii*sigma_dust_1D*delta_r*333030*(1.125e-7) for n in range(ndust)]
         gas_mass = 2*np.pi*radii*sigma_gas_1D*delta_r*333030*(1.125e-7)      # convert from Msun to Mearth
-        dust_mass_tot = np.sum(dust_mass, axis=0)
+        dust_mass_tot = np.sum(dust_mass, axis=0)                            # summed over all sizes
 
         uf = 0.0021                                           # fragmentation velocity 10 m/s in AU/yr
         hr = hr0*(radii**f)                                   # aspect ratio
@@ -488,8 +507,8 @@ if __name__ == "__main__":
             plot_dust_contours(fig_con, ax_con, radii, a, sigma_dust_1D)
         if "2dsig" in plots:
             plot_2D_sigma(fig_2d, ax_2d, radii, sigma_gas, sigma_dust)
-        # if "rmass" in plots:
-        #     calculate_ring_mass(radii, dust_mass_tot, rps[0])       # assume only 1 planet here
+        if "rmass" in plots:
+            calculate_ring_mass(radii, dust_mass_tot, rps[0])       # assume only 1 planet here
 
     # ================ Plot ring masses, if selected ===================
     # if "rmass" in plots:
@@ -510,6 +529,8 @@ if __name__ == "__main__":
         fig_con.savefig(f"{plots_savedir}/SPF_contours.png")
     if "2dsig" in plots:
         fig_2d.savefig(f"{plots_savedir}/SPF_2Dsigma.png")
+    if "rmass" in plots:
+        pass
 
     if plot_window:
         plt.show()
