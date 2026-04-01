@@ -20,7 +20,7 @@ def overlay_gas_sigmas(fig, ax, radii, sigma_gas_1D):
             ls = "solid"
         else:
             label = "S2"
-            ls = "dotted"
+            ls = "dashdot"
     else:
         colour = "royalblue"
         if len(rps) == 1:
@@ -28,7 +28,7 @@ def overlay_gas_sigmas(fig, ax, radii, sigma_gas_1D):
             ls = "solid"
         else:
             label = "M2"
-            ls = "dotted"
+            ls = "dashdot"
 
     # planet_masses = re.findall(r"Mp(\d+)_", sim)    # get planet masses from file path
     # if len(planet_masses) == 2:
@@ -59,7 +59,7 @@ def overlay_dust_gas_ratio(fig, ax, radii, dust_mass_tot, gas_mass):
             ls = "solid"
         else:
             label = "S2"
-            ls = "dotted"
+            ls = "dashdot"
     else:
         colour = "royalblue"
         if len(rps) == 1:
@@ -67,7 +67,7 @@ def overlay_dust_gas_ratio(fig, ax, radii, dust_mass_tot, gas_mass):
             ls = "solid"
         else:
             label = "M2"
-            ls = "dotted"
+            ls = "dashdot"
 
     # planet_masses = re.findall(r"Mp(\d+)_", sim)    # get planet masses from file path
     # if len(planet_masses) == 2:
@@ -185,23 +185,13 @@ def plot_dust_contours(fig, ax, radii, a, sigma_dust_1D):
         ax0.axvline(rp, linestyle='dashed', color='black')
 
     ax0.set_title(label)
+    fig.tight_layout()
 
     if (rowi, coli) == (1,1):
-        # cbar = fig.colorbar(
-        #     con,
-        #     ax=ax[int(s/2), :],          # span exactly the same width
-        #     orientation="horizontal",
-        #     pad=0.15,
-        #     fraction=0.05,
-        #     label=r"log$[\tau_{growth}\ (\mathrm{Myr})]$"
-        # )
-        # fig.tight_layout()
-
-        fig.subplots_adjust(bottom=0.2, hspace=0.05)
-        cbar_ax = fig.add_axes([0.075, 0.05, 0.91, 0.02])
-        # cax = fig.add_subplot(ax[5, :])
-        fig.colorbar(con, cax=cbar_ax, orientation="horizontal", label="log$[\Sigma (g/cm^{{2}})]$")
-        fig.tight_layout(rect=[0, 0.07, 1, 1])
+        fig.subplots_adjust(bottom=0.3, hspace=0.15)
+        cbar_ax = fig.add_axes([0.075, 0.17, 0.91, 0.03])
+        fig.colorbar(con, cax=cbar_ax, orientation="horizontal", label="log$[\Sigma_{dust} (g/cm^{{2}})]$")
+        # fig.tight_layout(rect=[0, 0.07, 1, 1])
 
 
 def plot_2D_sigma(fig, ax, radii, sigma_gas, sigma_dust):
@@ -236,9 +226,10 @@ def plot_2D_sigma(fig, ax, radii, sigma_gas, sigma_dust):
     ax_g.set_xlim(-np.max(radii), np.max(radii))
     ax_g.set_ylim(-np.max(radii), np.max(radii))
     # ax_g.set_aspect("equal")
-    ax_g.set_xlim(-80,80)
-    ax_g.set_ylim(-80,80)
+    ax_g.set_xlim(-90,90)
+    ax_g.set_ylim(-90,90)
     ax_g.set_ylabel("y (AU)")
+    ax_g.set_aspect("equal")
 
     # Plot dust surface density
     sigma_dust_tot = np.sum(sigma_dust, axis=0)
@@ -246,30 +237,28 @@ def plot_2D_sigma(fig, ax, radii, sigma_gas, sigma_dust):
     ax_d.set_xlim(-np.max(radii), np.max(radii))
     ax_d.set_ylim(-np.max(radii), np.max(radii))
     # ax_d.set_aspect("equal")
-    ax_d.set_xlim(-80,80)
-    ax_d.set_ylim(-80,80)
+    ax_d.set_xlim(-90,90)
+    ax_d.set_ylim(-90,90)
+    ax_d.set_aspect("equal")
 
     # Plot planet locations 
     for pi in np.arange(len(rps)):
         ax_g.scatter([xps[pi]], [yps[pi]], color='g', marker='.')
         ax_d.scatter([xps[pi]], [yps[pi]], color='g', marker='.')
 
-    fig.tight_layout()
-
     if rowi == 0:
-        title_g = ax_g.set_title("Gas \n" + label, loc="center")
-        title_g.set_position((1.3, 1.1))
-        title_d = ax_d.set_title("Dust \n" + label, loc="center")
-        title_d.set_position((1.3, 0.95))
+        ax[rowi, 0].set_title("Gas \n" + label, loc="center")
+        ax[rowi, 1].set_title("Dust \n" + label, loc="center")
 
     else:
-        title_g = ax_g.set_title(label, loc="center")
-        title_g.set_position((1.3, 1.1))
-        title_d = ax_d.set_title(label, loc="center")
-        title_d.set_position((1.3, 0.95))
+        ax_g.set_title(label, loc="center")
+        ax_d.set_title(label, loc="center")
 
+    fig.tight_layout()
 
     if rowi == 3:
+        # fig.colorbar(con_g, ax=ax[rowi, 0], orientation="horizontal")
+        # fig.colorbar(con_d, ax=ax[rowi, 1], orientation="horizontal")
         fig.subplots_adjust(bottom=0.15, hspace=0.3)
         for i in [0,1]:
             bottom_ax = [ax_g, ax_d][i]
@@ -282,9 +271,7 @@ def plot_2D_sigma(fig, ax, radii, sigma_gas, sigma_dust):
             cax = fig.add_axes([left_edge, bottom_edge - 0.07, width, 0.02])
             con = [con_g, con_d][i]
             label = ["gas", "dust"][i]
-            # formatter = LogFormatter(10, labelOnlyBase=False) 
             fig.colorbar(con, cax=cax, orientation="horizontal", label=f"log$[\Sigma_{{{label}}}\ (g/cm^2)]$")
-            # ax[0,0].legend(loc="lower left")
 
 
 # def calculate_ring_mass(radii, dust_mass_tot, rp, s):
@@ -335,7 +322,7 @@ def plot_2D_sigma(fig, ax, radii, sigma_gas, sigma_dust):
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description='Generate 1D plots', prefix_chars='-')
     
-    parser.add_argument('-wd', metavar='wd', type=str, nargs=1, default=["/home/astro/phrkvg/simulations/new_lowres_models/Mdisc0.015/"],help="working directory containing simulations")
+    parser.add_argument('-wd', metavar='wd', type=str, nargs=1, default=["/home/astro/phrkvg/simulations/"],help="working directory containing simulations")
     parser.add_argument('-sims', metavar='sims', type=str, nargs="*", default=[] ,help="simulation directories containing output files")
     parser.add_argument('-savedir', metavar='savedir', type=str, nargs=1, default="./images/SPF_plots" ,help="directory to save plots to")
     parser.add_argument('-o', metavar='outputs',default=[10], type=int, nargs="*" ,help="output to plot")
@@ -344,7 +331,7 @@ if __name__ == "__main__":
     parser.add_argument('-style', metavar='style', type=str, nargs="*", default=["publication"], help="style sheet to apply to plots")
 
     args = parser.parse_args()
-    o = args.o[-1]                    # Plot single timestep plots at last timestep given
+    o = args.o[-1]                    # Plot single timestep plots at last timestep given
     tevo_o = args.o                   # List of timesteps for time evo plots 
     plots = args.plots
     wd = args.wd[0]
@@ -364,15 +351,15 @@ if __name__ == "__main__":
 
     # =================== Define figures and axes ========================
     if "gsig" in plots:
-        fig_gas_sigma, ax_gas_sigma = plt.subplots(figsize=(7,4))
+        fig_gas_sigma, ax_gas_sigma = plt.subplots(figsize=(6,4))
     if "dgr" in plots:
-        fig_dgr, ax_dgr = plt.subplots(figsize=(7,4))
+        fig_dgr, ax_dgr = plt.subplots(figsize=(6,4))
     if "growth" in plots:   # only specify for grog models
-        fig_growth, ax_growth = plt.subplots(figsize=(7,10), nrows=2, ncols=2, sharex=True, sharey=True)
+        fig_growth, ax_growth = plt.subplots(figsize=(7,7), nrows=2, ncols=2, sharex=True, sharey=True)
     if "dcon" in plots:   # only specify for grog models
-        fig_con, ax_con = plt.subplots(figsize=(7,10), nrows=4, ncols=2, sharex=True, sharey=True)
+        fig_con, ax_con = plt.subplots(figsize=(8,8), nrows=2, ncols=2, sharex=True, sharey=True)
     if "2dsig" in plots:   # only specify for grog models
-        fig_2d, ax_2d = plt.subplots(figsize=(10,6), nrows=2, ncols=4, sharex=True, sharey=True)
+        fig_2d, ax_2d = plt.subplots(figsize=(7,14), nrows=4, ncols=2, sharex=True, sharey=True)
     # if "rmass" in plots:
     #     fig_m, ax_m = plt.subplots(figsize=(6,4))
 
