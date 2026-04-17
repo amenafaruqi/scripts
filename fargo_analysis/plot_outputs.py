@@ -2,6 +2,8 @@ import numpy as np
 import matplotlib.pyplot as plt
 import matplotlib
 import argparse
+from mpl_toolkits.axes_grid1.anchored_artists import AnchoredSizeBar
+
 plt.style.use('default')
 
 import warnings
@@ -11,23 +13,29 @@ warnings.filterwarnings("ignore")
 # ======================= Dust Contour Plots ==============================
 
 def plot_dust_contours():
-    fig0 = plt.figure(figsize=(17,10))  
+    fig0 = plt.figure(figsize=(20,5))  
+
     R, A = np.meshgrid(radii, a)
     # levels = np.linspace(-11,1,7)                    # Brauer 2008 levels
-    # levels = np.linspace(-7, 2, 10)                  # Birnstiel 2012 levels 
-    levels = np.linspace(-10, 2, 7)             # number of levels = 0.5 x (max-min) + 1
+    levels = np.linspace(-7, 2, 11)                  # Birnstiel 2012 levels 
+    # levels = np.linspace(-10, 2, 7)             # number of levels = [0.5 x (max-min) x n] + 1
     print("Plotting dust size contour maps....")
 
     for i, o in enumerate(outputs):
         ax0 = fig0.add_subplot(plotsizey, plotsizex, i+1)
         sigmas = sigma_dust_1D[i]
+        # con = ax0.contourf(R, A, np.log10(sigmas), cmap="plasma", levels=levels)
         con = ax0.contourf(R, A, np.log10(sigmas), cmap="Greys", levels=levels)
         ax0.set_ylim(np.min(a), np.max(a))
+        ax0.set_xlim(6, 140)
         ax0.set_xscale("log")
         ax0.set_yscale("log")
         ax0.plot(radii, a_St1[i], c='black', alpha=0.7, label="St=1")
         ax0.plot(radii, a_drift[i], c='deepskyblue', alpha=0.7, label="$a_{{drift}}$")
         ax0.plot(radii, a_frag[i], c='red', alpha=0.7, label="$a_{{frag}}$")
+        # ax0.plot(radii, a_St1[i], c='white', alpha=1, label="St=1")
+        # ax0.plot(radii, a_drift[i], c='deepskyblue', alpha=1, label="$a_{{drift}}$")
+        # ax0.plot(radii, a_frag[i], c='lightgreen', alpha=1, label="$a_{{frag}}$")
         if planets:
             for rp in rps[:,i]:
                 ax0.axvline(rp, linestyle='dashed', color='black')
@@ -39,7 +47,7 @@ def plot_dust_contours():
         if i < plotsizex and len(outputs) > plotsizex:
             ax0.set_xticks([])
         else:
-            ax0.set_xlabel("R (AU)")
+            ax0.set_xlabel("Radius (AU)")
         
         if not p_orbits:
             ax0.set_title(f"{round(timesteps[i],3)} Myr")
@@ -52,7 +60,7 @@ def plot_dust_contours():
     # cbar_ax = fig0.add_axes([0.91, 0.53, 0.02, 0.4])
     cax = fig0.add_axes([ax0.get_position().x1+0.01,ax0.get_position().y0,0.02,ax0.get_position().height])
     fig0.colorbar(con, cax=cax, orientation="vertical", label="log$[\Sigma (g/cm^{{2}})]$")
-    ax0.legend(loc="upper right")
+    # ax0.legend(loc="upper left")
     fig0.savefig(f"{plots_savedir}/{sim}_contour.png")
 
 # ======================= Dust-Gas Ratio =========================
@@ -79,7 +87,7 @@ def plot_dustgasratio():
 
     ax.legend()
     ax.set_xlim(np.min(radii), np.max(radii))
-    ax.set_xlabel("R (AU)")
+    ax.set_xlabel("Radius (AU)")
     ax.set_ylabel("dust-gas ratio")
     ax.set_xscale("log")
     ax.set_yscale("log")
@@ -107,7 +115,7 @@ def plot_gas_sigma():
             for rp in rps[:,i]:
                 ax.axvline(rp, linestyle='dashed', color=color)
 
-    ax.set_xlabel("R (AU)")
+    ax.set_xlabel("Radius (AU)")
     ax.set_ylabel("$\Sigma_{gas} (g/cm^{2})$")
     ax.set_xscale("log")
     ax.set_yscale("log")
@@ -169,11 +177,11 @@ def plot_dust_sigma():
     ax["A"].set_ylabel("$\Sigma_{dust} (g/cm^{2})$")
     ax["D"].set_ylabel("$\Sigma_{dust} (g/cm^{2})$")
     ax["F"].set_ylabel("$\Sigma_{dust} (g/cm^{2})$")
-    ax["A"].set_xlabel("R (AU)")
-    ax["B"].set_xlabel("R (AU)")
-    ax["C"].set_xlabel("R (AU)")
-    ax["F"].set_xlabel("R (AU)")
-    ax["G"].set_xlabel("R (AU)")
+    ax["A"].set_xlabel("Radius (AU)")
+    ax["B"].set_xlabel("Radius (AU)")
+    ax["C"].set_xlabel("Radius (AU)")
+    ax["F"].set_xlabel("Radius (AU)")
+    ax["G"].set_xlabel("Radius (AU)")
     # ax["D"].set_xticks([])
     # ax["E"].set_xticks([])
     ax["G"].legend()
@@ -533,6 +541,96 @@ def plot_ecc():
     fig_hist.savefig(f"{plots_savedir}/{sim}_ecchist.png")
 
 
+def plot_2D_sigma():
+    print("Plotting 2D surface density....")
+    # Axes for gas and dust sigma
+    fig_2d, ax_2d = plt.subplots(figsize=(7,len(outputs)*4), nrows=len(outputs), ncols=2, sharex=True, sharey=True)
+
+    for oi, o in enumerate(outputs):
+        ax_g = ax_2d[oi, 0]
+        ax_d = ax_2d[oi, 1]
+
+        R, PHI = np.meshgrid(radii,phis)
+        x = R*np.cos(PHI)
+        y = R*np.sin(PHI)
+
+        con_g = ax_g.pcolormesh(x, y, np.log10(sigma_gas[oi].T), cmap="afmhot", shading="auto", vmin=-3.3, vmax=1.3)
+        # ax_g.set_aspect("equal")
+        ax_g.set_xlim(-80,80)
+        ax_g.set_ylim(-80,80)
+        # if o == outputs[-1]:
+        #     ax_g.set_xlabel("x (AU)")
+        #     ax_d.set_xlabel("x (AU)")
+        # ax_g.set_ylabel("y (AU)")
+
+        sbg = AnchoredSizeBar(ax_g.transData,
+                50, '50 AU', 'lower center', 
+                pad=0.3,
+                color='white',
+                frameon=False,
+                size_vertical=1)
+        sbd = AnchoredSizeBar(ax_d.transData,
+                50, '50 AU', 'lower center', 
+                pad=0.3,
+                color='white',
+                frameon=False,
+                size_vertical=1,)
+
+        ax_g.add_artist(sbg)
+        ax_g.set_xticks([])
+        ax_g.set_yticks([])
+        ax_d.add_artist(sbd)
+        ax_d.set_xticks([])
+        ax_d.set_yticks([])
+
+
+        sigma_dust_tot = np.sum(sigma_dust[oi], axis=0)
+        con_d = ax_d.pcolormesh(x, y, np.log10(sigma_dust_tot.T), cmap="afmhot", shading="auto", vmin=-2.3, vmax=-0.3)
+        # ax_d.set_aspect("equal")
+        ax_d.set_xlim(-80,80)
+        ax_d.set_ylim(-80,80)
+
+        ax_d.text(0.93, 0.93, f'{round(timesteps[oi],2)} Myr',
+                horizontalalignment='right',
+                verticalalignment='top',
+                transform=ax_d.transAxes,
+                color="white",
+                fontsize="large")
+        
+        # Plot planet locations 
+        # if planets:
+        #     planetmass = re.search(r"Mp(\d+)_", sims[model_num]).group(1)    # get planet mass from file path
+        #     ax_g.scatter([xp], [yp], color='g', marker='.')
+        #     ax_d.scatter([xp], [yp], color='g', marker='.')
+
+        # fig_2d.tight_layout()
+
+
+        if o == outputs[-1]:
+            fig_2d.subplots_adjust(bottom=0.15, hspace=0.3)
+            for i in [0,1]:
+                bottom_ax = [ax_g, ax_d][i]
+                # bottom_ax.set_xlabel("x (AU)")
+                left_edge = bottom_ax.get_position().x0
+                right_edge = bottom_ax.get_position().x1
+                bottom_edge = bottom_ax.get_position().y0
+                width = right_edge - left_edge
+
+                cax = fig_2d.add_axes([left_edge, bottom_edge - 0.05, width, 0.02])
+                con = [con_g, con_d][i]
+                label = ["gas", "dust"][i]
+                # formatter = LogFormatter(10, labelOnlyBase=False) 
+                fig_2d.colorbar(con, cax=cax, orientation="horizontal", label=f"log$[\Sigma_{{{label}}}\ (g/cm^2)]$")
+                # ax[0,0].legend(loc="lower left")
+
+    plt.subplots_adjust(wspace=0.1, hspace=0.1)
+
+
+    # fig_2d.tight_layout()
+    fig_2d.savefig(f"{plots_savedir}/{sim}_2dsigma.png")
+
+
+
 # ==========================================================
 
 if __name__ == "__main__":
@@ -540,7 +638,7 @@ if __name__ == "__main__":
 
     parser.add_argument('-wd', metavar='wd', type=str, nargs=1, default=["/home/astro/phrkvg/simulations"],help="working directory containing simulations")
     parser.add_argument('-sim', metavar='sim', type=str, nargs=1, default=["planettest"] ,help="simulation directory containing output files")
-    parser.add_argument('-savedir', metavar='savedir', type=str, nargs=1, default="./images" ,help="directory to save plots to")
+    parser.add_argument('-savedir', metavar='savedir', type=str, nargs=1, default="./images/single_models/" ,help="directory to save plots to")
     parser.add_argument('-o', metavar='outputs',default=[], type=int, nargs="*" ,help="outputs to plot")
     parser.add_argument('-plots', metavar='plots',default=["gsig", "dcon", "dsig"], type=str, nargs="*" ,help="plots to produce")
     parser.add_argument('-noplanet', action="store_false")
@@ -573,7 +671,7 @@ if __name__ == "__main__":
     params_file = f'{simdir}/variables.par'
     params_dict = {}
 
-    plotsizex = 3
+    plotsizex = 5
     plotsizey = int(len(outputs)/plotsizex)+1
 
     # Load model params into dict
@@ -692,8 +790,8 @@ if __name__ == "__main__":
         hr = hr0*(radii**f)                                   # aspect ratio
         b = (uf**2)*radii/(4*(np.pi**2)*alpha*(hr**2))
 
-        cs = hr*(((2e30)*(6.67e-11))/(radii*1.5e11))**0.5     # [m/s]
-        p = (sigma_gas_1D*(cs**2)/((2*np.pi)**0.5))*(hr**-1)*((radii*1.5e11)**-1)
+        cs = hr*2*np.pi/(radii**0.5)
+        p = (sigma_gas_1D*(cs**2)/((2*np.pi)**0.5))*(hr**-1)*(radii**-1)
         pad = np.empty((len(timesteps), 1))*np.nan
         gamma = (radii/p)*np.abs(np.append(np.diff(p)/np.diff(radii), pad, axis=1))
         C = 2/(np.pi*hr)
@@ -735,6 +833,8 @@ if __name__ == "__main__":
             plot_dust_mass_per_bin()
         if "dsig" in plots:
             plot_dust_sigma()
+        if "2dsig" in plots:
+            plot_2D_sigma()
 
     if plot_window:
         plt.show()
