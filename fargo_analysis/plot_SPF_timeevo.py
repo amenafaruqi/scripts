@@ -10,7 +10,7 @@ import warnings
 warnings.filterwarnings("ignore")
 
 
-def calculate_ring_mass(radii, dust_mass, rps, times):
+def calculate_inner_ring_mass(radii, dust_mass, rps, times):
     # Set labels and indexes to populate arrays
     if "stat" in sim:
         if len(rps[0,:]) == 1:
@@ -52,7 +52,46 @@ def calculate_ring_mass(radii, dust_mass, rps, times):
         for n, size_decade in enumerate(size_decades):
             ring_mass_by_size = np.sum(dust_mass_ring_t[size_decade])      # sum over all grain sizes within size decade to get single value
             ring_masses[ti,rowi, coli, n] = ring_mass_by_size    # ring mass per size decade (for 1 model and timestep)
+    # print(ring_masses) 
+    return ring_masses
 
+
+def calculate_outer_ring_mass(radii, dust_mass, rps, times):
+    # Set labels and indexes to populate arrays
+    if "stat" in sim:
+        if len(rps[0,:]) == 1:
+            rowi = 0
+            coli = 0
+        else:
+            rowi = 1
+            coli = 0
+    else:
+        if len(rps[0,:]) == 1:
+            rowi = 0
+            coli = 1
+        else:
+            rowi = 1
+            coli = 1
+
+    n_size_decades = int(np.log10(maxgsize) - np.log10(mingsize))
+    size_decades = np.split(np.arange(ndust), n_size_decades)
+
+    # dust_mass has dimensions of n_outputs x ndust x nrad
+    ring_masses = np.zeros((len(times),2,2,n_size_decades))  # timesteps x 2 x 2 x 7 size decades
+    # print(re.findall(r"Mp(\d+)", sim))
+    planetmass = 50          # Take outer planet mass only
+    for ti, t in enumerate(times):
+        r_hill = rps[ti,0]*((planetmass*1e-6)**(1/3))
+
+        # Find radial cells closest to 2 and 20 R_Hill
+        i_inner = min(range(len(radii)), key=lambda i: abs(radii[i]-((1.07*rps[ti,1])+r_hill*2)))
+        i_outer = min(range(len(radii)), key=lambda i: abs(radii[i]-((1.07*rps[ti,1])+r_hill*20)))
+        dust_mass_ring_t = np.sum(dust_mass[ti,:,i_inner:i_outer], axis=1)       # dimensions = (ndust)
+
+        # Sum within each size decade to go from 70 to 7 ring masses
+        for n, size_decade in enumerate(size_decades):
+            ring_mass_by_size = np.sum(dust_mass_ring_t[size_decade])      # sum over all grain sizes within size decade to get single value
+            ring_masses[ti,rowi, coli, n] = ring_mass_by_size    # ring mass per size decade (for 1 model and timestep)
 
     # print(ring_masses) 
     return ring_masses
@@ -254,7 +293,7 @@ if __name__ == "__main__":
         dust_mass_tot = np.sum(dust_mass, axis=1)                            # summed over all sizes
 
         if "rmass" in plots:
-            ring_masses = calculate_ring_mass(radii, dust_mass, rps, t)       # assume only 1 planet here
+            ring_masses = calculate_outer_ring_mass(radii, dust_mass, rps, t)       # assume only 1 planet here
             plot_ring_mass(fig_m, ax_m, ring_masses, t)
 
 
@@ -262,7 +301,7 @@ if __name__ == "__main__":
     print(f"-------------------\nPlotting comparison plots for {sims}\n=============")
 
     if "rmass" in plots:
-        fig_m.savefig(f"{plots_savedir}/SPF_ring_masses.png")
+        fig_m.savefig(f"{plots_savedir}/SPF_tevo_ring_masses.png")
 
 
     if plot_window:
