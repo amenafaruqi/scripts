@@ -1,6 +1,7 @@
 import numpy as np
 import matplotlib.pyplot as plt
-import matplotlib
+import matplotlib as mpl
+from matplotlib.colors import SymLogNorm
 import argparse
 import re
 
@@ -168,7 +169,7 @@ def plot_dust_contours(fig, ax, radii, a, sigma_dust_1D):
     ax0 = ax[rowi,coli]
 
     sigmas = sigma_dust_1D
-    con = ax0.contourf(R, A, np.log10(sigmas), cmap="Greys", levels=levels)
+    con = ax0.contourf(R, A, np.log10(sigmas), cmap="magma", levels=levels)
     ax0.set_ylim(np.min(a), np.max(a))
     ax0.set_xscale("log")
     ax0.set_yscale("log")
@@ -177,14 +178,17 @@ def plot_dust_contours(fig, ax, radii, a, sigma_dust_1D):
     if rowi == 1:
         ax0.set_xlabel("Radius (AU)")
 
-    ax0.plot(radii, a_St1, c='black', alpha=0.7, label="St=1")
-    ax0.plot(radii, a_drift, c='deepskyblue', alpha=0.7, label="$a_{{drift}}$")
-    ax0.plot(radii, a_frag, c='red', alpha=0.7, label="$a_{{frag}}$")
+    ax0.set_facecolor("k")
+    ax0.plot(radii, a_St1, c='white', alpha=0.9, label="St=1", linewidth=1.5)
+    ax0.plot(radii, a_drift, c='limegreen', alpha=0.9, label="$a_{{drift}}$", linewidth=1.5)
+    ax0.plot(radii, a_frag, c='deepskyblue', alpha=0.9, label="$a_{{frag}}$", linewidth=1.5)
+    ax0.grid(which="major", color="lightgrey", linewidth=0.5)
 
     for rp in rps:
-        ax0.axvline(rp, linestyle='dashed', color='black')
+        ax0.axvline(rp, linestyle='dashed', color='white')
 
     ax0.set_title(label)
+    fig.suptitle(f"t={round(t,3)}Myr")
     fig.tight_layout()
 
     if (rowi, coli) == (1,1):
@@ -274,10 +278,7 @@ def plot_2D_sigma(fig, ax, radii, sigma_gas, sigma_dust):
             fig.colorbar(con, cax=cax, orientation="horizontal", label=f"log$[\Sigma_{{{label}}}\ (g/cm^2)]$")
 
 
-def calculate_ring_mass(radii, dust_mass, rp):
-    # Identify ring region, sum dust mass in region (keep ndusts separate), sum by mass and store
-    # 2 and 20 Rhill unless outer planet bounds this
-
+def calculate_ring_mass(radii, dust_mass, rps):
     # Set labels and indexes to populate arrays
     if "stat" in sim:
         if len(rps) == 1:
@@ -298,8 +299,8 @@ def calculate_ring_mass(radii, dust_mass, rp):
     r_hill = rps[0]*((planetmass*1e-6)**(1/3))
 
     # Find radial cells closest to 2 and 20 R_Hill
-    i_inner = min(range(len(radii)), key=lambda i: abs(radii[i]-((1.07*rp)+r_hill*2)))
-    i_outer = min(range(len(radii)), key=lambda i: abs(radii[i]-((1.07*rp)+r_hill*20)))
+    i_inner = min(range(len(radii)), key=lambda i: abs(radii[i]-((1.07*rps[0])+r_hill*2)))
+    i_outer = min(range(len(radii)), key=lambda i: abs(radii[i]-((1.07*rps[0])+r_hill*20)))
 
     if rowi:     # i.e. if 2-planet model, bound by outer planet location
         rp_p2 = rps[1]      # Outer planet location
@@ -308,7 +309,9 @@ def calculate_ring_mass(radii, dust_mass, rp):
         i_outer = np.min([i_outer, i_p2])
 
     # Dust mass in ring, broken down by dust bin
+    print(sim)
     print(radii[i_inner], radii[i_outer])
+    # print(dust_mass.shape)
     dust_mass_ring = np.sum(dust_mass[:,i_inner:i_outer], axis=1)       # dimensions = ndust = 70
 
     n_size_decades = int(np.log10(maxgsize) - np.log10(mingsize))   # assumes min and max g size are the same for both models!
@@ -317,23 +320,155 @@ def calculate_ring_mass(radii, dust_mass, rp):
     for n, size_decade in enumerate(size_decades):
         ring_mass_by_size = np.sum(dust_mass_ring[size_decade])
         ring_masses[rowi, coli, n] = ring_mass_by_size
+
+    # print(ring_masses) 
+    return ring_masses
+
+
+def plot_ring_mass(fig, ax, ring_masses):
+    # Set labels and indexes to populate arrays
+    if "stat" in sim:
+        if len(rps) == 1:
+            label = "S1"
+            rowi = 0
+            coli = 0
+        else:
+            label = "S2"
+            rowi = 1
+            coli = 0
+    else:
+        if len(rps) == 1:
+            label = "M1"
+            rowi = 0
+            coli = 1
+        else:
+            label = "M2"
+            rowi = 1
+            coli = 1
+
+    size_labels = ["$10^{-5}-10^{-4}$ cm", "$10^{-4}-10^{-3}$ cm", "$10^{-3}-10^{-2}$ cm", "$10^{-2}-10^{-1}$ cm", "$10^{-1}$-1 cm", "1-10 cm", "10-100 cm"]
+    ring_masses_sim = ring_masses[rowi, coli]    # dimensions = 7
+
+    bottom=0
+
+    total_mass = np.sum(ring_masses_sim)
+
+    for i, rmass in enumerate(ring_masses_sim):
+        if sim == sims[-1]:        
+            p = ax.bar(label, rmass, 0.4, bottom=bottom, color=colour_cycler[i], label=size_labels[i])
+        else:
+            p = ax.bar(label, rmass, 0.4, bottom=bottom, color=colour_cycler[i])
+
+        # --- Compute percentage ---
+        if total_mass > 0:
+            percent = (rmass / total_mass) * 100
+        else:
+            percent = 0
+
+        # --- Add text in the middle of each segment ---
+        y_pos = bottom + rmass / 2
+
+        # Only label if the segment is large enough to see
+        if percent > 4:
+            ax.text(label, y_pos, f"{percent:.1f}%",
+                    ha='center', va='center', fontsize=8, color='white')
+
+        bottom += rmass
     
-    print(ring_masses)
+    # for i, rmass in enumerate(ring_masses_sim):
+    #     if sim == sims[-1]:        
+    #         p = ax.bar(label, rmass, 0.4, bottom=bottom, color=colour_cycler[i], label=size_labels[i])
+    #     else:
+    #         p = ax.bar(label, rmass, 0.4, bottom=bottom, color=colour_cycler[i])
+    #     bottom += rmass
+
+    if sim == sims[-1]:        
+        cmap = mpl.cm.viridis_r
+        bounds = np.arange(-5,3)
+        norm = mpl.colors.BoundaryNorm(bounds, cmap.N)
+        box = ax.get_position()
+        # ax.set_position([box.x0, box.y0, box.width, box.height*0.9])
+        print(box)
+        cbar_ax = fig.add_axes([box.x0, 0.83, box.width, box.height*0.05])
+
+        cbar = fig.colorbar(mpl.cm.ScalarMappable(norm=norm, cmap=cmap),
+                    cax=cbar_ax, orientation='horizontal',
+                    label="Dust size (cm)", ticklocation="top")
+        cbar.set_ticklabels(["$10^{-5}$", "$10^{-4}$", "$10^{-3}$", "$10^{-2}$", "$10^{-1}$", "$10^{0}$", "$10^{1}$", "$10^{2}$"])
+
+    ax.set_ylabel("Ring dust mass ($M_\oplus$)")
+    ax.set_xlabel("Model")
+
+    # box = ax.get_position()
+    # ax.set_position([box.x0, box.y0, box.width, box.height*0.96])
+    # ax.legend(loc="upper center", ncol=3, bbox_to_anchor=(0.1, 0.83, 0.8, 0.5))
+
+    # fig.tight_layout()
 
 
-# def plot_ring_mass(fig, ax, mps, ring_masses):
-#     print(mps[::2], ring_masses)
-#     ax.scatter(mps[::2], ring_masses[0], color="k")
-#     ax.plot(mps[::2], ring_masses[0], color="k", label="Stationary")
-#     ax.scatter(mps[::2], ring_masses[1], color="royalblue")
-#     ax.plot(mps[::2], ring_masses[1], color="royalblue", label="Migrating")
 
-#     ax.set_xlabel("Planet mass ($M_\oplus$)")
-#     ax.set_ylabel("Ring mass ($M_\oplus$)")
-#     ax.legend()
+def plot_Macc(fig, ax, radii, a, sigma_dust_1D, v_dust):
+    print("Plotting dust accretion rates....")
+
+    # Set labels and subplots
+    if "stat" in sim:
+        coli = 0
+        if len(rps) == 1:
+            label = "S1"
+            rowi = 0
+        else:
+            label = "S2"
+            rowi = 1
+    else:
+        coli = 1
+        if len(rps) == 1:
+            label = "M1"
+            rowi = 0
+        else:
+            label = "M2"
+            rowi = 1
     
-#     fig.tight_layout()
+    ax0 = ax[rowi,coli]
 
+    R, A = np.meshgrid(radii, a)
+    levels = np.linspace(-18, -10, 9)    
+    # Azimuthally average radial velocities of all dust:              
+    v_rad_avg = np.mean(v_dust[:,1,:,:], axis=2)     # Dimensions: ndust x nrad
+    
+    Macc = -2*np.pi*R*sigma_dust_1D*v_rad_avg*(1.125e-7)
+    # Macc = v_rad_avg
+    # print("Macc = \n", Macc)
+    print("--------------------------")
+    print(np.min(Macc), np.max(Macc))
+    normed = SymLogNorm(linthresh=1e-13, linscale=0.0001, vmin=np.min(Macc)*0.7, vmax=np.max(Macc)*0.7)
+    # normed = SymLogNorm(linthresh=1e-4, linscale=0.1, vmin=np.min(Macc)*0.8, vmax=np.max(Macc)*0.8)
+
+    con = ax0.contourf(R, A, Macc, levels=10, norm=normed, cmap='coolwarm')
+    ax0.plot(radii, a_St1, c='white', alpha=0.9, label="St=1", linewidth=1)
+
+    # con = ax0.contourf(R, A, np.log10(Macc), cmap="Blues")
+    ax0.set_ylim(np.min(a), 80)
+    ax0.set_xlim(5, 140)
+    ax0.set_xscale("log")
+    ax0.set_yscale("log")
+    if coli == 0:
+        ax0.set_ylabel("a (cm)")
+    if rowi == 1:
+        ax0.set_xlabel("Radius (AU)")
+
+    for rp in rps:
+        ax0.axvline(rp, linestyle='dashed', color='black')
+
+    ax0.set_title(label)
+    fig.tight_layout()
+
+    if (rowi, coli) == (1,1):
+        fig.subplots_adjust(bottom=0.1, hspace=0.1)
+        cbar_ax = fig.add_axes([0.075, 0.07, 0.89, 0.03])
+        fig.colorbar(con, cax=cbar_ax, orientation="horizontal", label="$\dot{M}$")
+        # fig.colorbar(con, cax=cbar_ax, orientation="horizontal", label="$v_{rad}$")
+        fig.tight_layout(rect=[0, 0.1, 0.98, 1])
+        # ax0.legend()
 
 
 # =================================================================
@@ -350,8 +485,7 @@ if __name__ == "__main__":
     parser.add_argument('-style', metavar='style', type=str, nargs="*", default=["publication"], help="style sheet to apply to plots")
 
     args = parser.parse_args()
-    o = args.o[-1]                    # Plot single timestep plots at last timestep given
-    tevo_o = args.o                   # List of timesteps for time evo plots 
+    o = args.o[-1]                    # Last timestep given
     plots = args.plots
     wd = args.wd[0]
     sims = args.sims
@@ -359,11 +493,11 @@ if __name__ == "__main__":
     plots_savedir = args.savedir
     style = args.style
 
-    cm = plt.get_cmap('viridis')
+    cm = plt.get_cmap('viridis_r')
     colour_cycler = cm(np.linspace(0, 1, 7))       # For plotting different mass decades
 
     if plot_window:
-        matplotlib.use('TkAgg')
+        mpl.use('TkAgg')
     else:
         for s in style:
             plt.style.use([f"../styles/{s}.mplstyle"])
@@ -380,7 +514,9 @@ if __name__ == "__main__":
     if "2dsig" in plots:   # only specify for grog models
         fig_2d, ax_2d = plt.subplots(figsize=(7,14), nrows=4, ncols=2, sharex=True, sharey=True)
     if "rmass" in plots:
-        fig_m, ax_m = plt.subplots(figsize=(6,4))
+        fig_m, ax_m = plt.subplots(figsize=(6,5))
+    if "macc" in plots:
+        fig_acc, ax_acc = plt.subplots(figsize=(8,8), nrows=2, ncols=2, sharex=True, sharey=True)
 
     # ================== Read in data at timesteps =======================
 
@@ -456,7 +592,7 @@ if __name__ == "__main__":
             
         phis = np.array([(phi_cells[n]+phi_cells[n+1])/2 for n in range(len(phi_cells)-1)])
 
-        # Get gas and dust sigma
+        # ====== Get gas and dust sigma from output files ======
         sigma_gas = np.zeros((nrad, nphi))
         gas_mass = np.zeros((nrad))
         sigma_dust = np.zeros((ndust, nrad, nphi))
@@ -468,17 +604,32 @@ if __name__ == "__main__":
         for n in np.arange(ndust):
             dust_file = f"/dustdens{n}_{output}.dat"
             sigma_dust[n] = np.fromfile(wd+sim+dust_file).reshape(nrad,nphi)/(1.125e-7)
-
         sigma_dust_azimsum = np.sum(sigma_dust, axis=2)                  # sum over all phi 
         sigma_gas_azimsum = np.sum(sigma_gas, axis=1)                    # sum over all phi   
 
         sigma_gas_1D = sigma_gas_azimsum/nphi                           # dimensions: (nrad) 
         sigma_dust_1D = sigma_dust_azimsum/nphi                         # dimensions: (ndust, nrad)  
 
-        # dust mass for dust of size a as a function of r
-        dust_mass = [2*np.pi*radii*sigma_dust_1D*delta_r*333030*(1.125e-7) for n in range(ndust)]
+        # Compute dust mass for dust of size a as a function of r
+        dust_mass = 2*np.pi*radii*sigma_dust_1D*delta_r*333030*(1.125e-7)
         gas_mass = 2*np.pi*radii*sigma_gas_1D*delta_r*333030*(1.125e-7)      # convert from Msun to Mearth
         dust_mass_tot = np.sum(dust_mass, axis=0)                            # summed over all sizes
+
+        # ===== Get velocity data, if needed =====
+        if "macc" in plots:
+            v_dust = np.zeros((ndust, 2, nrad, nphi))                  # additional dimension of 2 for x and y velocity
+            # v_gas = np.zeros((len(outputs), 2, nrad, nphi))           # additional dimension of 2 for x and y velocity
+            for n in np.arange(ndust):
+                dust_file_x = f"/dustvx{n}_{output}.dat"
+                dust_file_y = f"/dustvy{n}_{output}.dat"
+                # gas_file_x = f"gasvx{int(t)}.dat"
+                # gas_file_y = f"gasvy{int(t)}.dat"
+                v_dust[n,0] = np.fromfile(wd+sim+dust_file_x).reshape(nrad,nphi)   # vx (azimuthal v)
+                v_dust[n,1] = np.fromfile(wd+sim+dust_file_y).reshape(nrad,nphi)   # vy (radial v)
+                # v_gas[i,0] = np.fromfile(simdir+gas_file_x).reshape(nrad,nphi)       # vx
+                # v_gas[i,1] = np.fromfile(simdir+gas_file_y).reshape(nrad,nphi)       # vy
+
+        # =========================================================================
 
         uf = 0.0021                                           # fragmentation velocity 10 m/s in AU/yr
         hr = hr0*(radii**f)                                   # aspect ratio
@@ -508,12 +659,10 @@ if __name__ == "__main__":
         if "2dsig" in plots:
             plot_2D_sigma(fig_2d, ax_2d, radii, sigma_gas, sigma_dust)
         if "rmass" in plots:
-            calculate_ring_mass(radii, dust_mass_tot, rps[0])       # assume only 1 planet here
-
-    # ================ Plot ring masses, if selected ===================
-    # if "rmass" in plots:
-    #     plot_ring_mass(fig_m, ax_m, mps, ring_masses)
-    #     fig_m.savefig(f"{plots_savedir}/ring_masses.png")
+            ring_masses = calculate_ring_mass(radii, dust_mass, rps)       # assume only 1 planet here
+            plot_ring_mass(fig_m, ax_m, ring_masses)
+        if "macc" in plots:
+            plot_Macc(fig_acc, ax_acc, radii, a, sigma_dust_1D, v_dust)
 
 
     # ======================== Generate Plots ==========================
@@ -526,11 +675,14 @@ if __name__ == "__main__":
     if "growth" in plots:
         fig_growth.savefig(f"{plots_savedir}/SPF_growth.png")
     if "dcon" in plots:
-        fig_con.savefig(f"{plots_savedir}/SPF_contours.png")
+        fig_con.savefig(f"{plots_savedir}/SPF_contours_{o}.png")
     if "2dsig" in plots:
         fig_2d.savefig(f"{plots_savedir}/SPF_2Dsigma.png")
     if "rmass" in plots:
-        pass
+        fig_m.savefig(f"{plots_savedir}/SPF_ring_masses.png")
+    if "macc" in plots:
+        fig_acc.savefig(f"{plots_savedir}/SPF_Macc.png")
+
 
     if plot_window:
         plt.show()
