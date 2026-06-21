@@ -4,6 +4,8 @@ import matplotlib as mpl
 from matplotlib.colors import SymLogNorm
 import argparse
 import re
+from matplotlib.ticker import ScalarFormatter
+from matplotlib.ticker import NullFormatter
 
 plt.style.use('default')
 
@@ -168,6 +170,24 @@ def plot_dust_contours(fig, ax, radii, a, sigma_dust_1D):
     
     ax0 = ax[rowi,coli]
 
+    # For testing ---------->
+    # planetmass = int(re.findall(r"Mp(\d+)_", sim)[0])          # Take inner planet mass only
+    # r_hill = rps[0]*((planetmass*1e-6)**(1/3))
+
+    # # Find radial cells closest to 2 and 20 R_Hill
+    # i_inner = min(range(len(radii)), key=lambda i: abs(radii[i]-((1.07*rps[0])+r_hill*2)))
+    # i_outer = min(range(len(radii)), key=lambda i: abs(radii[i]-((1.07*rps[0])+r_hill*20)))
+
+    # if rowi:     # i.e. if 2-planet model, bound by outer planet location
+    #     rp_p2 = rps[1]      # Outer planet location
+    #     i_p2 = min(range(len(radii)), key=lambda i: abs(radii[i]-((rp_p2))))
+    #     # Use outer planet location as outer bound if it lies within 20 R_Hill (of inner planet)
+    #     i_outer = np.min([i_outer, i_p2])
+
+    # ax0.axvline(radii[i_inner], linestyle='dashed', color='red')
+    # ax0.axvline(radii[i_outer], linestyle='dashed', color='red')
+    # <------------
+
     sigmas = sigma_dust_1D
     con = ax0.contourf(R, A, np.log10(sigmas), cmap="magma", levels=levels)
     ax0.set_ylim(np.min(a), np.max(a))
@@ -188,7 +208,7 @@ def plot_dust_contours(fig, ax, radii, a, sigma_dust_1D):
         ax0.axvline(rp, linestyle='dashed', color='white')
 
     ax0.set_title(label)
-    fig.suptitle(f"t={round(t,3)}Myr")
+    # fig.suptitle(f"t={round(t,3)}Myr")
     fig.tight_layout()
 
     if (rowi, coli) == (1,1):
@@ -320,6 +340,38 @@ def calculate_ring_mass(radii, dust_mass, rps):
     for n, size_decade in enumerate(size_decades):
         ring_mass_by_size = np.sum(dust_mass_ring[size_decade])
         ring_masses[rowi, coli, n] = ring_mass_by_size
+
+    # print(ring_masses) 
+    return ring_masses
+
+def calculate_outer_ring_mass(radii, dust_mass, rps, times):
+    # Set labels and indexes to populate arrays
+    if "stat" in sim:
+        rowi = 2
+        coli = 0
+    else:
+        rowi = 2
+        coli = 1
+
+    n_size_decades = int(np.log10(maxgsize) - np.log10(mingsize))
+    size_decades = np.split(np.arange(ndust), n_size_decades)
+
+    # dust_mass has dimensions of n_outputs x ndust x nrad
+    ring_masses = np.zeros((len(times),3,2,n_size_decades))  # timesteps x 2 x 2 x 7 size decades
+    # print(re.findall(r"Mp(\d+)", sim))
+    planetmass = 50          # Take outer planet mass only
+    for ti, t in enumerate(times):
+        r_hill = rps[ti,1]*((planetmass*1e-6)**(1/3))
+
+        # Find radial cells closest to 2 and 20 R_Hill
+        i_inner = min(range(len(radii)), key=lambda i: abs(radii[i]-((1.07*rps[ti,1])+r_hill*2)))
+        i_outer = min(range(len(radii)), key=lambda i: abs(radii[i]-((1.07*rps[ti,1])+r_hill*20)))
+        dust_mass_ring_t = np.sum(dust_mass[ti,:,i_inner:i_outer], axis=1)       # dimensions = (ndust)
+        print(radii[i_inner], radii[i_outer])
+        # Sum within each size decade to go from 70 to 7 ring masses
+        for n, size_decade in enumerate(size_decades):
+            ring_mass_by_size = np.sum(dust_mass_ring_t[size_decade])      # sum over all grain sizes within size decade to get single value
+            ring_masses[ti,rowi, coli, n] = ring_mass_by_size    # ring mass per size decade (for 1 model and timestep)
 
     # print(ring_masses) 
     return ring_masses
@@ -471,6 +523,79 @@ def plot_Macc(fig, ax, radii, a, sigma_dust_1D, v_dust):
         # ax0.legend()
 
 
+def plot_SI_thresholds(fig, ax, radii, a, sigma_gas_1D, sigma_dust_1D):
+    R, A = np.meshgrid(radii, a)
+    levels = np.linspace(0, 1, 5)
+    print("Plotting Z/Z_crit maps....")
+
+    # Set labels and subplots
+    if "stat" in sim:
+        coli = 0
+        if len(rps) == 1:
+            label = "S1"
+            rowi = 0
+        else:
+            label = "S2"
+            rowi = 1
+    else:
+        coli = 1
+        if len(rps) == 1:
+            label = "M1"
+            rowi = 0
+        else:
+            label = "M2"
+            rowi = 1
+    
+    ax0 = ax[rowi,coli]
+
+    Z = sigma_dust_1D/sigma_gas_1D     # 70x635/635 = 70x635
+    St = np.pi*rhodust*A/(sigma_gas_1D*2)    #70x635/635
+    Omega_k = radii**(-3/2)            # Keplerian frequency 
+    tau_s = St/Omega_k                 # Stopping time
+    Z_crit = 10**((0.1*((np.log10(tau_s))**2)) + (0.07*np.log10(tau_s)) - 2.36)          # Eq. 15 from Lim et al. 2025a
+    # Z_crit = 0.15*(np.log10(alpha)**2) - 0.24*np.log10(St)*np.log10(alpha) - 1.48*np.log10(St) + 1.18*np.log10(alpha)   # from Lim et al. 2026
+    Z0 = Z/np.abs(Z_crit)
+
+    con = ax0.contourf(R, A, Z0, cmap="GnBu", levels=levels, extend="max")
+    # con2 = ax0.contour(R, A, np.log10(sigmas), linewidths=2, linestyles="dotted", levels=[-2])
+    # ax0.set_facecolor("k")
+    ax0.set_ylim(1e-4, 10)
+    ax0.set_xscale("log")
+    ax0.set_yscale("log")
+    ax0.set_xlim(6, 100)
+    ax0.set_xticks([10, 40, 70, 100])
+
+
+    if coli == 0:
+        ax0.set_ylabel("a (cm)")
+        ax0.set_xlim(25, 120)
+        ax0.set_xticks([30, 60, 90, 120])
+    if rowi == 1:
+        ax0.set_xlabel("Radius (AU)")
+
+    ax0.xaxis.set_minor_formatter(NullFormatter())
+    ax0.xaxis.set_major_formatter(ScalarFormatter())
+    ax0.ticklabel_format(style='plain', axis='x')
+
+    for rp in rps:
+        ax0.axvline(rp, linestyle='dashed', color='black')
+
+    ax0.set_title(label)
+    fig.tight_layout()
+
+    if (rowi, coli) == (1,1):
+        fig.subplots_adjust(bottom=0.3, hspace=0.3)
+        cbar_ax = fig.add_axes([0.075, 0.17, 0.91, 0.03])
+        fig.colorbar(con, cax=cbar_ax, orientation="horizontal", label="Z/Z$_{crit}$", extend="max")
+
+        # fig.subplots_adjust(bottom=0.2, hspace=0.05)
+        # cbar_ax = fig.add_axes([0.071, 0.05, 0.902, 0.02])
+        # # cax = fig.add_subplot(ax[5, :])
+        # fig.colorbar(con, cax=cbar_ax, orientation="horizontal", label="Z/Z$_{crit}$", extend="max")
+        # fig.tight_layout(rect=[0, 0.07, 1, 1])
+
+
+
 # =================================================================
 
 if __name__ == "__main__":
@@ -510,13 +635,16 @@ if __name__ == "__main__":
     if "growth" in plots:   # only specify for grog models
         fig_growth, ax_growth = plt.subplots(figsize=(7,7), nrows=2, ncols=2, sharex=True, sharey=True)
     if "dcon" in plots:   # only specify for grog models
-        fig_con, ax_con = plt.subplots(figsize=(8,8), nrows=2, ncols=2, sharex=True, sharey=True)
+        fig_con, ax_con = plt.subplots(figsize=(10,10), nrows=2, ncols=2, sharex=True, sharey=True)
     if "2dsig" in plots:   # only specify for grog models
         fig_2d, ax_2d = plt.subplots(figsize=(7,14), nrows=4, ncols=2, sharex=True, sharey=True)
     if "rmass" in plots:
         fig_m, ax_m = plt.subplots(figsize=(6,5))
     if "macc" in plots:
         fig_acc, ax_acc = plt.subplots(figsize=(8,8), nrows=2, ncols=2, sharex=True, sharey=True)
+    if "si" in plots:   # only specify for grog models
+        fig_si, ax_si = plt.subplots(figsize=(10,10), nrows=2, ncols=2, sharey=True)
+
 
     # ================== Read in data at timesteps =======================
 
@@ -663,6 +791,8 @@ if __name__ == "__main__":
             plot_ring_mass(fig_m, ax_m, ring_masses)
         if "macc" in plots:
             plot_Macc(fig_acc, ax_acc, radii, a, sigma_dust_1D, v_dust)
+        if "si" in plots:
+            plot_SI_thresholds(fig_si, ax_si, radii, a, sigma_gas_1D, sigma_dust_1D)
 
 
     # ======================== Generate Plots ==========================
@@ -675,13 +805,15 @@ if __name__ == "__main__":
     if "growth" in plots:
         fig_growth.savefig(f"{plots_savedir}/SPF_growth.png")
     if "dcon" in plots:
-        fig_con.savefig(f"{plots_savedir}/SPF_contours_{o}.png")
+        fig_con.savefig(f"{plots_savedir}/SPF_contours.png")
     if "2dsig" in plots:
         fig_2d.savefig(f"{plots_savedir}/SPF_2Dsigma.png")
     if "rmass" in plots:
         fig_m.savefig(f"{plots_savedir}/SPF_ring_masses.png")
     if "macc" in plots:
         fig_acc.savefig(f"{plots_savedir}/SPF_Macc.png")
+    if "si" in plots:
+        fig_si.savefig(f"{plots_savedir}/SPF_SI_thresholds.png")
 
 
     if plot_window:
