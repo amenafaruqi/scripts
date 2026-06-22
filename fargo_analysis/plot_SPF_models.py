@@ -171,21 +171,32 @@ def plot_dust_contours(fig, ax, radii, a, sigma_dust_1D):
     ax0 = ax[rowi,coli]
 
     # For testing ---------->
-    # planetmass = int(re.findall(r"Mp(\d+)_", sim)[0])          # Take inner planet mass only
-    # r_hill = rps[0]*((planetmass*1e-6)**(1/3))
+    # planetmass0 = int(re.findall(r"(?<=Mp)\d+", sim)[0])          # Take inner planet mass only
+    # r_hill0 = rps[0]*((planetmass0*1e-6)**(1/3))
 
     # # Find radial cells closest to 2 and 20 R_Hill
-    # i_inner = min(range(len(radii)), key=lambda i: abs(radii[i]-((1.07*rps[0])+r_hill*2)))
-    # i_outer = min(range(len(radii)), key=lambda i: abs(radii[i]-((1.07*rps[0])+r_hill*20)))
+    # i_inner0 = min(range(len(radii)), key=lambda i: abs(radii[i]-((1.07*rps[0])+r_hill0*2)))
+    # i_outer0 = min(range(len(radii)), key=lambda i: abs(radii[i]-((1.07*rps[0])+r_hill0*20)))
 
     # if rowi:     # i.e. if 2-planet model, bound by outer planet location
     #     rp_p2 = rps[1]      # Outer planet location
     #     i_p2 = min(range(len(radii)), key=lambda i: abs(radii[i]-((rp_p2))))
     #     # Use outer planet location as outer bound if it lies within 20 R_Hill (of inner planet)
-    #     i_outer = np.min([i_outer, i_p2])
+    #     i_outer0 = np.min([i_outer0, i_p2])
 
-    # ax0.axvline(radii[i_inner], linestyle='dashed', color='red')
-    # ax0.axvline(radii[i_outer], linestyle='dashed', color='red')
+    #     # Mark ring edges for outer ring too
+    #     planetmass1 = int(re.findall(r"(?<=Mp)\d+", sim)[1])          # Take inner planet mass only
+    #     r_hill1 = rps[1]*((planetmass1*1e-6)**(1/3))
+
+    #     # Find radial cells closest to 2 and 20 R_Hill
+    #     i_inner1 = min(range(len(radii)), key=lambda i: abs(radii[i]-((1.07*rps[1])+r_hill1*2)))
+    #     i_outer1 = min(range(len(radii)), key=lambda i: abs(radii[i]-((1.07*rps[1])+r_hill1*15)))
+
+    #     ax0.axvline(radii[i_inner1], linestyle='dashed', color='red')
+    #     ax0.axvline(radii[i_outer1], linestyle='dashed', color='red')
+
+    # ax0.axvline(radii[i_inner0], linestyle='dashed', color='red')
+    # ax0.axvline(radii[i_outer0], linestyle='dashed', color='red')
     # <------------
 
     sigmas = sigma_dust_1D
@@ -205,7 +216,7 @@ def plot_dust_contours(fig, ax, radii, a, sigma_dust_1D):
     ax0.grid(which="major", color="lightgrey", linewidth=0.5)
 
     for rp in rps:
-        ax0.axvline(rp, linestyle='dashed', color='white')
+        ax0.axvline(rp, linestyle='dashed', color='white', linewidth=1.5)
 
     ax0.set_title(label)
     # fig.suptitle(f"t={round(t,3)}Myr")
@@ -329,8 +340,8 @@ def calculate_ring_mass(radii, dust_mass, rps):
         i_outer = np.min([i_outer, i_p2])
 
     # Dust mass in ring, broken down by dust bin
-    print(sim)
-    print(radii[i_inner], radii[i_outer])
+    # print(sim)
+    # print(radii[i_inner], radii[i_outer])
     # print(dust_mass.shape)
     dust_mass_ring = np.sum(dust_mass[:,i_inner:i_outer], axis=1)       # dimensions = ndust = 70
 
@@ -344,7 +355,7 @@ def calculate_ring_mass(radii, dust_mass, rps):
     # print(ring_masses) 
     return ring_masses
 
-def calculate_outer_ring_mass(radii, dust_mass, rps, times):
+def calculate_outer_ring_mass(radii, dust_mass, rps):
     # Set labels and indexes to populate arrays
     if "stat" in sim:
         rowi = 2
@@ -357,46 +368,51 @@ def calculate_outer_ring_mass(radii, dust_mass, rps, times):
     size_decades = np.split(np.arange(ndust), n_size_decades)
 
     # dust_mass has dimensions of n_outputs x ndust x nrad
-    ring_masses = np.zeros((len(times),3,2,n_size_decades))  # timesteps x 2 x 2 x 7 size decades
     # print(re.findall(r"Mp(\d+)", sim))
     planetmass = 50          # Take outer planet mass only
-    for ti, t in enumerate(times):
-        r_hill = rps[ti,1]*((planetmass*1e-6)**(1/3))
+    r_hill = rps[1]*((planetmass*1e-6)**(1/3))
 
-        # Find radial cells closest to 2 and 20 R_Hill
-        i_inner = min(range(len(radii)), key=lambda i: abs(radii[i]-((1.07*rps[ti,1])+r_hill*2)))
-        i_outer = min(range(len(radii)), key=lambda i: abs(radii[i]-((1.07*rps[ti,1])+r_hill*20)))
-        dust_mass_ring_t = np.sum(dust_mass[ti,:,i_inner:i_outer], axis=1)       # dimensions = (ndust)
-        print(radii[i_inner], radii[i_outer])
-        # Sum within each size decade to go from 70 to 7 ring masses
-        for n, size_decade in enumerate(size_decades):
-            ring_mass_by_size = np.sum(dust_mass_ring_t[size_decade])      # sum over all grain sizes within size decade to get single value
-            ring_masses[ti,rowi, coli, n] = ring_mass_by_size    # ring mass per size decade (for 1 model and timestep)
+    # Find radial cells closest to 2 and 20 R_Hill
+    i_inner = min(range(len(radii)), key=lambda i: abs(radii[i]-((1.07*rps[1])+r_hill*2)))
+    i_outer = min(range(len(radii)), key=lambda i: abs(radii[i]-((1.07*rps[1])+r_hill*15)))
+    dust_mass_ring = np.sum(dust_mass[:,i_inner:i_outer], axis=1)       # dimensions = (ndust)
+
+    # Sum within each size decade to go from 70 to 7 ring masses
+    for n, size_decade in enumerate(size_decades):
+        ring_mass_by_size = np.sum(dust_mass_ring[size_decade])      # sum over all grain sizes within size decade to get single value
+        ring_masses[rowi, coli, n] = ring_mass_by_size    # ring mass per size decade (for 1 model and timestep)
 
     # print(ring_masses) 
     return ring_masses
 
 
-def plot_ring_mass(fig, ax, ring_masses):
+def plot_ring_mass(fig, ax, ring_masses, outer=False):
     # Set labels and indexes to populate arrays
     if "stat" in sim:
+        coli = 0
         if len(rps) == 1:
             label = "S1"
             rowi = 0
-            coli = 0
         else:
-            label = "S2"
-            rowi = 1
-            coli = 0
+            if not outer:
+                label = "S2 \n (inner ring)"
+                rowi = 1
+            else:
+                label = "S2 \n (outer ring)"
+                rowi = 2
     else:
+        coli = 1
         if len(rps) == 1:
             label = "M1"
             rowi = 0
-            coli = 1
         else:
-            label = "M2"
-            rowi = 1
-            coli = 1
+            if not outer:
+                rowi = 1
+                label = "M2 \n (inner ring)"
+            else:
+                rowi = 2
+                label = "M2 \n (outer ring)"
+
 
     size_labels = ["$10^{-5}-10^{-4}$ cm", "$10^{-4}-10^{-3}$ cm", "$10^{-3}-10^{-2}$ cm", "$10^{-2}-10^{-1}$ cm", "$10^{-1}$-1 cm", "1-10 cm", "10-100 cm"]
     ring_masses_sim = ring_masses[rowi, coli]    # dimensions = 7
@@ -405,11 +421,12 @@ def plot_ring_mass(fig, ax, ring_masses):
 
     total_mass = np.sum(ring_masses_sim)
 
+    # TODO: Check outer ring bounds!!! 
     for i, rmass in enumerate(ring_masses_sim):
         if sim == sims[-1]:        
-            p = ax.bar(label, rmass, 0.4, bottom=bottom, color=colour_cycler[i], label=size_labels[i])
+            p = ax.bar(label, rmass, 0.5, bottom=bottom, color=colour_cycler[i], label=size_labels[i])
         else:
-            p = ax.bar(label, rmass, 0.4, bottom=bottom, color=colour_cycler[i])
+            p = ax.bar(label, rmass, 0.5, bottom=bottom, color=colour_cycler[i])
 
         # --- Compute percentage ---
         if total_mass > 0:
@@ -421,9 +438,9 @@ def plot_ring_mass(fig, ax, ring_masses):
         y_pos = bottom + rmass / 2
 
         # Only label if the segment is large enough to see
-        if percent > 4:
+        if percent > 4.5:
             ax.text(label, y_pos, f"{percent:.1f}%",
-                    ha='center', va='center', fontsize=8, color='white')
+                    ha='center', va='center', fontsize=7, color='white')
 
         bottom += rmass
     
@@ -441,7 +458,7 @@ def plot_ring_mass(fig, ax, ring_masses):
         box = ax.get_position()
         # ax.set_position([box.x0, box.y0, box.width, box.height*0.9])
         print(box)
-        cbar_ax = fig.add_axes([box.x0, 0.83, box.width, box.height*0.05])
+        cbar_ax = fig.add_axes([box.x0, 0.89, box.width, box.height*0.05])
 
         cbar = fig.colorbar(mpl.cm.ScalarMappable(norm=norm, cmap=cmap),
                     cax=cbar_ax, orientation='horizontal',
@@ -450,7 +467,6 @@ def plot_ring_mass(fig, ax, ring_masses):
 
     ax.set_ylabel("Ring dust mass ($M_\oplus$)")
     ax.set_xlabel("Model")
-
     # box = ax.get_position()
     # ax.set_position([box.x0, box.y0, box.width, box.height*0.96])
     # ax.legend(loc="upper center", ncol=3, bbox_to_anchor=(0.1, 0.83, 0.8, 0.5))
@@ -639,7 +655,7 @@ if __name__ == "__main__":
     if "2dsig" in plots:   # only specify for grog models
         fig_2d, ax_2d = plt.subplots(figsize=(7,14), nrows=4, ncols=2, sharex=True, sharey=True)
     if "rmass" in plots:
-        fig_m, ax_m = plt.subplots(figsize=(6,5))
+        fig_m, ax_m = plt.subplots(figsize=(9,6))
     if "macc" in plots:
         fig_acc, ax_acc = plt.subplots(figsize=(8,8), nrows=2, ncols=2, sharex=True, sharey=True)
     if "si" in plots:   # only specify for grog models
@@ -649,7 +665,7 @@ if __name__ == "__main__":
     # ================== Read in data at timesteps =======================
 
     # Array to store ring masses
-    ring_masses = np.zeros((2,2,7))           # 4 models x 7 size decades
+    ring_masses = np.zeros((3,2,7))           # 4 models x 7 size decades
     mps = []
 
     for s, sim in enumerate(sims):
@@ -658,7 +674,8 @@ if __name__ == "__main__":
         params_dict = {}
         output = o
 
-        planet_masses = re.findall(r"Mp(\d+)_", sim)    # Planet masses, stored as strings in list
+        planet_masses = re.findall(r"(?<=Mp)\d+", sim)    # Planet masses, stored as strings in list
+        print(planet_masses)
 
         # Load model params into dict
         param_lines = open(params_file).readlines()
@@ -787,8 +804,11 @@ if __name__ == "__main__":
         if "2dsig" in plots:
             plot_2D_sigma(fig_2d, ax_2d, radii, sigma_gas, sigma_dust)
         if "rmass" in plots:
-            ring_masses = calculate_ring_mass(radii, dust_mass, rps)       # assume only 1 planet here
+            ring_masses = calculate_ring_mass(radii, dust_mass, rps)       
             plot_ring_mass(fig_m, ax_m, ring_masses)
+            if len(planet_masses) > 1:
+                ring_masses = calculate_outer_ring_mass(radii, dust_mass, rps)      
+                plot_ring_mass(fig_m, ax_m, ring_masses, outer=True)
         if "macc" in plots:
             plot_Macc(fig_acc, ax_acc, radii, a, sigma_dust_1D, v_dust)
         if "si" in plots:
