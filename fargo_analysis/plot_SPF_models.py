@@ -17,38 +17,129 @@ warnings.filterwarnings("ignore")
 def overlay_gas_sigmas(fig, ax, radii, sigma_gas_1D):
     print("Plotting gas surface density....")
     if "stat" in sim:
-        colour = "k"
+        ax0 = ax[0]
         if len(rps) == 1:
             label = "S1"
-            ls = "solid"
+            colour = "k"
         else:
             label = "S2"
-            ls = "dashdot"
+            colour = "r"
     else:
-        colour = "royalblue"
+        ax0 = ax[1]
         if len(rps) == 1:
             label = "M1"
-            ls = "solid"
+            colour = "k"
         else:
             label = "M2"
-            ls = "dashdot"
+            colour = "r"
 
     # planet_masses = re.findall(r"Mp(\d+)_", sim)    # get planet masses from file path
     # if len(planet_masses) == 2:
     #     planet1_mass = planet_masses[1]             # outer planet mass, if present
     # planet0_mass = planet_masses[0]                 # inner planet mass, assume always present
 
-    ax.plot(radii, sigma_gas_1D, color=colour, label=label, linestyle=ls)
+    ax0.plot(radii, sigma_gas_1D, color=colour, label=label)
     for rp in rps:
-        ax.axvline(rp, linestyle='dashed', color=colour)
+        ax0.axvline(rp, linestyle='dashed', color=colour)
         
-    ax.set_xlabel("Radius (AU)")
-    ax.set_ylabel("$\Sigma_{gas} (g/cm^{2})$")
-    ax.set_xscale("log")
-    ax.set_yscale("log")
-    ax.set_xlim(np.min(radii), np.max(radii))
-    ax.legend()
+    ax[1].set_xlabel("Radius (AU)")
+    ax0.set_ylabel("$\Sigma_{gas} (g/cm^{2})$")
+    ax0.set_xscale("log")
+    ax0.set_yscale("log")
+    ax0.set_xlim(np.min(radii), np.max(radii))
+    ax0.legend()
     fig.tight_layout()
+
+
+# ====================== Dust Sigma ========================
+def overlay_dust_sigmas(fig, ax, radii, sigma_dust_1D):
+    print("Plotting dust surface density....")
+    # colours = ["red", "green", "blue"]
+    titles = ["$< 10^{-3}$ cm", "$10^{-3} - 10^{-1}$ cm", "> $10^{-1}$ cm"]
+    if "stat" in sim:
+        coli = 0
+        if len(rps) == 1:
+            label = "S1"
+            colour = "k"
+        else:
+            label = "S2"
+            colour = "r"
+    else:
+        coli = 1
+        if len(rps) == 1:
+            label = "M1"
+            colour = "k"
+        else:
+            label = "M2"
+            colour = "r"
+
+    sigma_dust_size0 = np.sum(sigma_dust_1D[0:20], axis=0)
+    sigma_dust_size1 = np.sum(sigma_dust_1D[20:40], axis=0)
+    sigma_dust_size2 = np.sum(sigma_dust_1D[40:70], axis=0)
+
+    sigma_dusts = [sigma_dust_size0, sigma_dust_size1, sigma_dust_size2]
+
+    for rowi in np.arange(3):
+        ax[rowi, coli].plot(radii, sigma_dusts[rowi], color=colour, linestyle="dotted")
+        ax[rowi, coli].set_xscale("log")
+        ax[rowi, coli].set_yscale("log")
+        if coli == 0:
+            ax[rowi,coli].set_ylabel("$\Sigma_{dust} (g/cm^{2})$")
+            if label ==  "S2":
+                ax[rowi,coli].text(
+                    0.94, 0.94, 
+                    s=titles[rowi], 
+                    transform=ax[rowi,coli].transAxes,
+                    ha="right",
+                    va="top",
+                    fontsize="large", 
+                    backgroundcolor="lightgrey",
+                    )
+
+
+        for rp in rps:
+            ax[rowi,coli].axvline(rp, linestyle='dashed', color=colour)
+    
+        if len(rps)==2:
+            ax[rowi,coli].set_xlim(rps[0]-3, rps[1]+45)
+
+        # Plot ring boundaries
+        planetmass0 = int(re.findall(r"(?<=Mp)\d+", sim)[0])
+        r_hill0 = rps[0]*((planetmass0*1e-6)**(1/3))
+
+        # Find radial cells closest to 2 and 20 R_Hill
+        i_inner0 = min(range(len(radii)), key=lambda i: abs(radii[i]-((1.07*rps[0])+r_hill0*1)))
+        i_outer0 = min(range(len(radii)), key=lambda i: abs(radii[i]-((1.07*rps[0])+r_hill0*20)))
+
+        if len(rps) == 2:     # i.e. if 2-planet model, bound by outer planet location
+            rp_p2 = rps[1]      # Outer planet location
+            i_p2 = min(range(len(radii)), key=lambda i: abs(radii[i]-((rp_p2))))
+            # Use outer planet location as outer bound if it lies within 20 R_Hill (of inner planet)
+            i_outer0 = np.min([i_outer0, i_p2])
+
+            # Mark ring edges for outer ring too
+            planetmass1 = int(re.findall(r"(?<=Mp)\d+", sim)[1])          # Take inner planet mass only
+            r_hill1 = rps[1]*((planetmass1*1e-6)**(1/3))
+
+            # Find radial cells closest to 2 and 20 R_Hill
+            i_inner1 = min(range(len(radii)), key=lambda i: abs(radii[i]-((1.07*rps[1])+r_hill1*1)))
+            i_outer1 = min(range(len(radii)), key=lambda i: abs(radii[i]-((1.07*rps[1])+r_hill1*12)))
+        
+            # Plot thick line to indicate ring on plot
+            ax[rowi,coli].plot(radii[i_inner1:i_outer1], sigma_dusts[rowi][i_inner1:i_outer1], color=colour, linewidth=2.5)
+            
+        ax[rowi,coli].plot(radii[i_inner0:i_outer0], sigma_dusts[rowi][i_inner0:i_outer0], color=colour, linewidth=2.5, label=label)
+
+
+    if rowi == 2:    
+        ax[rowi,coli].set_xlabel("Radius (AU)")
+
+    ax[2,0].legend()
+    ax[2,1].legend()
+    ax[2,0].set_ylim(7e-17,100)
+
+    fig.tight_layout()
+
 
 
 # ================= Plot dust-gas ratios =====================
@@ -541,7 +632,7 @@ def plot_Macc(fig, ax, radii, a, sigma_dust_1D, v_dust):
 
 def plot_SI_thresholds(fig, ax, radii, a, sigma_gas_1D, sigma_dust_1D):
     R, A = np.meshgrid(radii, a)
-    levels = np.linspace(0, 1, 5)
+    levels = np.linspace(0, 1, 9)
     print("Plotting Z/Z_crit maps....")
 
     # Set labels and subplots
@@ -645,7 +736,9 @@ if __name__ == "__main__":
 
     # =================== Define figures and axes ========================
     if "gsig" in plots:
-        fig_gas_sigma, ax_gas_sigma = plt.subplots(figsize=(6,4))
+        fig_gas_sigma, ax_gas_sigma = plt.subplots(nrows=2, ncols=1, figsize=(6,9))
+    if "dsig" in plots:
+        fig_dust_sigma, ax_dust_sigma = plt.subplots(nrows=3, ncols=2, figsize=(9,10))
     if "dgr" in plots:
         fig_dgr, ax_dgr = plt.subplots(figsize=(6,4))
     if "growth" in plots:   # only specify for grog models
@@ -795,6 +888,8 @@ if __name__ == "__main__":
 
         if "gsig" in plots:
             overlay_gas_sigmas(fig_gas_sigma, ax_gas_sigma, radii, sigma_gas_1D)
+        if "dsig" in plots:
+            overlay_dust_sigmas(fig_dust_sigma, ax_dust_sigma, radii, sigma_dust_1D)
         if "dgr" in plots:
             overlay_dust_gas_ratio(fig_dgr, ax_dgr, radii, dust_mass_tot, gas_mass)
         if "growth" in plots:
@@ -820,6 +915,8 @@ if __name__ == "__main__":
 
     if "gsig" in plots:
         fig_gas_sigma.savefig(f"{plots_savedir}/SPF_sigmagas.png")
+    if "dsig" in plots:
+        fig_dust_sigma.savefig(f"{plots_savedir}/SPF_sigmadust.png")
     if "dgr" in plots:
         fig_dgr.savefig(f"{plots_savedir}/SPF_dgr.png")
     if "growth" in plots:
