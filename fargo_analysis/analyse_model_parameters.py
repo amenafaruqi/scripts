@@ -11,6 +11,7 @@ warnings.filterwarnings("ignore")
 
 def calc_t_migration(mass, radius):
         hr = hr0*(radius**f)
+        alpha=1e-3
         R_h = radius*((mass*1e-6)**(1/3))
         p_crida_Rp = 0.75*(hr*radius)/R_h + 50*alpha*(hr**2)/(mass*3e-6)   # Crida parameter for R=Rp
 
@@ -30,7 +31,7 @@ def calc_t_migration(mass, radius):
             B = mass*3e-6/(np.pi*Sigmap*(radius**2))
             tau = ((radius**2)*(1+B)/nu)*1e-6
             migreg = "Type II"
-        print(mass, radius, tau, migreg)
+        # print(mass, radius, tau, migreg)
         return tau
 
 
@@ -43,22 +44,24 @@ def calc_t_growth(a,r):
 def plot_Mp_regimes():
     print("Plotting mass regimes....")
 
-    mps = np.array([10, 20, 40, 100, 160]) 
-    fig0,ax0 = plt.subplots(figsize=(12,8))
+    mps = np.array([10, 20, 40, 100, 160, 40, 50]) 
+    rps0 = np.array([40, 40, 40,  40,  40, 80, 80]) 
+    fig0,ax0 = plt.subplots(figsize=(8,6))
     m_range = np.linspace(0,200,50)
     r_range = np.linspace(0,200,201)
+    alpha=1e-3
 
     # Plot pebble isolation criterion (eq. 26 from Bitsch+2018)
     hr1d = hr0*(r_range**f)
     dlogPdlogR = f - sigmaslope - 2     # taken from eq. 9 from Bitsch et al. 2018, accounting for their s being -ve. 
     f_fit = ((hr1d/0.05)**3)*(0.34*(np.log10(0.001)/np.log10(alpha))**4 + 0.66)*(1-((dlogPdlogR+2.5)/6))
-    alpha_St = 0.01
+    alpha_St = 0.001
     M_iso = 25*f_fit
     Pi_crit = alpha_St/2
     Lambda = 0.00476/f_fit
     M_iso += Pi_crit/Lambda                  # PIM considering diffusion
-    ax0.fill_between(r_range, M_iso, 200, color='yellow', alpha=0.55)
-    ax0.fill_between(r_range, M_iso, 0, color='orangered', alpha=0.73)
+    ax0.fill_between(r_range, M_iso, 200, color='yellow', alpha=0.5)
+    ax0.fill_between(r_range, M_iso, 0, color='orangered', alpha=0.7)
     
     # Plot PIM for different alpha/St values
     alpha_St = np.array([0.001, 0.1])
@@ -78,13 +81,13 @@ def plot_Mp_regimes():
     ax0.contourf(Rs, Ms, p_crida, levels=[0,1], cmap="summer")
 
     # Plot alternative gap-opening criterion from Lin & Papaloizou 1993
-    Mp_lp = 3*333030*((r_range**f)*hr0)**3
-    ax0.plot(r_range, Mp_lp, color="darkgreen")
-    ax0.fill_between(r_range, Mp_lp,200,color="none", hatch="X",edgecolor="darkgreen")
+    # Mp_lp = 3*333030*((r_range**f)*hr0)**3
+    # ax0.plot(r_range, Mp_lp, color="darkgreen")
+    # ax0.fill_between(r_range, Mp_lp,200,color="none", hatch="X",edgecolor="darkgreen")
 
     # Plot planet migration tracks
     Rp0 = 40     # remove this afterwards, for testing only
-    dt = 0.1     # timestep to recalculate planet's location
+    dt = 0.01     # timestep to recalculate planet's location
 
     # Plot radius where dust drift velocity = planet migration velocity
     St = 0.01                            # pebble Stokes number
@@ -98,39 +101,40 @@ def plot_Mp_regimes():
 
     M_drift_mig = (gamma*St/(2*A))*((hr0*(r_range**f))**4)*dlogPdlogR/(Sigmap*(r_range**2))
     M_drift_mig = np.abs(M_drift_mig)/3e-6    # convert to Earth masses
-    ax0.plot(r_range,  M_drift_mig, c='mediumblue', label=f"$v_{{drift}}=v_{{mig}}$ for St={St}")
+    ax0.plot(r_range,  M_drift_mig, c='k', label=f"$v_{{drift}}=v_{{mig}}$ for St={St}", linestyle="dotted")
     ax0.legend(facecolor='white', framealpha=0.9)
 
     # Calculate location of inner damping zone
     Rid = (2*(rmin**-1.5)/3)**(-2/3)
 
     # Calculate migration timescale for each planet mass
-    for mp in mps:
-        tau = calc_t_migration(mp, Rp0)     # migration timescale at starting position of planet
-        Rp_t = Rp0
+    for mi, mp in enumerate(mps):
+        tau = calc_t_migration(mp, rps0[mi])     # migration timescale at starting position of planet
+        Rp_t = rps0[mi]
         R_21 = (2**(-2/3))*Rp_t             # location  of  2:1 resonance
         t = 0
-        while R_21 > Rid and t < 0.5:
+        while R_21 > Rid and t < 0.3:
             t += dt
             Rp_new = Rp_t*np.exp(-dt/tau)
             if Rp_new > rmin:
                 Rp_t = Rp_new
             R_21 = (2**(-2/3))*Rp_t              # location  of  2:1 resonance
             tau = calc_t_migration(mp, Rp_t)
-        ax0.scatter(Rp_t, mp, marker='<', color='k')   # mark final location of planet
+        if Rp0 - Rp_t > 0.1:
+            ax0.scatter(Rp_t, mp, marker='<', color='k')   # mark final location of planet
 
         # Plot migration tracks of planet
-        ax0.hlines(y=mp, xmin=Rp_t, xmax=Rp0, linewidth=2, color='k', linestyle='--')
+        ax0.hlines(y=mp, xmin=Rp_t, xmax=rps0[mi], linewidth=2, color='k', linestyle='--')
         # Plot planet's initial location
-        ax0.scatter(Rp0, mp, marker='o', color='k')
+        ax0.scatter(rps0[mi], mp, marker='o', color='k')
     
     # Plot boundary of inner damping zone
-    ax0.vlines(x=Rid, ymin=0, ymax = 200, linewidth=2, color='crimson', linestyle=':')
-
-    ax0.set_xlim(1,70)
+    # ax0.vlines(x=Rid, ymin=0, ymax = 200, linewidth=2, color='crimson', linestyle=':')
+    # ax0.fill_betweenx(np.arange(0,200), 0, Rid,color="none", hatch="X",edgecolor="crimson")
+    ax0.set_xlim(1,100)
     ax0.set_ylim(0,190)
-    ax0.set_xlabel("$R_{{p}}$ (AU)")
-    ax0.set_ylabel("$M_{{p}} (M_\oplus)$")
+    ax0.set_xlabel("Planet location (AU)")
+    ax0.set_ylabel("Planet mass $(M_\oplus)$")
     fig0.tight_layout()
     fig0.savefig(f"{plots_savedir}/Mp_regimes.png", dpi=200)
 
@@ -322,7 +326,7 @@ def plot_tgrowth():  #as function of R and a
     print("Plotting growth timescale....")
 
     fig,ax = plt.subplots(figsize=(11,6))
-    levels = np.linspace(-6, 6, 13)                   
+    levels = np.linspace(-3, 21, 7)                   
 
     R,A = np.meshgrid(radii,a)
     hr = hr0*(radii**0.25)
@@ -337,7 +341,7 @@ def plot_tgrowth():  #as function of R and a
 
     fig3,ax3 = plt.subplots(figsize=(10,6))
     # levels = np.linspace(-4, 16, 11)                   
-    con = ax3.contourf(R,A, np.log10(tau_growth), cmap="YlGnBu")
+    con = ax3.contourf(R,A, np.log10(tau_growth), cmap="YlGnBu", levels=levels)
     
     ax3.set_xscale("log")
     ax3.set_yscale("log")
@@ -385,8 +389,8 @@ def growth_vs_migration():
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description='Analytic calculations based on model inputs (not outputs)', prefix_chars='-')
 
-    parser.add_argument('-wd', metavar='wd', type=str, nargs=1, default=["/home/astro/phrkvg/simulations/lowres_models"],help="working directory containing simulations")
-    parser.add_argument('-sim', metavar='sim', type=str, nargs=1, default=["Mp60_stat"] ,help="simulation directory containing output files")
+    parser.add_argument('-wd', metavar='wd', type=str, nargs=1, default=["/home/astro/phrkvg/simulations/highres_models/"],help="working directory containing simulations")
+    parser.add_argument('-sim', metavar='sim', type=str, nargs=1, default=["Mp40_stat"] ,help="simulation directory containing output files")
     parser.add_argument('-savedir', metavar='savedir', type=str, nargs=1, default="./images/analytics" ,help="directory to save plots to")
     parser.add_argument('-plot_window', action="store_true")
     parser.add_argument('-plots', metavar='plots',default=["mpreg"], type=str, nargs="*" ,help="plots to produce")
