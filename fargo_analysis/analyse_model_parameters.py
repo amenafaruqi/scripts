@@ -44,7 +44,7 @@ def calc_t_growth(a,r):
 def plot_Mp_regimes():
     print("Plotting mass regimes....")
 
-    mps = np.array([10, 20, 40, 100, 160, 40, 50]) 
+    mps = np.array([10, 20, 40, 100, 160, 50, 45]) 
     rps0 = np.array([40, 40, 40,  40,  40, 80, 80]) 
     fig0,ax0 = plt.subplots(figsize=(8,6))
     m_range = np.linspace(0,200,50)
@@ -64,14 +64,14 @@ def plot_Mp_regimes():
     ax0.fill_between(r_range, M_iso, 0, color='orangered', alpha=0.7)
     
     # Plot PIM for different alpha/St values
-    alpha_St = np.array([0.001, 0.1])
-    clrs = ["dotted", "dashdot"]
-    for ai,a in enumerate(alpha_St):
-        M_iso = 25*f_fit
-        Pi_crit = a/2
-        Lambda = 0.00476/f_fit
-        M_iso += Pi_crit/Lambda                  # PIM considering diffusion
-        ax0.plot(r_range, M_iso, linestyle=clrs[ai], label=f"St = {0.001/a}", color="dodgerblue")
+    # alpha_St = np.array([0.001, 0.1])
+    # clrs = ["dotted", "dashdot"]
+    # for ai,a in enumerate(alpha_St):
+    #     M_iso = 25*f_fit
+    #     Pi_crit = a/2
+    #     Lambda = 0.00476/f_fit
+    #     M_iso += Pi_crit/Lambda                  # PIM considering diffusion
+    #     ax0.plot(r_range, M_iso, linestyle=clrs[ai], label=f"St = {0.001/a}", color="dodgerblue")
 
     # Plot gap-opening criterion region (Crida et al. 2006)
     Ms, Rs = np.meshgrid(m_range, r_range)
@@ -102,7 +102,7 @@ def plot_Mp_regimes():
     M_drift_mig = (gamma*St/(2*A))*((hr0*(r_range**f))**4)*dlogPdlogR/(Sigmap*(r_range**2))
     M_drift_mig = np.abs(M_drift_mig)/3e-6    # convert to Earth masses
     ax0.plot(r_range,  M_drift_mig, c='k', label=f"$v_{{drift}}=v_{{mig}}$ for St={St}", linestyle="dotted")
-    ax0.legend(facecolor='white', framealpha=0.9)
+    # ax0.legend(facecolor='white', framealpha=0.9)
 
     # Calculate location of inner damping zone
     Rid = (2*(rmin**-1.5)/3)**(-2/3)
@@ -113,9 +113,11 @@ def plot_Mp_regimes():
         Rp_t = rps0[mi]
         R_21 = (2**(-2/3))*Rp_t             # location  of  2:1 resonance
         t = 0
-        while R_21 > Rid and t < 0.3:
+        while R_21 > Rid and t < 0.2:
             t += dt
             Rp_new = Rp_t*np.exp(-dt/tau)
+            print(Rp_new)
+
             if Rp_new > rmin:
                 Rp_t = Rp_new
             R_21 = (2**(-2/3))*Rp_t              # location  of  2:1 resonance
@@ -143,36 +145,51 @@ def plot_Mp_regimes():
 
 def plot_Miso_vs_R():
     print("Plotting isolation mass by grain size....")
-
-    fig0,ax0 = plt.subplots(figsize=(12,8))
+    fig0,ax0 = plt.subplots(figsize=(10,6))
     r_range = np.linspace(0,200,201)
+
+    cm = plt.get_cmap('viridis_r')
+    n_stokes = 1500
+    colour_cycler = cm(np.linspace(0, 1, n_stokes))       # For plotting different mass decades
+    ax0.set_prop_cycle(color=colour_cycler)
 
     # term 1
     hr1d = hr0*(r_range**f)
     dlogPdlogR = f - sigmaslope - 2     # taken from eq. 9 from Bitsch et al. 2018, accounting for their s being -ve. 
     f_fit = ((hr1d/0.05)**3)*(0.34*(np.log10(0.001)/np.log10(alpha))**4 + 0.66)*(1-((dlogPdlogR+2.5)/6))
     M_iso = 25*f_fit
-    ax0.plot(r_range, M_iso, label="$M_{iso}^{\dag}$")
+    # ax0.plot(r_range, M_iso, label="$M_{iso}^{\dag}$")
 
     # term 2, introduced in eq. 26
-    grain_sizes = np.array([0.01,0.1,1])
-    sigma_g = sigma0*(r_range**-sigmaslope)/(1.125e-7)
+    # grain_sizes = np.array([0.01,0.1,1])
+    # sigma_g = sigma0*(r_range**-sigmaslope)/(1.125e-7)
     Lambda = 0.00476/f_fit
-    for g in grain_sizes:
-        St = g*rhodust*np.pi/(2*sigma_g)
-
+    Stokes = np.logspace(-4.5,0,n_stokes)
+    print(np.min(Stokes))
+    for St in Stokes:
+        # print(St)
+        color = next(ax0._get_lines.prop_cycler)['color']
+        # St = g*rhodust*np.pi/(2*sigma_g)
         Pi_crit = alpha/(2*St)
         M_iso_newterm = Pi_crit/Lambda                  # PIM considering diffusion
-        ax0.plot(r_range, M_iso_newterm, label=f"$\Pi/\lambda$, a={g}cm")
-        c = plt.gca().lines[-1].get_color()
-        ax0.plot(r_range, M_iso+M_iso_newterm, label=f"$M_{{iso}}$, a={g}cm", linestyle="dashed", color=c, alpha=0.7)
+        # ax0.plot(r_range, M_iso_newterm, label=f"$\Pi/\lambda$, a={g}cm")
+        # c = plt.gca().lines[-1].get_color()
+        ax0.plot(r_range, M_iso+M_iso_newterm, alpha=0.7, color=color)
 
-    ax0.legend()
-    ax0.set_xlim(1,180)
-    ax0.set_ylim(0,100)
-    ax0.set_xlabel("$R_{{p}}$ (AU)")
+    norm = mpl.colors.LogNorm(vmin=10**-4, vmax=np.max(Stokes))
+    cmap = mpl.cm.ScalarMappable(norm=norm, cmap=mpl.cm.viridis_r)
+    cmap.set_array([])
+
+    fig0.colorbar(cmap, label = "Stokes number")
+
+    # ax0.legend()
+    ax0.set_xlim(1,150)
+    ax0.set_ylim(0,150)
+    ax0.set_xticks([0,30,60,90,120,150])
+    ax0.text(78,21, "No dust trapping", fontsize="x-large")
+    ax0.set_xlabel("Orbital radius (AU)")
     ax0.set_ylabel("$M_{iso} (M_\oplus)$")
-    fig0.savefig(f"{plots_savedir}/analytics/Miso.png", dpi=200)
+    fig0.savefig(f"{plots_savedir}/Miso.png", dpi=200)
 
 
 # ================ Plot mass regimes from Dipierro + 2017 ====================
@@ -381,6 +398,56 @@ def growth_vs_migration():
         ax0.plot(r_range, t_growth, label=f"a={m} cm")
 
 
+# def plot_Zcrit():
+#     print("Plotting Zcrit by R and St...")
+#     fig0,ax0 = plt.subplots(figsize=(10,6))
+#     r_range = np.linspace(0,200,201)
+#     a_range = np.logspace(-4,2, 60)
+#     print(a_range)
+#     cm = plt.get_cmap('viridis_r')
+#     R, A = np.meshgrid(r_range, a_range)
+
+#     colour_cycler = cm(np.linspace(0, 1, 10))       # For plotting different mass decades
+#     ax0.set_prop_cycle(color=colour_cycler)
+
+#     Sigma_g = (sigma0/R)/(1.125e-7)     # in g/cm^2
+
+#     ST = np.pi*A*rhodust/(2*Sigma_g)
+#     Zcrit = 10**((0.1*((np.log10(ST))**2)) + (0.07*np.log10(ST)) - 2.36)          # Eq. 15 from Lim et al. 2025a
+
+#     con = ax0.contourf(R, A, Zcrit, cmap="GnBu")
+#     # fig0.colorbar(cmap, label = "Z_crit")
+
+#     # ax0.legend()
+#     ax0.set_xlim(1,150)
+#     ax0.set_yscale("log")
+#     # ax0.set_ylim(0,150)
+#     # ax0.set_xticks([0,30,60,90,120,150])
+#     # ax0.text(78,21, "No dust trapping", fontsize="x-large")
+#     ax0.set_xlabel("Orbital radius (AU)")
+#     # ax0.set_ylabel("$M_{iso} (M_\oplus)$")
+#     fig0.savefig(f"{plots_savedir}/Zcrit.png", dpi=200)
+
+def plot_Zcrit():
+    print("Plotting Zcrit by R and St...")
+    fig0,ax0 = plt.subplots(figsize=(10,7))
+    r_range = np.linspace(0,200,201)
+    a_range = np.logspace(-4,2,7)
+ 
+    Sigma_g = (sigma0/r_range)/(1.125e-7)     # in g/cm^2
+
+    for i, a in enumerate(a_range):
+        print(a)
+        St = np.pi*a*rhodust/(2*Sigma_g)
+        Zcrit = 10**((0.1*((np.log10(St))**2)) + (0.07*np.log10(St)) - 2.36)          # Eq. 15 from Lim et al. 2025a
+        ax0.plot(r_range, Zcrit, label=f"{a} cm")
+
+    ax0.set_xlim(5,100)
+    ax0.set_ylim(0,0.8)
+    ax0.legend()
+
+    fig0.savefig(f"{plots_savedir}/Zcrit.png", dpi=200)
+   
 
 
 
@@ -493,6 +560,8 @@ if __name__ == "__main__":
         plot_Mp_regimes()
     if "miso" in plots:
         plot_Miso_vs_R()
+    if "zcrit" in plots:
+        plot_Zcrit()
 
     if plot_window:
         plt.show()
